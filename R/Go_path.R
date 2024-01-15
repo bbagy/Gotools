@@ -8,21 +8,23 @@
 #' @param table Indicator (yes/no) for creating a directory to store table files.
 #' @param path Additional specific path for creating another directory.
 #'
+#' @details
+#' The function creates a main directory for the project and, based on the input parameters, can create additional subdirectories for:
+#' - PDF files (`pdf` parameter)
+#' - Table files (`table` parameter)
+#' - Any other specified type of files or outputs (`path` parameter)
+#' It is useful for organizing different types of outputs in a structured manner within the project.
+#'
 #' @return
 #' A list of paths to the created directories, with keys corresponding to the types of outputs (pdf, table, and other specified paths).
 #'
-#' @details
-#' The function creates a main directory for the project and, based on the input parameters, can create additional subdirectories for:
-#'   - PDF files (`pdf` parameter)
-#'   - Table files (`table` parameter)
-#'   - Any other specified type of files or outputs (`path` parameter)
-#'
-#' It is useful for organizing different types of outputs in a structured manner within the project.
-#'
 #' @examples
-#' # Example usage
+#' # Example usage:
+#' dirs <- Go_path("MyProject", "yes", "no", "additional_data")
+#'
+#' @export
 
-Go_MakeDirs <- function(project, pdf, table, path) {
+Go_path <- function(project, pdf, table, path) {
   # Validate the project name
   if (is.null(project) || project == "") {
     stop("Invalid input: 'project' cannot be NULL or empty.")
