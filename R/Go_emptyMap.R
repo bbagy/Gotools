@@ -46,7 +46,7 @@ Go_emptyMap <- function(psIN, project) {
   }
 
   # Create output directory
-  map <- file.path(sprintf("%s_dada2/%s", project, "3_map"))
+  map <- file.path("3_map")
   if (!dir.exists(map)) dir.create(map, recursive = TRUE)
 
   # Initialize common variables
