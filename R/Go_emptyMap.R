@@ -46,8 +46,8 @@ Go_emptyMap <- function(psIN, project) {
   }
 
   # Create output directory
-  map <- file.path(sprintf("%s_dada2/%s",project,"3_map"))
-  if (!dir.exists(map)) dir.create(map)
+  map <- file.path(sprintf("%s_dada2/%s", project, "3_map"))
+  if (!dir.exists(map)) dir.create(map, recursive = TRUE)
 
   # Initialize common variables
   SampleID <- sample_names(psIN)
@@ -60,5 +60,3 @@ Go_emptyMap <- function(psIN, project) {
   SCRubMapColumns <- c("SampleID", "is_control", "sample_type", "sample_well")
   createAndSaveDataFrame(SCRubMapColumns, "mapping.SCRub")
 }
-
-
