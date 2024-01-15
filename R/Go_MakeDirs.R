@@ -22,7 +22,7 @@
 #' @examples
 #' # Example usage
 
-Go_path <- function(project, pdf, table, path) {
+Go_MakeDirs <- function(project, pdf, table, path) {
   # Validate the project name
   if (is.null(project) || project == "") {
     stop("Invalid input: 'project' cannot be NULL or empty.")
