@@ -22,65 +22,47 @@
 #' @examples
 #' # Example usage
 
-Go_path <- function(project, pdf, table, path){
-  # main dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out)) dir.create(out)
-  
-
-  # main pdf
-  if(is.null(pdf)){
-    print("No pdf dir.")
-  } else if (pdf == "yes" | pdf == "Yes"|pdf == "YES"){
-    out_pdf <- file.path(sprintf("%s/pdf",out)) 
-    if(!file_test("-d", out_pdf)) dir.create(out_pdf)
-    
-    print("pdf is in your working dir. Use /dir$pdf/ for save.")
+Go_path <- function(project, pdf, table, path) {
+  # Validate the project name
+  if (is.null(project) || project == "") {
+    stop("Invalid input: 'project' cannot be NULL or empty.")
   }
 
-  
-  
-  # main table
-  if(is.null(table)){
-    print("No table dir.")
-  } else if (table == "yes" | table == "Yes"|table == "YES"){
-    out_tab <- file.path(sprintf("%s/table",out)) 
-    if(!file_test("-d", out_tab)) dir.create(out_tab)
-
-    print("table is in your working dir.Use /dir$tab/ for save.")
-  }
-  
-  if(is.null(path)){
-    print("No another dir.")
-  } else if(!is.null(path)){
-    out_path <- file.path(sprintf("%s/%s",out,path)) 
-    if(!file_test("-d", out_path)) dir.create(out_path)
-    print("path is in your working dir. Use /dir$path/ for save.")
-  }
-
-
-  # 한개 이상 return 하기
-  
-  
-  functionReturningTwoValues <- function() {
-    dirs <- list()
-    if(is.null(pdf)){
-    } else if (pdf == "yes" | pdf == "Yes"|pdf == "YES"){
-      dirs$pdf <- out_pdf
+  # Helper function to create a directory
+  createDir <- function(dirPath, dirType) {
+    if (!dir.exists(dirPath)) {
+      dir.create(dirPath, recursive = TRUE)
+      cat(sprintf("%s directory created at: %s\n", dirType, dirPath))
     }
-    if(is.null(table)){
-      next
-    } else if (table == "yes" | table == "Yes"|table == "YES"){
-      dirs$tab <- out_tab
-    }
-    if(is.null(path)){
-    } else if(!is.null(path)){
-      dirs$path <- out_path
-    }
-
-    return(dirs) 
   }
 
-  functionReturningTwoValues ()
-  
+  # Main project directory
+  out <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
+  createDir(out, "Main")
+
+  # Initialize the list of directories
+  dirs <- list(main = out)
+
+  # PDF directory
+  if (!is.null(pdf) && tolower(pdf) == "yes") {
+    out_pdf <- file.path(out, "pdf")
+    createDir(out_pdf, "PDF")
+    dirs$pdf <- out_pdf
+  }
+
+  # Table directory
+  if (!is.null(table) && tolower(table) == "yes") {
+    out_tab <- file.path(out, "table")
+    createDir(out_tab, "Table")
+    dirs$tab <- out_tab
+  }
+
+  # Custom path
+  if (!is.null(path)) {
+    out_path <- file.path(out, path)
+    createDir(out_path, "Custom")
+    dirs$path <- out_path
+  }
+
+  return(dirs)
 }
