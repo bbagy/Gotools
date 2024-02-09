@@ -52,31 +52,31 @@
 #' @export
 
 Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
-                        simple = FALSE,  
-                        mycols=NULL, 
+                        simple = FALSE,
+                        mycols=NULL,
                         relative = T,
                         y_axis=NULL,
-                        x_label=NULL, 
-                        facet=NULL, 
-                        legend="bottom", 
-                        cutoff=0.005, 
-                        name=NULL, 
-                        ncol=NULL, 
+                        x_label=NULL,
+                        facet=NULL,
+                        legend="bottom",
+                        cutoff=0.005,
+                        name=NULL,
+                        ncol=NULL,
                         height, width){
-    
+
   if(!is.null(dev.list())) dev.off()
-  
-  
+
+
   taxRanks <- taxanames
-  
+
   # out dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
+  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
-  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d"))) 
+  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_path)) dir.create(out_path)
-  out_tab <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d"))) 
+  out_tab <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_tab)) dir.create(out_tab)
-  out_taxa <- file.path(sprintf("%s_%s/table/taxa",project, format(Sys.Date(), "%y%m%d"))) 
+  out_taxa <- file.path(sprintf("%s_%s/table/taxa",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_taxa)) dir.create(out_taxa)
 
 if(!is.null(x_label)){
@@ -92,7 +92,7 @@ if(!is.null(x_label)){
   if (class(name) == "function"){
     name <- NULL
   }
-  
+
   tt <- try(mycols,T)
   if(class(tt) == "try-error"){
     print("mycols is not defined.")
@@ -104,20 +104,20 @@ if(!is.null(x_label)){
     print("orders is not defined.")
     orders <- NULL
   }
-  
+
 
 if(relative == T){
-  pdf(sprintf("%s/barchart.relative.%s.%s%s(%s).%s.pdf", out_path, 
-              project, 
-              ifelse(is.null(facet), "", paste(facet, ".", sep = "")), 
-              ifelse(is.null(name), "", paste(name, ".", sep = "")), 
+  pdf(sprintf("%s/barchart.relative.%s.%s%s(%s).%s.pdf", out_path,
+              project,
+              ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+              ifelse(is.null(name), "", paste(name, ".", sep = "")),
               cutoff,
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
 }else{
-  pdf(sprintf("%s/barchart.absolute.%s.%s%s(%s).%s.pdf", out_path, 
-              project, 
-              ifelse(is.null(facet), "", paste(facet, ".", sep = "")), 
-              ifelse(is.null(name), "", paste(name, ".", sep = "")), 
+  pdf(sprintf("%s/barchart.absolute.%s.%s%s(%s).%s.pdf", out_path,
+              project,
+              ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+              ifelse(is.null(name), "", paste(name, ".", sep = "")),
               cutoff,
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
 }
@@ -125,11 +125,11 @@ if(relative == T){
 
 
 
-  
-  
+
+
   # order by bdiv
   ordi.tt <- try(ordi <- ordinate(psIN , method = "PCoA", distance = "bray"),T)
-  
+
   if (class(ordi.tt) == "try-error"){
     map <- data.frame(sample_data(psIN))
     ordering.pc1 <- unique(map$SampleID)
@@ -146,33 +146,33 @@ if(relative == T){
   for(i in 1:length(taxanames)){
 
     # try table type
-    otu.filt <- as.data.frame(otu_table(psIN)) 
+    otu.filt <- as.data.frame(otu_table(psIN))
     tt <- try(otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i]),T)
-    
+
     if(class(tt) == "try-error"){
       print("DADA2 table")
-      otu.filt <- as.data.frame(t(otu_table(psIN))) 
+      otu.filt <- as.data.frame(t(otu_table(psIN)))
       otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i])
     }else{
-      otu.filt <- as.data.frame(otu_table(psIN)) 
+      otu.filt <- as.data.frame(otu_table(psIN))
       print("other table")
       otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i])
     }
-    
-    
 
-    
+
+
+
     #if (dim(otu.filt)[2] == 2){
     #  next
     #}
-    
+
     agg <- aggregate(as.formula(sprintf(". ~ %s" , taxanames[i])), otu.filt, sum, na.action=na.pass)
-    
+
     if (taxanames[i] == "Species"){
       agg <- agg[grepl("NA NA", agg$Species)==F,]
     }
-    
-    
+
+
     if (relative == TRUE){
       genera <- agg[,taxanames[i]]
       agg[,taxanames[i]] <- NULL
@@ -185,7 +185,7 @@ if(relative == T){
       agg_other_out <- subset(agg, agg[,taxanames[i]] != "[1_#Other]")
       write.csv(agg_other_out, quote = FALSE, col.names = NA, file=sprintf("%s/%s.taxa_relative_abundance.(%s).%s.%s%s.csv", out_taxa,
                                                                            project,cutoff,taxanames[i],
-                                                                           ifelse(is.null(name), "", paste(name, ".", sep = "")), 
+                                                                           ifelse(is.null(name), "", paste(name, ".", sep = "")),
                                                                            format(Sys.Date(),"%y%m%d"))) #,sep="/"
 
 
@@ -202,24 +202,24 @@ if(relative == T){
       agg_other_out <- subset(agg, agg[,taxanames[i]] != "[1_#Other]")
       write.csv(agg_other_out, quote = FALSE, col.names = NA, file=sprintf("%s/%s.taxa_absolute_abundance.(%s).%s.%s%s.csv", out_taxa,
                                                                            project,cutoff,taxanames[i],
-                                                                           ifelse(is.null(name), "", paste(name, ".", sep = "")), 
+                                                                           ifelse(is.null(name), "", paste(name, ".", sep = "")),
                                                                            format(Sys.Date(),"%y%m%d"))) #,sep="/"
       df <- melt(agg, variable="SampleID")
     }
-    
+
 
 
 
     # add StduyID
-    
-    
+
+
     df2 <- aggregate(as.formula(sprintf("value ~ %s + SampleID" , taxanames[i])), df, sum)
     df2$SampleID <- as.character(df2$SampleID)
     df2$SampleIDfactor <- factor(df2$SampleID, levels=ordering.pc1)
     df.SampleIDstr <- unique(df2[,c("SampleID", "SampleIDfactor")]);head(df.SampleIDstr)
 
     #mapping.sel[df2$SampleID, "StudyID"]
-   
+
     # add groups
     for (mvar in cate.vars) {
       df.SampleIDstr$Group <- as.character(mapping.sel[df.SampleIDstr$SampleID, mvar])
@@ -233,7 +233,7 @@ if(relative == T){
         df2[,mvar] <- factor(df2[,mvar])
       }
     }
-    
+
     # adding facet to groups
     if (!is.null(facet)) {
       for (fa in facet){
@@ -243,38 +243,38 @@ if(relative == T){
         df2[,fa] <- factor(df2[,fa], levels = orders)
       }
     }
-   
-   
+
+
     if (x_label == "SampleID"| x_label == "SampleIDfactor"){
       df2 <- df2
     } else if (length(x_label) >= 1){
       df2[,x_label] <- mapping.sel[df2$SampleID, x_label]
       df2[,x_label] <- factor(df2[,x_label], levels = orders)
-    } 
-    
+    }
+
 
 
     print(1)
     # color
     colourCount = length(unique(df2[,taxanames[i]]));colourCount
-    
+
     if(!is.null(mycols)){
       getPalette = colorRampPalette(mycols)
     }else{
       p=p
     }
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
     # pdf size height = 5, width=9
-   
+
     if (legend == "bottom"){
       if (colourCount < 30) {
         coln <- 4
-      }else if (colourCount > 30) {
+      }else if (colourCount >= 30) {
         coln <- 5
       }
     } else if (legend == "right") {
@@ -291,14 +291,14 @@ if(relative == T){
     # df2 <- df2[order(df2$value, decreasing=T),]
     print(2)
 
-    p <- ggplot(df2, aes_string(x= x_label, y="value", fill=taxanames[i], order=taxanames[i])) + 
+    p <- ggplot(df2, aes_string(x= x_label, y="value", fill=taxanames[i], order=taxanames[i])) +
       geom_bar(stat="identity", position="stack") + theme_classic()  + labs(fill=NULL)+
-      theme(legend.position=legend, # legend.text=element_text(size=8), 
+      theme(legend.position=legend, # legend.text=element_text(size=8),
             legend.text = element_text(face = c(rep("italic", 5), rep("plain", 5))),
-            axis.title.x = element_blank(), axis.text.x = element_text(angle=90, vjust=0.5, hjust=1, size=8)) + 
-      guides(fill=guide_legend(ncol= coln))   #guides(col = guide_legend(ncol = coln)) + 
-      
-    
+            axis.title.x = element_blank(), axis.text.x = element_text(angle=90, vjust=0.5, hjust=1, size=8)) +
+      guides(fill=guide_legend(ncol= coln))   #guides(col = guide_legend(ncol = coln)) +
+
+
     if(!is.null(y_axis)){
       p <- p + labs(y = y_axis)
     }else{
@@ -308,34 +308,34 @@ if(relative == T){
         p <- p + labs(y = "Absolute abundance")
       }
     }
-   
-    
 
-    
-    
+
+
+
+
 
     if(!is.null(mycols)){
-      p=p + scale_fill_manual(values = getPalette(colourCount)) 
+      p=p + scale_fill_manual(values = getPalette(colourCount))
     }else{
       p=p
     }
-    
-    
-    
+
+
+
     if (!is.null(facet)) {
-      for (mvar in cate.vars) {        
+      for (mvar in cate.vars) {
         if (facet == mvar) {
           next
         }
 
         df2[,facet] <- factor(df2[,facet], levels = orders)
-        
+
         print(sprintf("Facet by %s-%s",mvar, facet))
 
          if (!is.null(ncol)) {
-         p <- p+ facet_wrap(as.formula(sprintf("~ %s + %s", paste(setdiff(facet, "SampleType"), collapse="+"), mvar)), scales = "free_x", ncol = ncol) 
+         p <- p+ facet_wrap(as.formula(sprintf("~ %s + %s", paste(setdiff(facet, "SampleType"), collapse="+"), mvar)), scales = "free_x", ncol = ncol)
          }else{
-         p <- p+ facet_grid(as.formula(sprintf("~ %s + %s", paste(setdiff(facet, "SampleType"), collapse="+"), mvar)), scales = "free_x", space = "free") 
+         p <- p+ facet_grid(as.formula(sprintf("~ %s + %s", paste(setdiff(facet, "SampleType"), collapse="+"), mvar)), scales = "free_x", space = "free")
          }
 
 
@@ -358,12 +358,12 @@ if(relative == T){
         print(sprintf("Facet by %s",mvar))
 
          if (!is.null(ncol)) {
-         p <- p + facet_wrap(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", ncol = ncol)  
+         p <- p + facet_wrap(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", ncol = ncol)
          }else{
-         p <- p + facet_grid(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", space = "free_x") 
+         p <- p + facet_grid(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", space = "free_x")
          }
 
-        
+
         if (length(name) == 1) {
           p= p+ ggtitle(sprintf("%s barplots overall of %s-%s (cut off < %s)",taxanames[i],mvar,name, cutoff))
         }
@@ -378,9 +378,9 @@ if(relative == T){
 
         print("C")
         print("Simpe plot")
-        
+
         p = p
-        
+
         if (!is.null(name)) {
           p= p+ ggtitle(sprintf("%s barplots overall of %s-%s (cut off < %s)",taxanames[i],mvar,name, cutoff))
         }
