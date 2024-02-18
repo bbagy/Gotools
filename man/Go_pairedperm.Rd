@@ -8,7 +8,6 @@ Go_pairedperm(
   psIN,
   cate.vars,
   project,
-  distance,
   distance_metrics,
   cate.conf = NULL,
   des,
@@ -22,8 +21,6 @@ Go_pairedperm(
 
 \item{project}{A string indicating the project name for directory and file naming.}
 
-\item{distance}{A \code{phyloseq::distance} object or the method to calculate distances.}
-
 \item{distance_metrics}{A vector of distance metrics to use for the PERMANOVA.}
 
 \item{cate.conf}{(Optional) A vector of confounding variables to adjust for in the model.}
@@ -31,6 +28,8 @@ Go_pairedperm(
 \item{des}{A description or label for the PERMANOVA run.}
 
 \item{name}{(Optional) A name for the analysis for labeling and file naming.}
+
+\item{distance}{A \code{phyloseq::distance} object or the method to calculate distances.}
 }
 \value{
 Outputs the results as CSV files in a specified directory. The function also returns the results as
