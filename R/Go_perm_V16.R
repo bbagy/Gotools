@@ -58,12 +58,10 @@ Go_perm <- function(psIN, cate.vars, project, distance_metrics, mul.vars=FALSE, 
 
       psIN.sel <- prune_samples(rownames(mapping.sel[!is.na(mapping.sel.na[,mvar]), ]), psIN)
 
-
-
       ## fix factor  and  numeric
       mapping.sel.na[,mvar] <- factor(mapping.sel.na[,mvar])
 
-      distance <- Go_dist(psIN = psIN.sel, project = project, cate.vars=mvar, distance_metrics = distance_metric)
+      distance <- Go_dist(psIN = psIN.sel, project = project, cate.vars = mvar, distance_metrics = distance_metric)
 
       x <- as.dist(distance[[distance_metric]])
 
