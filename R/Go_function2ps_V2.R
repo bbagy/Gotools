@@ -24,7 +24,6 @@
 #'
 #' @export
 
-version2;
 Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL) {
   # Read tab
   func.tab <- try(read_tsv(tabPath, col_types = cols()), silent = TRUE)
