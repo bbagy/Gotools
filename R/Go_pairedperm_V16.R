@@ -42,10 +42,6 @@ Go_pairedperm <- function(psIN, cate.vars, project, distance_metrics, cate.conf=
   out_perm <- file.path(sprintf("%s/perm",out_path))
   if(!file_test("-d", out_perm)) dir.create(out_perm)
 
-  out_distance <- file.path(sprintf("%s/distance",out_path))
-  if(!file_test("-d", out_distance)) dir.create(out_distance)
-
-
   # Run
   if (!is.null(des)) {
     # Uni

@@ -36,10 +36,6 @@ Go_perm <- function(psIN, cate.vars, project, distance_metrics, mul.vars=FALSE, 
   out_perm <- file.path(sprintf("%s/perm",out_path))
   if(!file_test("-d", out_perm)) dir.create(out_perm)
 
-  out_distance <- file.path(sprintf("%s/distance",out_path))
-  if(!file_test("-d", out_distance)) dir.create(out_distance)
-
-
   # Run
   set.seed(1)
   mapping.sel <-data.frame(sample_data(psIN))
