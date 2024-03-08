@@ -25,7 +25,7 @@ Gotool_dependency <- function() {
                      "doRNG", "ggalluvial", "ggforce", "Hmisc", "huge", "irlba",
                      "igraph", "irr", "lme4", "lmerTest", "nnet", "MLmetrics",
                      "Matrix", "magrittr", "MASS", "missForest", "magick", "nlme",
-                     "phangorn", "pheatmap", "pkgconfig", "plyr", "parallel", "pscl",
+                     "phangorn", "pheatmap", "pkgconfig", "dplyr", "parallel", "pscl",
                      "plotly", "pdftools", "rfUtilities", "rlang", "randomForest",
                      "readxl", "RColorBrewer", "ROCR", "reshape", "reshape2", "yarrr",
                      "stringi", "tidyverse", "vegan", "VGAM", "picante", "zoo",
