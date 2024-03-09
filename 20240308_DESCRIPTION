@@ -9,8 +9,7 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
-
-Suggests:    
+Imports:
     ape,
     Boruta,
     car,
@@ -80,7 +79,8 @@ Suggests:
     withr,
     knitr,
     kableExtra,
-    DT,
+    DT
+Suggests:
     BiocManager,
     testthat,
     rmarkdown
