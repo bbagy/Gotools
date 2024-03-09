@@ -83,4 +83,5 @@ Suggests:
     DT,
     BiocManager,
     testthat,
-    rmarkdown
+    rmarkdown,
+    ALDEx2
