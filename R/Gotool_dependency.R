@@ -35,7 +35,7 @@ Gotool_dependency <- function() {
   bioconductor_packages <- c("phyloseq", "microbiome", "Rhtslib", "dada2", "dplyr",
                              "ggpubr", "ggfortify", "genefilter", "ggpmisc", "S4Vectors",
                              "ShortRead", "illuminaio", "rstatix", "useful", "DECIPHER",
-                             "ComplexHeatmap", "DESeq2", "ALDEx2","scater")
+                             "ComplexHeatmap", "DESeq2", "ALDEx2","scater","ANCOMBC")
 
   # Function to install and load CRAN packages
   install_load_cran <- function(package) {
