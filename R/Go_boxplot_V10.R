@@ -530,11 +530,18 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         }
 
 
-        p1 <- ggplot(df.na, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
-          theme(strip.background = element_blank()) +
-          theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
-                plot.title=element_text(size=8))
+        if(!is.null(facet) && addnumber == TRUE){
 
+          p1 <- ggplot(df.na, aes_string(x="new_mvar", y=oc))  + labs(y=oc, x=NULL) +
+            theme(strip.background = element_blank()) +
+            theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
+                  plot.title=element_text(size=8))
+        } else{
+          p1 <- ggplot(df.na, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
+            theme(strip.background = element_blank()) +
+            theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
+                  plot.title=element_text(size=8))
+        }
 
 
 
