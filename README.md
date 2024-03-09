@@ -5,28 +5,32 @@ This repository contains a set of tools for reproducible microbiome analysis. It
 
 ## Installation
 
-To install Bioconductor Packages of `Gotools`, use:
+`Gotools was built on R 4.2.2.
+
+To install the Bioconductor packages required by Gotools, use the following function:
+
 ```r
 # Function to install and load Bioconductor packages
 install_load_bioc <- function(package) {
   if (!require(package, character.only = TRUE, quietly = TRUE)) {
-    if (!require("BiocManager", quietly = TRUE)) {
+    if (!requireNamespace("BiocManager", quietly = TRUE)) {
       install.packages("BiocManager")
     }
-    BiocManager::install(package, force = TRUE, ask = FALSE, type = "source")
+    BiocManager::install(package, force = TRUE, ask = FALSE)
   }
   library(package, character.only = TRUE, quietly = TRUE)
 }
 
-# Installing and loading CRAN packages
+# Installing and loading required Bioconductor packages
 bioconductor_packages <- c("phyloseq", "microbiome", "Rhtslib", "dada2", "dplyr",
                            "ggpubr", "ggfortify", "genefilter", "ggpmisc", "S4Vectors",
                            "ShortRead", "illuminaio", "rstatix", "useful", "DECIPHER",
-                           "ComplexHeatmap", "DESeq2", "ALDEx2","scater","ANCOMBC")
+                           "ComplexHeatmap", "DESeq2", "ALDEx2", "scater", "ANCOMBC")
 
 for (package in bioconductor_packages) {
   install_load_bioc(package)
 }
+
 ```
 
 
@@ -37,8 +41,7 @@ To install the latest version of `Gotools` from GitHub, use:
 devtools::install_github("bbagy/Gotools")
 library(Gotools)
 
-
-# to install dependency from cran
+# Installing and loading CRAN packages
 Gotool_dependency()
 ```
 
