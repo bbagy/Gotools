@@ -22,7 +22,7 @@ Gotool_dependency <- function() {
                      "cowplot", "crayon", "caret", "colorspace", "digest",
                      "data.table", "devtools", "doParallel", "ellipse", "emmeans",
                      "e1071", "gplots", "ggplot2", "grid", "gridExtra", "ggrepel",
-                     "doRNG", "ggalluvial", "ggforce", "Hmisc", "irlba", #"huge",  "igraph",
+                     "doRNG", "ggalluvial", "ggforce", "Hmisc", "irlba", "huge",  "igraph",
                      "irr", "lme4", "lmerTest", "nnet", "MLmetrics",
                      "Matrix", "magrittr", "MASS", "missForest", "magick", "nlme",
                      "phangorn", "pheatmap", "pkgconfig", "dplyr", "parallel", "pscl",

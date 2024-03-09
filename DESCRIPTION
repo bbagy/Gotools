@@ -2,7 +2,7 @@ Package: Gotools
 Type: Package
 Title: General-microbiome-analysis (GoTools)
 Version: 0.0.0.9000
-Authors@R: person("Heekuk", "Park", email = "hp2523@cumc.columbia.edu", role = c("aut", "cre")), comment = c(ORCID = "YOUR-ORCID-ID"))
+Authors@R: person("Heekuk", "Park", email = "hp2523@cumc.columbia.edu", role = c("aut", "cre"), comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: What the package does (one paragraph).
 License: MIT + file LICENSE
 Encoding: UTF-8
