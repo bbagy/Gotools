@@ -277,7 +277,8 @@ Go_volcanoPlot <- function(project,
             legend.text=element_text(size=font+8),
             legend.position="bottom",
             legend.justification = "left",
-            legend.box = "vertical")+
+            legend.box = "vertical",
+            legend.key = element_blank())+
       theme(panel.grid = element_blank(),
             panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),
             aspect.ratio = 1/1.5)
@@ -298,6 +299,7 @@ Go_volcanoPlot <- function(project,
 
     # Use the constructed label_condition in your geom_text_repel function
     p1 <- p1 + geom_text_repel(aes_string(label=label_condition), size=font, fontface="italic", max.overlaps=overlaps)
+
     p1 <- p1 + ggtitle(sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc))
     p1 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE)
 
@@ -356,6 +358,7 @@ Go_volcanoPlot <- function(project,
               legend.text=element_text(size=font+8),
               legend.position="bottom",
               legend.justification = "left",
+              legend.box.just = "left",
               legend.box = "vertical")+
         theme(panel.grid = element_blank(),
               panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),
@@ -370,9 +373,9 @@ Go_volcanoPlot <- function(project,
       # Use the constructed label_condition in your geom_text_repel function
       p1 <- p1 + geom_text_repel(aes_string(label=label_condition), size=font, fontface="italic", max.overlaps=overlaps)
       p1 <- p1 + ggtitle(sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc))
-      p1 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE)+
-        guides(color = guide_legend(override.aes = list(shape = NA))) + # For color legends
-        guides(fill = guide_legend(override.aes = list(shape = NA))) # For fill legends
+      p1 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE) +
+        labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool))
+
 
 
       pdf(sprintf("%s/%s.%s%s.(%s.vs.%s).%s.%s%s%s(cutoff=%s).%s.pdf", out_DA,
