@@ -271,17 +271,7 @@ Go_volcanoPlot <- function(project,
       ylab(vy) +
       geom_vline(xintercept = c(-log2(fc), 0, log2(fc)), col = dircolors, linetype = "dotted", size = 1)
 
-    p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE) +  #
-      theme(text = element_text(size=font+8),
-            plot.title = element_text(size=font+8),
-            legend.text=element_text(size=font+8),
-            legend.position="bottom",
-            legend.justification = "left",
-            legend.box = "vertical",
-            legend.key = element_blank())+
-      theme(panel.grid = element_blank(),
-            panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),
-            aspect.ratio = 1/1.5)
+    p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE)
 
     if (type == "taxonomy" | type == "taxanomy" | type == "bacmet") {
       label_name <- "Species"
@@ -301,7 +291,18 @@ Go_volcanoPlot <- function(project,
     p1 <- p1 + geom_text_repel(aes_string(label=label_condition), size=font, fontface="italic", max.overlaps=overlaps)
 
     p1 <- p1 + ggtitle(sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc))
-    p1 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE)
+    p2 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  #scale_shape_manual(values = padj_shape, drop = FALSE) +
+      labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool)) +  #
+      theme(text = element_text(size=font+8),
+            plot.title = element_text(size=font+8),
+            legend.text=element_text(size=font+8),
+            legend.position="bottom",
+            legend.justification = "left",
+            legend.box.just = "left",
+            legend.box = "vertical",
+            panel.grid = element_blank(),
+            panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),
+            aspect.ratio = 1/1.5)
 
 
     pdf(sprintf("%s/%s.%s%s.(%s.vs.%s).%s.%s%s%s(cutoff=%s).%s.pdf", out_DA,
@@ -316,7 +317,7 @@ Go_volcanoPlot <- function(project,
                 ifelse(is.null(name), "", paste(name, ".", sep = "")),
                 fc,
                 format(Sys.Date(), "%y%m%d")), height = height, width = width)
-    print(p1)
+    print(p2)
     dev.off()
 
     if (model == "t-test" || model == "GLM" || is.null(model)) {
@@ -352,17 +353,7 @@ Go_volcanoPlot <- function(project,
         ylab(vy) +
         geom_vline(xintercept = c(-log2(fc), 0, log2(fc)), col = dircolors, linetype = "dotted", size = 1)
 
-      p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE) +  #
-        theme(text = element_text(size=font+8),
-              plot.title = element_text(size=font+8),
-              legend.text=element_text(size=font+8),
-              legend.position="bottom",
-              legend.justification = "left",
-              legend.box.just = "left",
-              legend.box = "vertical")+
-        theme(panel.grid = element_blank(),
-              panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),
-              aspect.ratio = 1/1.5)
+      p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE)
 
       # Construct the label condition as a string using sprintf
       label_condition <- sprintf(
@@ -373,8 +364,18 @@ Go_volcanoPlot <- function(project,
       # Use the constructed label_condition in your geom_text_repel function
       p1 <- p1 + geom_text_repel(aes_string(label=label_condition), size=font, fontface="italic", max.overlaps=overlaps)
       p1 <- p1 + ggtitle(sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc))
-      p1 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE) +
-        labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool))
+      p2 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  #scale_shape_manual(values = padj_shape, drop = FALSE) +
+        labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool)) +  #
+        theme(text = element_text(size=font+8),
+              plot.title = element_text(size=font+8),
+              legend.text=element_text(size=font+8),
+              legend.position="bottom",
+              legend.justification = "left",
+              legend.box.just = "left",
+              legend.box = "vertical",
+              panel.grid = element_blank(),
+              panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),
+              aspect.ratio = 1/1.5)
 
 
 
@@ -390,7 +391,7 @@ Go_volcanoPlot <- function(project,
                   ifelse(is.null(name), "", paste(name, ".", sep = "")),
                   fc,
                   format(Sys.Date(), "%y%m%d")), height = height, width = width)
-      print(p1)
+      print(p2)
       dev.off()
     }
   }
