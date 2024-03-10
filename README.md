@@ -56,7 +56,7 @@ Gotool_dependency()
 
 This tutorial provides step-by-step instructions on using the Gotools package for microbiome data analysis with R. It includes reading data, preprocessing, and running various analyses.
 
-### Reading R Source and rading data
+### Reading R Source and the data
 
 ```r
 # Clean the environment
@@ -78,8 +78,8 @@ setwd(currentwd)
 # Read ASV data and merge Phyloseq objects
 ps <- readRDS("2_rds/your_ps.rds")
 
-# Generate empty mapping file in location 3_map and modify the file
-Go_emptyMap(ps,project)
+# Generate empty mapping file 
+Go_emptyMap(ps,project) # The file generate in `project_today_data/3_map`
 
 
 # Read and apply sample metadata
@@ -101,12 +101,14 @@ map <- data.frame(sample_data(ps2))
 unique(map$TreatmentGroup)
 orders <- c("Plaque", "Stool", "Saliva")
 
+# Define colors for plots
+basel <- Go_myCols(piratepal = "basel")
 ```
 
 
 ### Bar Plots for Taxonomic Composition
 ```r
-Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="StudyID", mycols=basel, orders=orders)
+Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="TreatmentGroup", mycols=basel, orders=orders)
 ```
 
 ### Alpha Diversity Analysis
@@ -121,9 +123,11 @@ Go_boxplot(df=adiv, project=project, mycols=basel, cate.vars=c("TreatmentGroup")
 
 ### Beta Diversity Analysis
 ```r
+# Betadiveristy for PCoA plot
 ps2_log <- transform_sample_counts(ps2, function(x) log(1+x))
 Go_bdiv(psIN=ps2_log, project=project, cate.vars=c("TreatmentGroup"), distance_metrics=c("bray"), orders=basel)
 
+# Permanova analysis
 Go_perm(psIN = ps2, cate.vars = c("TreatmentGroup"), project =project, distance_metrics =c("bray"), 
         mul.vars = F, name = NULL)
 
@@ -134,8 +138,13 @@ Go_pairedperm(psIN=ps2, cate.vars = c("TreatmentGroup"), project =project, dista
 
 ### Differential Abundance Testing
 ```r
+# Using Deseq2
 Go_Deseq2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
+
+# Using Aldex2
 Go_Aldex2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
+
+# Using Ancom2
 Go_Ancom2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
 
 ### Volcano Plots for Differential Abundance
