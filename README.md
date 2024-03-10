@@ -5,7 +5,7 @@ This repository contains a set of tools for reproducible microbiome analysis. It
 
 ## Installation
 
-`Gotools was built on R 4.2.2.
+`Gotools` was built on R 4.2.2.
 
 To install the Bioconductor packages required by Gotools, use the following function:
 
