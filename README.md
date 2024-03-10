@@ -121,12 +121,22 @@ Go_boxplot(df=adiv, project=project, mycols=basel, cate.vars=c("TreatmentGroup")
 ```
 
 
+![Alpha Diversity](/Users/heekukpark/Desktop/Han_Gotool_240310/pdf/box.Han_Gotool.240310.pdf "Alpha Diversity)
+
+
+
+
 ### Beta Diversity Analysis
 ```r
 # Betadiveristy for PCoA plot
 ps2_log <- transform_sample_counts(ps2, function(x) log(1+x))
 Go_bdiv(psIN=ps2_log, project=project, cate.vars=c("TreatmentGroup"), distance_metrics=c("bray"), orders=basel)
+```
+![Beta Diversity](/Users/heekukpark/Desktop/Han_Gotool_240310/pdf/ordi.Han_Gotool.240310.pdf "Beta Diversity)
 
+
+
+```r
 # Permanova analysis
 Go_perm(psIN = ps2, cate.vars = c("TreatmentGroup"), project =project, distance_metrics =c("bray"), 
         mul.vars = F, name = NULL)
