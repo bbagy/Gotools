@@ -121,7 +121,12 @@ Go_boxplot(df=adiv, project=project, mycols=basel, cate.vars=c("TreatmentGroup")
 ```
 
 
-![Alpha Diversity](/Users/heekukpark/Desktop/Han_Gotool_240310/pdf/box.Han_Gotool.240310.pdf "Alpha Diversity)
+![Alpha Diversity](/Users/heekukpark/Desktop/Han_Gotool_240310/pdf/box.Han_Gotool.240310.png "Alpha Diversity)
+
+
+
+
+
 
 
 
