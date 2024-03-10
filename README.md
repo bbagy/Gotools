@@ -56,9 +56,7 @@ Gotool_dependency()
 
 This tutorial provides step-by-step instructions on using the Gotools package for microbiome data analysis with R. It includes reading data, preprocessing, and running various analyses.
 
-### Core General Setup
-
-#### Reading R Source
+### Reading R Source and rading data
 
 ```r
 # Clean the environment
@@ -87,36 +85,55 @@ Go_emptyMap(ps,project)
 # Read and apply sample metadata
 sampledata <- read.csv("3_map/your.mapping.csv", row.names=1, check.names=FALSE)
 ps1 <- merge_phyloseq(ps, sample_data(sampledata))
+```
 
+### Preprocessing
+
+```r
 # Check and filter sequence lengths
 Go_SeqLengths(ps1) # Original distribution
+
 ps1.size <- Go_SeqLengths(psIN=ps1, from=297, to=470) # Filtered
-
-
-
-
-# Subset samples and prepare data
-ps2 <- subset_samples(ps1.size, TreatmentGroup != "Control")
+ps2 <- Go_filter(ps1.size,cutoff = 0.000005)
 map <- data.frame(sample_data(ps2))
 
 # Define order for plots
+unique(map$TreatmentGroup)
 orders <- c("Plaque", "Stool", "Saliva")
 
+```
+
+
+### Bar Plots for Taxonomic Composition
+```r
+Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="StudyID", mycols=basel, orders=orders)
+```
+
 ### Alpha Diversity Analysis
+```r
 adiv <- Go_adiv(psIN=ps2, project=project, alpha_metrics=c("Chao1", "Shannon"))
 basel <- Go_myCols(piratepal="basel")
 
 # Boxplot for alpha diversity metrics
 Go_boxplot(df=adiv, project=project, mycols=basel, cate.vars=c("TreatmentGroup"), outcomes=c("Chao1", "Shannon"), orders=orders)
+```
 
-### Bar Plots for Taxonomic Composition
-Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="StudyID", mycols=basel, orders=orders)
 
 ### Beta Diversity Analysis
+```r
 ps2_log <- transform_sample_counts(ps2, function(x) log(1+x))
 Go_bdiv(psIN=ps2_log, project=project, cate.vars=c("TreatmentGroup"), distance_metrics=c("bray"), orders=basel)
 
+Go_perm(psIN = ps2, cate.vars = c("TreatmentGroup"), project =project, distance_metrics =c("bray"), 
+        mul.vars = F, name = NULL)
+
+Go_pairedperm(psIN=ps2, cate.vars = c("TreatmentGroup"), project =project, distance_metrics=c("bray"), 
+              cate.conf=NULL, des=NULL, name=NULL)
+```
+
+
 ### Differential Abundance Testing
+```r
 Go_Deseq2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
 Go_Aldex2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
 Go_Ancom2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
@@ -137,6 +154,7 @@ path <- file.path(sprintf("%s_%s/table/Ancom2/", project, format(Sys.Date(), "%y
 Go_volcanoPlot(project, file_path=path, files=".csv", mycols=mycol)
 
 ```
+
 ---
 
 ## List of Tools
