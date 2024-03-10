@@ -1,4 +1,0 @@
-,pairs,Df,SumsOfSqs,R2,F.Model,p.value,padj,distance_metric,mvar,adjusted
-1,Plaque vs Stool,1,5.1230457818583,0.330054899448077,19.7063848471265,0.001,0.003,bray,TreatmentGroup,
-2,Plaque vs Saliva,1,5.20296569437365,0.276799130343889,17.606118203195,0.001,0.003,bray,TreatmentGroup,
-3,Stool vs Saliva,1,4.33223349447966,0.259500183329508,14.01756907902,0.001,0.003,bray,TreatmentGroup,
