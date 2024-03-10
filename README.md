@@ -48,6 +48,97 @@ Gotool_dependency()
 ---
 
 
+
+
+
+
+## Gotools Tutorial
+
+This tutorial provides step-by-step instructions on using the Gotools package for microbiome data analysis with R. It includes reading data, preprocessing, and running various analyses.
+
+### Core General Setup
+
+#### Reading R Source
+
+```r
+# Clean the environment
+rm(list=ls())
+
+# Load Gotools package
+library("Gotools")
+
+# Install and load dependencies using Gotools function
+Gotool_dependency()
+
+
+
+# Define project name and directories
+project <- "Gotool_test"
+currentwd <- "~/your_path/"
+setwd(currentwd)
+
+# Read ASV data and merge Phyloseq objects
+ps <- readRDS("2_rds/your_ps.rds")
+
+# Generate empty mapping file in location 3_map and modify the file
+Go_emptyMap(ps,project)
+
+
+# Read and apply sample metadata
+sampledata <- read.csv("3_map/your.mapping.csv", row.names=1, check.names=FALSE)
+ps1 <- merge_phyloseq(ps, sample_data(sampledata))
+
+# Check and filter sequence lengths
+Go_SeqLengths(ps1) # Original distribution
+ps1.size <- Go_SeqLengths(psIN=ps1, from=297, to=470) # Filtered
+
+
+
+
+# Subset samples and prepare data
+ps2 <- subset_samples(ps1.size, TreatmentGroup != "Control")
+map <- data.frame(sample_data(ps2))
+
+# Define order for plots
+orders <- c("Plaque", "Stool", "Saliva")
+
+### Alpha Diversity Analysis
+adiv <- Go_adiv(psIN=ps2, project=project, alpha_metrics=c("Chao1", "Shannon"))
+basel <- Go_myCols(piratepal="basel")
+
+# Boxplot for alpha diversity metrics
+Go_boxplot(df=adiv, project=project, mycols=basel, cate.vars=c("TreatmentGroup"), outcomes=c("Chao1", "Shannon"), orders=orders)
+
+### Bar Plots for Taxonomic Composition
+Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="StudyID", mycols=basel, orders=orders)
+
+### Beta Diversity Analysis
+ps2_log <- transform_sample_counts(ps2, function(x) log(1+x))
+Go_bdiv(psIN=ps2_log, project=project, cate.vars=c("TreatmentGroup"), distance_metrics=c("bray"), orders=basel)
+
+### Differential Abundance Testing
+Go_Deseq2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
+Go_Aldex2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
+Go_Ancom2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
+
+### Volcano Plots for Differential Abundance
+mycol <- Go_myCols(piratepal="southpark")
+
+# Deseq2 Volcano Plot
+path <- file.path(sprintf("%s_%s/table/Deseq2/", project, format(Sys.Date(), "%y%m%d")))
+Go_volcanoPlot(project, file_path=path, files=".csv", mycols=mycol)
+
+# Aldex2 Volcano Plot
+path <- file.path(sprintf("%s_%s/table/Aldex2/", project, format(Sys.Date(), "%y%m%d")))
+Go_volcanoPlot(project, file_path=path, files=".csv", mycols=mycol)
+
+# Ancom2 Volcano Plot
+path <- file.path(sprintf("%s_%s/table/Ancom2/", project, format(Sys.Date(), "%y%m%d")))
+Go_volcanoPlot(project, file_path=path, files=".csv", mycols=mycol)
+
+```
+---
+
 ## List of Tools
 The repository includes the following scripts:
 
