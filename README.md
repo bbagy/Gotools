@@ -122,7 +122,7 @@ Go_boxplot(df=adiv, project=project, mycols=basel, cate.vars=c("TreatmentGroup")
 
 
 <p align="center">
-  <img src="data/pdf/box.Gotool.240310.png" alt="Alpha Diversity" title="Alpha Diversity" width="50%">
+  <img src="data/pdf/box.Gotool.240310.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
 </p>
 
 
@@ -135,7 +135,7 @@ ps2_log <- transform_sample_counts(ps2, function(x) log(1+x))
 Go_bdiv(psIN=ps2_log, project=project, cate.vars=c("TreatmentGroup"), distance_metrics=c("bray"), orders=basel)
 ```
 <p align="center">
-  <img src="data/pdf/ordi.Gotool.240310.png" alt="Beta Diversity" title="Beta Diversity" width="50%">
+  <img src="data/pdf/ordi.Gotool.240310.png" alt="Beta Diversity" title="Beta Diversity" width="45%">
 </p>
 
 
