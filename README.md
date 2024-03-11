@@ -197,7 +197,7 @@ Go_pairedperm(psIN=ps2, cate.vars = c("TreatmentGroup"), project =project, dista
 ```
 
 
-### Differential Abundance Testing
+### Differential Abundance Testing using Deseq2, Aldex2, and Ancom2
 ```r
 # Using Deseq2
 Go_Deseq2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
@@ -209,8 +209,8 @@ Go_Aldex2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
 Go_Ancom2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
 ```
 
+### Deseq2 Volcano Plot
 ```r
-# Deseq2 Volcano Plot
 path <- file.path(sprintf("%s_%s/table/Deseq2/", project, format(Sys.Date(), "%y%m%d")))
 Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
 ```
@@ -232,9 +232,8 @@ Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
 
 
 
-
+### Aldex2 Volcano Plot
 ```r
-# Aldex2 Volcano Plot
 path <- file.path(sprintf("%s_%s/table/Aldex2/", project, format(Sys.Date(), "%y%m%d")))
 Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
 ```
@@ -256,9 +255,8 @@ Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
 
 
 
-
+### Ancom2 Volcano Plot
 ```r
-# Ancom2 Volcano Plot
 path <- file.path(sprintf("%s_%s/table/Ancom2/", project, format(Sys.Date(), "%y%m%d")))
 Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
 ```
