@@ -133,6 +133,11 @@ Go_bdiv(psIN=ps2_log, project=project, cate.vars=c("TreatmentGroup"), distance_m
 ```
 ![Beta Diversity](data/pdf/ordi.Gotool.240310.png "Beta Diversity")
 
+<p align="center">
+  <img src="data/pdf/box.Gotool.240310.png" alt="Alpha Diversity" title="Alpha Diversity" width="50%">
+  <img src="data/pdf/ordi.Gotool.240310.png" alt="Beta Diversity" title="Beta Diversity" width="50%">
+</p>
+
 
 
 ```r
