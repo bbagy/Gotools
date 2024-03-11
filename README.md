@@ -194,20 +194,18 @@ Go_Aldex2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
 # Using Ancom2
 Go_Ancom2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
 
-### Volcano Plots for Differential Abundance
-mycol <- Go_myCols(piratepal="southpark")
 
 # Deseq2 Volcano Plot
 path <- file.path(sprintf("%s_%s/table/Deseq2/", project, format(Sys.Date(), "%y%m%d")))
-Go_volcanoPlot(project, file_path=path, files=".csv", mycols=mycol)
+Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
 
 # Aldex2 Volcano Plot
 path <- file.path(sprintf("%s_%s/table/Aldex2/", project, format(Sys.Date(), "%y%m%d")))
-Go_volcanoPlot(project, file_path=path, files=".csv", mycols=mycol)
+Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
 
 # Ancom2 Volcano Plot
 path <- file.path(sprintf("%s_%s/table/Ancom2/", project, format(Sys.Date(), "%y%m%d")))
-Go_volcanoPlot(project, file_path=path, files=".csv", mycols=mycol)
+Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
 
 ```
 
