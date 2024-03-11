@@ -110,27 +110,35 @@ basel <- Go_myCols(piratepal = "basel")
 ```r
 Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="TreatmentGroup", mycols=basel, orders=orders)
 ```
+#### Phylum
+<p align="center">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-0.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+</p>
 
+#### Class
+<p align="center">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-1.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+</p>
 
-## Taxonomic Distribution Plots
+#### Order
+<p align="center">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-2.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+</p>
 
-### Phylum
-![Barchart - Phylum](data/pdf/barchart.relative.Gotool.(0.005).240310-0.png "Barchart - Phylum")
+#### Family
+<p align="center">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-3.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+</p>
 
-### Class
-![Barchart - Class](data/pdf/barchart.relative.Gotool.(0.005).240310-1.png "Barchart - Class")
+#### Genus
+<p align="center">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-4.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+</p>
 
-### Order
-![Barchart - Order](data/pdf/barchart.relative.Gotool.(0.005).240310-2.png "Barchart - Order")
-
-### Family
-![Barchart - Family](data/pdf/barchart.relative.Gotool.(0.005).240310-3.png "Barchart - Family")
-
-### Genus
-![Barchart - Genus](data/pdf/barchart.relative.Gotool.(0.005).240310-4.png "Barchart - Genus")
-
-### Species
-![Barchart - Species](data/pdf/barchart.relative.Gotool.(0.005).240310-5.png "Barchart - Species")
+#### Species
+<p align="center">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-5.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+</p>
 
 
 
