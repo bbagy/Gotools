@@ -82,6 +82,16 @@ Go_SeqLengths <- function(psIN, from=NULL, to=NULL){
       cat("No sample_data present in the phyloseq object.\n")
     })
 
+
+    # Attempt to merge tree if present
+    tryCatch({
+      if (!is.null(phy_tree(psIN))) {
+        new_ps <- phyloseq::merge_phyloseq(new_ps, phy_tree(psIN))
+      }
+    }, error = function(e) {
+      cat("No phy_tree present in the phyloseq object.\n")
+    })
+
     return(new_ps)
   }
 }
