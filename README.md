@@ -112,32 +112,32 @@ Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class
 ```
 #### Phylum
 <p align="center">
-  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-0.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-0.png" alt="Phylum" title="Phylum" width="70%">
 </p>
 
 #### Class
 <p align="center">
-  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-1.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-1.png" alt="Class" title="Class" width="70%">
 </p>
 
 #### Order
 <p align="center">
-  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-2.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-2.png" alt="Order" title="Order" width="70%">
 </p>
 
 #### Family
 <p align="center">
-  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-3.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-3.png" alt="Family" title="Family" width="70%">
 </p>
 
 #### Genus
 <p align="center">
-  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-4.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-4.png" alt="Genus" title="Genus" width="70%">
 </p>
 
 #### Species
 <p align="center">
-  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-5.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
+  <img src="data/pdf/data/pdf/barchart.relative.Gotool.(0.005).240310-5.png" alt="Species" title="Species" width="70%">
 </p>
 
 
