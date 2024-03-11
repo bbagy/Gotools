@@ -111,6 +111,30 @@ basel <- Go_myCols(piratepal = "basel")
 Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="TreatmentGroup", mycols=basel, orders=orders)
 ```
 
+
+## Taxonomic Distribution Plots
+
+### Phylum
+![Barchart - Phylum](data/pdf/barchart.relative.Gotool.(0.005).240310-0.png "Barchart - Phylum")
+
+### Class
+![Barchart - Class](data/pdf/barchart.relative.Gotool.(0.005).240310-1.png "Barchart - Class")
+
+### Order
+![Barchart - Order](data/pdf/barchart.relative.Gotool.(0.005).240310-2.png "Barchart - Order")
+
+### Family
+![Barchart - Family](data/pdf/barchart.relative.Gotool.(0.005).240310-3.png "Barchart - Family")
+
+### Genus
+![Barchart - Genus](data/pdf/barchart.relative.Gotool.(0.005).240310-4.png "Barchart - Genus")
+
+### Species
+![Barchart - Species](data/pdf/barchart.relative.Gotool.(0.005).240310-5.png "Barchart - Species")
+
+
+
+
 ### Alpha Diversity Analysis
 ```r
 adiv <- Go_adiv(psIN=ps2, project=project, alpha_metrics=c("Chao1", "Shannon"))
