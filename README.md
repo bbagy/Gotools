@@ -92,8 +92,22 @@ ps1 <- merge_phyloseq(ps, sample_data(sampledata))
 ```r
 # Check and filter sequence lengths
 Go_SeqLengths(ps1) # Original distribution
+```
+#### 
+<p align="center">
+  <img src="data/pdf/Rplot1.png" alt="Size1" title="Size1" width="45%">
+</p>
 
+```r
 ps1.size <- Go_SeqLengths(psIN=ps1, from=297, to=470) # Filtered
+```
+#### 
+<p align="center">
+  <img src="data/pdf/Rplot2.png" alt="Size2" title="Size2" width="45%">
+</p>
+
+
+```r
 ps2 <- Go_filter(ps1.size,cutoff = 0.000005)
 map <- data.frame(sample_data(ps2))
 
@@ -193,21 +207,67 @@ Go_Aldex2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
 
 # Using Ancom2
 Go_Ancom2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
+```
 
-
+```r
 # Deseq2 Volcano Plot
 path <- file.path(sprintf("%s_%s/table/Deseq2/", project, format(Sys.Date(), "%y%m%d")))
 Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
+```
 
+#### Stool.vs.Saliva
+<p align="center">
+  <img src="data/pdf/deseq2.volcano.TreatmentGroup.(Stool.vs.Saliva).Gotool.(cutoff=1).240310.png" alt="Dese2_1" title="Dese2_1" width="45%">
+</p>
+
+#### Plaque.vs.Stool
+<p align="center">
+  <img src="data/pdf/deseq2.volcano.TreatmentGroup.(Plaque.vs.Stool).Gotool.(cutoff=1).240310.png" alt="Dese2_2" title="Dese2_2" width="45%">
+</p>
+
+#### Plaque.vs.Saliva
+<p align="center">
+  <img src="data/pdf/deseq2.volcano.TreatmentGroup.(Plaque.vs.Saliva).Gotool.(cutoff=1).240310.png" alt="Dese2_3" title="Dese2_3" width="45%">
+</p>
+
+
+
+
+```r
 # Aldex2 Volcano Plot
 path <- file.path(sprintf("%s_%s/table/Aldex2/", project, format(Sys.Date(), "%y%m%d")))
 Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
+```
 
+#### Stool.vs.Saliva
+<p align="center">
+  <img src="data/pdf/aldex2.volcano.TreatmentGroup.(Stool.vs.Saliva).Gotool.t-test.(cutoff=1).240310.png" alt="Aldex2_1" title="Aldex2_1" width="45%">
+</p>
+
+#### Plaque.vs.Stool
+<p align="center">
+  <img src="data/pdf/aldex2.volcano.TreatmentGroup.(Plaque.vs.Stool).Gotool.t-test.(cutoff=1).240310.png" alt="Aldex2_2" title="Aldex2_2" width="45%">
+</p>
+
+#### Plaque.vs.Saliva
+<p align="center">
+  <img src="data/pdf/aldex2.volcano.TreatmentGroup.(Plaque.vs.Saliva).Gotool.t-test.(cutoff=1).240310.png" alt="Aldex2_3" title="Aldex2_3" width="45%">
+</p>
+
+
+
+
+```r
 # Ancom2 Volcano Plot
 path <- file.path(sprintf("%s_%s/table/Ancom2/", project, format(Sys.Date(), "%y%m%d")))
 Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
-
 ```
+#### Stool.vs.Saliva
+<p align="center">
+  <img src="data/pdf/ancom2.volcano.TreatmentGroup.(Plaque.vs.Stool).Gotool.(cutoff=1).240310.png" alt="Ancom2_1" title="Ancom2_1" width="45%">
+</p>
+
+
 
 ---
 

@@ -150,16 +150,17 @@ Go_Ancom2 <- function(psIN,  project,
 
     # subset sample by combination
     for(i in 1:length(my_comparisons)){
+
     print(my_comparisons[i])
     combination <- unlist(my_comparisons[i]);combination
     basline <- combination[1]
     smvar <- combination[2]
 
     mapping.sel.cb <- subset(mapping.sel, mapping.sel[[mvar]] %in% c(basline, smvar)) # phyloseq subset은 작동을 안한다.
+    mapping.sel.cb[,mvar] <- factor(mapping.sel.cb[,mvar], levels = intersect(orders, mapping.sel.cb[,mvar]))
 
     psIN.cb <- psIN.na
     sample_data(psIN.cb) <- mapping.sel.cb
-
 
     ### categorical and continuous confounder control
     if (length(cate.conf) >= 1) {
@@ -200,7 +201,6 @@ Go_Ancom2 <- function(psIN,  project,
       confounder <- NULL
       out <- ancombc2(
         data = psIN.cb,
-        tax_level = "Phylum",
         p_adj_method = "holm",
         lib_cut = 1000,
         fix_formula = mvar,
@@ -210,6 +210,7 @@ Go_Ancom2 <- function(psIN,  project,
         alpha = 0.05,
         global = TRUE,
         em_control = list(tol = 1e-5, max_iter = 100)
+        # No tax_level specified since you're analyzing at the ASV level
       )
     }
 
