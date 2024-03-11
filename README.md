@@ -95,7 +95,7 @@ Go_SeqLengths(ps1) # Original distribution
 ```
 #### 
 <p align="center">
-  <img src="data/pdf/size1.png" alt="Size1" title="Size1" width="45%">
+  <img src="data/pdf/size1.png" alt="Size1" title="Size1" width="55%">
 </p>
 
 ```r
@@ -103,7 +103,7 @@ ps1.size <- Go_SeqLengths(psIN=ps1, from=297, to=470) # Filtered
 ```
 #### 
 <p align="center">
-  <img src="data/pdf/size2.png" alt="Size2" title="Size2" width="45%">
+  <img src="data/pdf/size2.png" alt="Size2" title="Size2" width="55%">
 </p>
 
 
