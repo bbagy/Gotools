@@ -451,7 +451,17 @@ Go_boxplot_markdown <- function(df, cate.vars, project, outcomes,
     }else{
       # make a comnination for stat
 
-      cbn <- combn(x = levels(df.na[,mvar]), m = 2)
+
+
+      if(!is.null(facet) && addnumber == TRUE){
+        cbn <- combn(x = levels(df.na$new_mvar), m = 2)
+      }else{
+        cbn <- combn(x = levels(df.na[,mvar]), m = 2)
+      }
+
+
+
+
 
       my_comparisons <- {}
       for(i in 1:ncol(cbn)){
