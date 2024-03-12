@@ -365,7 +365,7 @@ Go_Aldex2 <- function(psIN,  project,
         confounder_prefix <- ifelse(is.null(confounders), "", "with_confounder")
         name_prefix <- ifelse(is.null(name), "", paste0(name, ""))
 
-        filename <- sprintf("%s/aldex2.(%s.vs.%s).Sig%s.%s.%s.%s%s.csv",
+        filename <- sprintf("%s/aldex2.(%s.vs.%s).Sig%s.%s.%s.%s%s%s.csv",
                             out_DA, basline, smvar, num_significant, mvar, model, confounder_prefix, name_prefix, project)
         write.csv(merged_results, quote = F, col.names = NA, file = filename)
       }
