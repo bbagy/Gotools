@@ -477,11 +477,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
       # make a comnination for stat
 
       print("Check combination for statistics")
-      if(!is.null(facet) && addnumber == TRUE){
-        cbn <- combn(x = levels(df.na$new_mvar), m = 2)
-      }else{
-        cbn <- combn(x = levels(df.na[,mvar]), m = 2)
-      }
+      cbn <- combn(x = levels(df.na[,mvar]), m = 2)
 
 
       my_comparisons <- {}
@@ -535,18 +531,10 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         }
 
 
-        if(!is.null(facet) && addnumber == TRUE){
-
-          p1 <- ggplot(df.na, aes_string(x="new_mvar", y=oc))  + labs(y=oc, x=NULL) +
-            theme(strip.background = element_blank()) +
-            theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
-                  plot.title=element_text(size=8))
-        } else{
-          p1 <- ggplot(df.na, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
-            theme(strip.background = element_blank()) +
-            theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
-                  plot.title=element_text(size=8))
-        }
+        p1 <- ggplot(df.na, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
+          theme(strip.background = element_blank()) +
+          theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
+                plot.title=element_text(size=8))
 
 
 
@@ -682,6 +670,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         }
 
 
+
+
         # y axis limit
         if(!is.null(ylim)){
           if(oc == "Chao1"){
@@ -698,6 +688,19 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         } else {
           p1 = p1 + guides(color = "none", size = "none", shape= "none")
         }
+
+
+        # Conditionally adjust x-axis labels if facet and addnumber are TRUE
+        if(!is.null(facet) && addnumber == TRUE) {
+          # Create a named vector where names are original levels and values are new labels
+          new_labels <- setNames(levels(df.na$new_mvar), levels(df.na$mvar))
+          # Use scale_x_discrete to rename the x-axis labels accordingly
+          p1 <- p1 + scale_x_discrete(labels = new_labels)
+        } else {
+          # If not modifying labels, ensure the plot uses mvar levels directly (this might be redundant but is included for clarity)
+          p1 <- p1 + scale_x_discrete(labels = levels(df.na$mvar))
+        }
+
 
         # plot size ratio
         if (length(unique(df.na[,mvar])) < 5){
