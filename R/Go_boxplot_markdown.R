@@ -671,7 +671,10 @@ Go_boxplot_markdown <- function(df, cate.vars, project, outcomes,
         # Conditionally adjust x-axis labels if facet and addnumber are TRUE
         if(!is.null(facet) && addnumber == TRUE) {
           # Create a named vector where names are original levels and values are new labels
-          new_labels <- setNames(levels(df.na$new_mvar), levels(df.na$mvar))
+          df.na[,mvar] <- factor(df.na[,mvar])
+          df.na$new_mvar <- factor(df.na$new_mvar)
+
+          new_labels <- setNames(levels(df.na$new_mvar), levels(df.na[,mvar]))
           # Use scale_x_discrete to rename the x-axis labels accordingly
           p1 <- p1 + scale_x_discrete(labels = new_labels)
         } else {
