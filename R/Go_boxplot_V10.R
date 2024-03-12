@@ -689,22 +689,6 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           p1 = p1 + guides(color = "none", size = "none", shape= "none")
         }
 
-
-        # Conditionally adjust x-axis labels if facet and addnumber are TRUE
-        if(!is.null(facet) && addnumber == TRUE) {
-          # Create a named vector where names are original levels and values are new labels
-          df.na[,mvar] <- factor(df.na[,mvar])
-          df.na$new_mvar <- factor(df.na$new_mvar)
-
-          new_labels <- setNames(levels(df.na$new_mvar), levels(df.na[,mvar]))
-          # Use scale_x_discrete to rename the x-axis labels accordingly
-          p1 <- p1 + scale_x_discrete(labels = new_labels)
-        } else {
-          # If not modifying labels, ensure the plot uses mvar levels directly (this might be redundant but is included for clarity)
-          p1 <- p1 + scale_x_discrete(labels = levels(df.na$mvar))
-        }
-
-
         # plot size ratio
         if (length(unique(df.na[,mvar])) < 5){
           if(standardsize==TRUE){
