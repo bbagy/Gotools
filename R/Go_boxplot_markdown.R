@@ -451,16 +451,7 @@ Go_boxplot_markdown <- function(df, cate.vars, project, outcomes,
     }else{
       # make a comnination for stat
 
-
-
-      if(!is.null(facet) && addnumber == TRUE){
-        cbn <- combn(x = levels(df.na$new_mvar), m = 2)
-      }else{
-        cbn <- combn(x = levels(df.na[,mvar]), m = 2)
-      }
-
-
-
+      cbn <- combn(x = levels(df.na[,mvar]), m = 2)
 
 
       my_comparisons <- {}
@@ -513,17 +504,10 @@ Go_boxplot_markdown <- function(df, cate.vars, project, outcomes,
         }
 
 
-        if(!is.null(facet) && addnumber == TRUE){
-          p1 <- ggplot(df.na, aes_string(x="new_mvar", y=oc))  + labs(y=oc, x=NULL) +
-            theme(strip.background = element_blank()) +
-            theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
-                  plot.title=element_text(size=8))
-        } else{
-          p1 <- ggplot(df.na, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
-            theme(strip.background = element_blank()) +
-            theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
-                  plot.title=element_text(size=8))
-        }
+        p1 <- ggplot(df.na, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
+          theme(strip.background = element_blank()) +
+          theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
+                plot.title=element_text(size=8))
 
         # paired plot type
         if (!is.null(paired)) {
@@ -683,6 +667,18 @@ Go_boxplot_markdown <- function(df, cate.vars, project, outcomes,
           num.subgroup <- length(unique(df.na[,mvar]))*0.1
         }
 
+
+        # Conditionally adjust x-axis labels if facet and addnumber are TRUE
+        if(!is.null(facet) && addnumber == TRUE) {
+          # Create a named vector where names are original levels and values are new labels
+          new_labels <- setNames(levels(df.na$new_mvar), levels(df.na$mvar))
+          # Use scale_x_discrete to rename the x-axis labels accordingly
+          p1 <- p1 + scale_x_discrete(labels = new_labels)
+        } else {
+          # If not modifying labels, ensure the plot uses mvar levels directly (this might be redundant but is included for clarity)
+          p1 <- p1 + scale_x_discrete(labels = levels(df.na$mvar))
+        }
+
         p1  <- p1  + theme(panel.grid = element_blank(),
                            panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),
                            aspect.ratio = 1/num.subgroup)
@@ -694,3 +690,4 @@ Go_boxplot_markdown <- function(df, cate.vars, project, outcomes,
   }
   multiplot(plotlist=plotlist, cols=plotCols, rows=plotRows)
 }
+
