@@ -477,7 +477,12 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
       # make a comnination for stat
 
       print("Check combination for statistics")
-      cbn <- combn(x = levels(df.na[,mvar]), m = 2)
+      if(!is.null(facet) && addnumber == TRUE){
+        cbn <- combn(x = levels(df.na$new_mvar), m = 2)
+      }else{
+        cbn <- combn(x = levels(df.na[,mvar]), m = 2)
+      }
+
 
       my_comparisons <- {}
       for(i in 1:ncol(cbn)){

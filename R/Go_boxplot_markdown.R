@@ -118,7 +118,6 @@ Go_boxplot_markdown <- function(df, cate.vars, project, outcomes,
 
 
     # Add number of samples in the group
-    print("Add sample number informations")
     if(!is.null(facet) && addnumber == TRUE){
       # Calculate sample sizes for each combination of facet variable and categorical variable
       df.na$group_combination <- paste(df.na[,facet], df.na[,mvar], sep = "_")
