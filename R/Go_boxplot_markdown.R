@@ -118,27 +118,7 @@ Go_boxplot_markdown <- function(df, cate.vars, project, outcomes,
 
 
     # Add number of samples in the group
-    if(!is.null(facet) && addnumber == TRUE){
-      # Calculate sample sizes for each combination of facet variable and categorical variable
-      df.na$group_combination <- paste(df.na[,facet], df.na[,mvar], sep = "_")
-      sample_sizes <- table(df.na$group_combination)
-
-      # Create new labels with sample sizes included
-      new_labels <- sapply(names(sample_sizes), function(x){
-        split_name <- strsplit(x, "_")[[1]]
-        facet_name <- split_name[1]
-        cat_name <- split_name[2]
-        total <- sample_sizes[x]
-        new_label <- paste(cat_name, " (n=", total, ")", sep="")
-        return(new_label)
-      })
-
-      # Apply new labels to the dataframe
-      df.na$new_mvar <- unlist(sapply(df.na$group_combination, function(x) new_labels[x]))
-
-      # Now, use 'new_mvar' for plotting
-      # Note: Adjust your ggplot code to use 'new_mvar' instead of 'mvar' for the x-axis
-    } else if(is.null(facet) && addnumber == TRUE) {
+    if(is.null(facet) && addnumber == TRUE) {
       renamed_levels <- as.character(levels(df.na[,mvar]));renamed_levels
       oldNames <- unique(df.na[,mvar]);oldNames
       if (length(renamed_levels) == 0) {
