@@ -4,27 +4,30 @@
 \alias{Go_SeqLengths}
 \title{Calculate Sequence Lengths for Phyloseq Data}
 \usage{
-Go_SeqLengths(psIN, filter = NULL)
+Go_SeqLengths(psIN, from = NULL, to = NULL)
 }
 \arguments{
 \item{psIN}{A Phyloseq object containing OTU/ASV counts and associated metadata.}
 
-\item{filter}{An optional numeric value specifying the minimum sequence length to include
-in the analysis. If NULL (default), no filtering is applied.}
+\item{from}{An optional numeric value specifying the minimum sequence length to include
+in the analysis. If NULL (default), no minimum length filtering is applied.}
+
+\item{to}{An optional numeric value specifying the maximum sequence length to include
+in the analysis. If NULL (default), no maximum length filtering is applied.}
 }
 \value{
 If no filter is applied, it prints and plots the distribution of sequence lengths.
-If a filter is applied, it returns a new Phyloseq object containing only sequences
-with lengths greater than or equal to the filter value.
+If filters are applied, it returns a new Phyloseq object containing only sequences
+within the specified length range.
 }
 \description{
 This function calculates the sequence lengths from ASV sequences in a Phyloseq object.
-It can operate without any filters or apply a minimum sequence length filter before
+It can operate without any filters or can filter sequences based on their length before
 calculating and plotting the distribution of sequence lengths.
 }
 \examples{
 # Assuming 'ps' is a Phyloseq object
 Go_SeqLengths(ps)
-Go_SeqLengths(ps, filter = 100)
+Go_SeqLengths(ps, from = 100, to = 200)
 
 }
