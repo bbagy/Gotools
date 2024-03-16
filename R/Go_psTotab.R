@@ -35,7 +35,7 @@ Go_psTotab <- function(psIN, project){
   fasta <- c(rbind(headers, seqs))
 
 
-
+ print(1)
   if (nchar(headers[1]) < 100){
     seqs <- getSequences(seqtab.nochim)
     headers <- paste(">", seqs, sep="")
@@ -47,11 +47,11 @@ Go_psTotab <- function(psIN, project){
 
 
 
-
+ print(2)
   #====== step 3 get the table
   otu <- as.data.frame(t(otu_table(psIN)));dim(otu)
   tax <- tax_table(psIN);dim(tax)
-
+  print(3)
 
   tt <- try( otuTable <- cbind(otu,tax),T)
   if(class(tt) == "try-error"){
@@ -64,11 +64,11 @@ Go_psTotab <- function(psIN, project){
     fasta <- c(rbind(headers, seqs))
 
     write(fasta, file=sprintf("%s/%s.%s.psTotab.seqs.fna",out, project, format(Sys.Date(), "%y%m%d"),sep="/"))
-
+    print(4)
   }else{
     otuTable <- cbind(otu,tax)
   }
-
+  print(5)
   write.csv(tax, quote = FALSE,col.names = NA,#row.names = FALSE,
             file=sprintf("%s/%s.%s.psTotab.tax.csv",out,project,format(Sys.Date(), "%y%m%d"), sep="/"))
 
