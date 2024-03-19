@@ -290,7 +290,8 @@ Go_Aldex2 <- function(psIN,  project,
 
           if (class(tt) == "try-error"){
             # Create the pval column name
-            holm_col_name <- sprintf("%s%s.pval.holm", mvar, smvar)
+            # holm_col_name <- sprintf("%s%s.pval.holm", mvar, smvar)
+            holm_col_name <- sprintf("%s%s.pval.padj", mvar, smvar)
             holm_col_name <- gsub("\\+", ".", holm_col_name)
 
             # Create the Est column name
