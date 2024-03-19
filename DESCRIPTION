@@ -9,8 +9,6 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
-Requires:
-    plyr
 Suggests:    
     ape,
     Boruta,
@@ -85,4 +83,6 @@ Suggests:
     BiocManager,
     testthat,
     rmarkdown,
-    ALDEx2
+    ALDEx2,
+    yarrr,
+    picante
