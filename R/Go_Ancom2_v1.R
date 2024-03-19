@@ -222,7 +222,7 @@ Go_Ancom2 <- function(psIN,  project,
 
     #rownames(df_mvar) <- df_mvar$taxon
     #names(df_mvar)[length(names(df_mvar))]<-"diff_abn"
-    names(ancom_df)<- c("lfc_ancombc", "se_ancombc", "W_ancombc", "pvalue_ancombc", "qvalue_ancombc",  "diff_abn" )
+    names(ancom_df)<- c("lfc_ancombc", "se_ancombc", "W_ancombc", "pvalue_ancombc", "qvalue_ancombc",  "diff_abn" ,"passed")
 
     ancom_df$mvar <- mvar
     ancom_df$basline<-basline
