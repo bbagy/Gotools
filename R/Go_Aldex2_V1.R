@@ -260,8 +260,6 @@ Go_Aldex2 <- function(psIN,  project,
         }else{
           print("t-test")
           model <- "t-test"
-          asv_matrix[,-1] <- sapply(asv_matrix[,-1], function(col) as.numeric(as.character(col)))
-          conds <- as.character(conds)
 
           tt <- try(aldex_results <- aldex(asv_matrix, conds, test = "t"), T)
           if(inherits(tt, "try-error")){
