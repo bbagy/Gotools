@@ -160,6 +160,17 @@ Go_Ancom2 <- function(psIN,  project,
     mapping.sel.cb[,mvar] <- factor(mapping.sel.cb[,mvar], levels = intersect(orders, mapping.sel.cb[,mvar]))
 
     psIN.cb <- psIN.na
+
+    # Filter taxa with zero variance (constant across all samples)
+    otu_df <- as.data.frame(otu_table(psIN.na))
+
+    otu_df_filtered <- otu_df %>% select_if(~var(.) != 0)
+
+    otu_table_filtered <- otu_table(as.matrix(otu_df_filtered), taxa_are_rows = taxa_are_rows(otu_table(psIN.na)))
+    psIN.cb <- merge_phyloseq(psIN.na, otu_table_filtered)
+
+
+
     sample_data(psIN.cb) <- mapping.sel.cb
 
     ### categorical and continuous confounder control
