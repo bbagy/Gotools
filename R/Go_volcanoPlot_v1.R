@@ -127,7 +127,8 @@ Go_volcanoPlot <- function(project,
         pvalue_col_name <- sprintf("%s%s.pval", unique(df$mvar), unique(df$smvar))
         pvalue_col_name <- gsub("\\+", ".", pvalue_col_name)
 
-        holm_col_name <- sprintf("%s%s.pval.holm",unique(df$mvar), unique(df$smvar))
+        # holm_col_name <- sprintf("%s%s.pval.holm",unique(df$mvar), unique(df$smvar))
+        holm_col_name <- sprintf("%s%s.pval.padj",unique(df$mvar), unique(df$smvar))
         holm_col_name <- gsub("\\+", ".", holm_col_name)
 
         x_var <- est_col_name
