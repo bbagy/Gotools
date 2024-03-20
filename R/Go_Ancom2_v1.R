@@ -42,32 +42,32 @@
 #' @export
 
 Go_Ancom2 <- function(psIN,  project,
-                      data_type = "other",
-                      cate.outs,
-                      cate.conf=NULL,
-                      cont.conf=NULL,
+                      data_type = "other", 
+                      cate.outs,  
+                      cate.conf=NULL, 
+                      cont.conf=NULL, 
                       orders=NULL,
                       name=NULL){
 
   # out dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
+  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
   if(!file_test("-d", out)) dir.create(out)
-  out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
+  out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d"))) 
   if(!file_test("-d", out_path)) dir.create(out_path)
-  out_DA <- file.path(sprintf("%s_%s/table/Ancom2",project, format(Sys.Date(), "%y%m%d")))
+  out_DA <- file.path(sprintf("%s_%s/table/Ancom2",project, format(Sys.Date(), "%y%m%d"))) 
   if(!file_test("-d", out_DA)) dir.create(out_DA)
-
-  #out_DA.Tab <- file.path(sprintf("%s_%s/table/Ancom2/tab",project, format(Sys.Date(), "%y%m%d")))
+  
+  #out_DA.Tab <- file.path(sprintf("%s_%s/table/Ancom2/tab",project, format(Sys.Date(), "%y%m%d"))) 
   #if(!file_test("-d", out_DA.Tab)) dir.create(out_DA.Tab)
-
-
+  
+  
   mapping <- data.frame(sample_data(psIN))
-
-
+  
+  
   # get data tyep
   print("Check the data type")
   taxtab.col <- colnames(data.frame((tax_table(psIN))))
-
+  
   if (any(grepl("Species", taxtab.col))){
     taxaTab <- data.frame(tax_table(psIN)[,"Species"])
     type <- "taxonomy"
@@ -85,9 +85,9 @@ Go_Ancom2 <- function(psIN,  project,
     type <- "RNAseq"
     print(type)
   }
-
-
-
+  
+  
+  
   # start
   res <- {}
   for (mvar in cate.outs) {
@@ -115,8 +115,8 @@ Go_Ancom2 <- function(psIN,  project,
     }
 
 
-
-
+    
+    
     # integer control
     if (class(mapping.sel.na.rem[,mvar]) == "character"){
       mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
@@ -129,7 +129,7 @@ Go_Ancom2 <- function(psIN,  project,
 
 
 
-    # for changing "-" to character
+    # for changing "-" to character 
     mapping.sel[,mvar] <- gsub("V-","Vn",mapping.sel[,mvar])
 
     # combination
@@ -138,40 +138,37 @@ Go_Ancom2 <- function(psIN,  project,
     }else{
      mapping.sel[,mvar] <- factor(mapping.sel[,mvar])
     }
-
+    
     # mapping.sel[,mvar] <- factor(mapping.sel[,mvar])
     cbn <- combn(x = levels(mapping.sel[,mvar]), m = 2)
-
+    
     my_comparisons <- {}
     for(i in 1:ncol(cbn)){
       x <- cbn[,i]
       my_comparisons[[i]] <- x
     };my_comparisons
-
+    
     # subset sample by combination
     for(i in 1:length(my_comparisons)){
-
     print(my_comparisons[i])
     combination <- unlist(my_comparisons[i]);combination
     basline <- combination[1]
     smvar <- combination[2]
-
+    
     mapping.sel.cb <- subset(mapping.sel, mapping.sel[[mvar]] %in% c(basline, smvar)) # phyloseq subset은 작동을 안한다.
-    mapping.sel.cb[,mvar] <- factor(mapping.sel.cb[,mvar], levels = intersect(orders, mapping.sel.cb[,mvar]))
-
-    psIN.cb <- psIN.na
-
+    
     # Filter taxa with zero variance (constant across all samples)
     otu_df <- as.data.frame(otu_table(psIN.na))
-
     otu_df_filtered <- otu_df %>% select_if(~var(.) != 0)
-
+    
+    # Update the phyloseq object with the filtered OTU table
     otu_table_filtered <- otu_table(as.matrix(otu_df_filtered), taxa_are_rows = taxa_are_rows(otu_table(psIN.na)))
-    psIN.cb <- merge_phyloseq(psIN.na, otu_table_filtered)
-
-
-
+    psIN.cb <- merge_phyloseq(psIN.cb, otu_table_filtered)
+    
+    
+    
     sample_data(psIN.cb) <- mapping.sel.cb
+
 
     ### categorical and continuous confounder control
     if (length(cate.conf) >= 1) {
@@ -187,14 +184,14 @@ Go_Ancom2 <- function(psIN,  project,
         sample_data(psIN.cb) <- mapping.sel.cb
       }
     }
+    
 
-
-
+    
     #-- ANCOM-bc for phyloseq --#
-
+    
     if (!is.null(cate.conf) | !is.null(cont.conf)) {
       confounder <- c(cate.conf,cont.conf)
-
+      
       formula_str <- sprintf("%s + %s", mvar, paste(setdiff(confounder, "SampleType"), collapse=" + "))
       out <- ancombc2(
         data = psIN.cb,
@@ -221,20 +218,19 @@ Go_Ancom2 <- function(psIN,  project,
         alpha = 0.05,
         global = TRUE,
         em_control = list(tol = 1e-5, max_iter = 100)
-        # No tax_level specified since you're analyzing at the ASV level
       )
     }
-
+    
     res.ancom = out$res
     ancom_df = res.ancom %>%
       dplyr::select(taxon, contains(mvar))
-
+    
     rownames(ancom_df) <- ancom_df$taxon; ancom_df$taxon <- NULL
-
-    #rownames(df_mvar) <- df_mvar$taxon
-    #names(df_mvar)[length(names(df_mvar))]<-"diff_abn"
-    names(ancom_df)<- c("lfc_ancombc", "se_ancombc", "W_ancombc", "pvalue_ancombc", "qvalue_ancombc",  "diff_abn" ,"passed")
-
+    
+    #rownames(df_mvar) <- df_mvar$taxon 
+    #names(df_mvar)[length(names(df_mvar))]<-"diff_abn" 
+    names(ancom_df)<- c("lfc_ancombc", "se_ancombc", "W_ancombc", "pvalue_ancombc", "qvalue_ancombc",  "diff_abn", "pass")
+    
     ancom_df$mvar <- mvar
     ancom_df$basline<-basline
     ancom_df$bas.count <-  sum(with(mapping.sel.cb, mapping.sel.cb[,mvar] == basline))
@@ -242,48 +238,48 @@ Go_Ancom2 <- function(psIN,  project,
     ancom_df$smvar.count <-  sum(with(mapping.sel.cb, mapping.sel.cb[,mvar] == smvar))
     ancom_df$ancom2.FDR <- ifelse(ancom_df$qvalue_ancombc < 0.05, ifelse(sign(ancom_df$lfc_ancombc)==1, "up", "down"), "NS")
     ancom_df$ancom2.P <- ifelse(ancom_df$pvalue_ancombc < 0.05, ifelse(sign(ancom_df$lfc_ancombc)==1, "up", "down"), "NS")
-
+    
     # Extract the taxonomy table from the phyloseq object
     tax_table <- as.data.frame(tax_table(psIN.cb))
     ancom_df <- as.data.frame(ancom_df)
-
+    
     merged_results <- merge(ancom_df, tax_table, by = 0, all.x = TRUE)
     merged_results[merged_results == "NA NA"] <- NA
-
+    
     # Fill missing values with the last available non-missing value in each row
     tt <- try(filled_data <- apply(merged_results[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE)), T)
-
-
+    
+    
     if(inherits(tt, "try-error")){
       filled_data <- apply(merged_results[, c("Rank1", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE))
     }
-
+    
     filled_data <- t(as.data.frame(filled_data))
-
+    
     tt <- try(merged_results[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- filled_data, T)
-
-
+    
+    
     if(inherits(tt, "try-error")){
       merged_results[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- t(filled_data)
     }
     colnames(merged_results)[colnames(merged_results) == "Row.names"] <- "ASV"
-
-
-
+    
+    colnames(merged_results)
+    
     merged_results <- arrange(merged_results, merged_results$pvalue_ancombc)
     significant_bacteria <- merged_results[merged_results$qvalue_ancombc < 0.05, ]
     # Counting the number of significant bacteria
     num_significant <- nrow(significant_bacteria)
-
+    
     confounder_part <- ifelse(!is.null(confounder), ".with_confounder", "")
     name_part <- ifelse(!is.null(name), paste0(".", name), "")
-    filename <- sprintf("ancom2.(%s.vs.%s).Sig%s.%s%s%s.%s.csv",
-                        basline, smvar, num_significant, mvar,
+    filename <- sprintf("ancom2.(%s.vs.%s).Sig%s.%s%s%s.%s.csv", 
+                        basline, smvar, num_significant, mvar, 
                         confounder_part, name_part, project)
-
+    
     output_path <- file.path(out_DA, filename)
     write.csv(merged_results, quote = FALSE, col.names = NA, file = output_path)
-
+    
     }
   }
 }
