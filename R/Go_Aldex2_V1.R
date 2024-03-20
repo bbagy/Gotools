@@ -224,6 +224,12 @@ Go_Aldex2 <- function(psIN,  project,
         conds1[conds1 == smvar] <- "1"
         conds <- factor(conds1)
 
+        # Convert `conds` to character if it's a factor
+        if(is.factor(conds)) {
+          conds <- as.character(conds)
+        }
+
+
 
 
         # Run ALDEx2 analysis using the 'conditions' argument
@@ -260,6 +266,8 @@ Go_Aldex2 <- function(psIN,  project,
         }else{
           print("t-test")
           model <- "t-test"
+          # If you suspect the matrix has been read as containing factors, convert it:
+          # asv_matrix <- data.frame(lapply(asv_matrix, function(x) if(is.factor(x)) as.numeric(levels(x))[x] else x))
 
           tt <- try(aldex_results <- aldex(asv_matrix, conds, test = "t"), T)
           if(inherits(tt, "try-error")){
