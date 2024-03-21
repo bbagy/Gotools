@@ -17,6 +17,7 @@ Go_boxplot(
   facet = NULL,
   paired = NULL,
   name = NULL,
+  ncol = NULL,
   addnumber = TRUE,
   standardsize = TRUE,
   statistics = "yes",
@@ -54,6 +55,8 @@ Go_boxplot(
 \item{paired}{Indicates if the data points are paired.}
 
 \item{name}{Optional name for saving the plot.}
+
+\item{ncol}{Number of columns for facet wrapping in the plot.}
 
 \item{addnumber}{Boolean to add the number of samples in each group.}
 
