@@ -159,6 +159,7 @@ Go_Ancom2 <- function(psIN,  project,
 
     psIN.cb <- psIN.na
 
+
     sample_data(psIN.cb) <- mapping.sel.cb
 
 
@@ -199,16 +200,9 @@ Go_Ancom2 <- function(psIN,  project,
       )
     }else{
       confounder <- NULL
-      # Filter taxa with zero variance (constant across all samples)
-      otu_df <- as.data.frame(otu_table(psIN.cb))
-      otu_df_filtered <- otu_df %>% select_if(~var(.) != 0)
-
-      # Update the phyloseq object with the filtered OTU table
-      otu_table_filtered <- otu_table(as.matrix(otu_df_filtered), taxa_are_rows = taxa_are_rows(otu_table(psIN.cb)))
-      psIN.cb_filtered <- merge_phyloseq(psIN.cb, otu_table_filtered)
 
       out <- ancombc2(
-        data = psIN.cb_filtered,
+        data = psIN.cb,
         p_adj_method = "holm",
         lib_cut = 1000,
         fix_formula = mvar,
