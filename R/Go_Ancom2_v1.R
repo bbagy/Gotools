@@ -252,6 +252,8 @@ Go_Ancom2 <- function(psIN,  project,
 
     rownames(ancom_df) <- ancom_df$taxon; ancom_df$taxon <- NULL
 
+    print(ancom_df)
+
     #rownames(df_mvar) <- df_mvar$taxon
     #names(df_mvar)[length(names(df_mvar))]<-"diff_abn"
     names(ancom_df)<- c("lfc_ancombc", "se_ancombc", "W_ancombc", "pvalue_ancombc", "qvalue_ancombc",  "diff_abn", "pass")
