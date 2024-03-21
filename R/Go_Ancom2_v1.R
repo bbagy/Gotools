@@ -160,7 +160,7 @@ Go_Ancom2 <- function(psIN,  project,
     # psIN.cb <- psIN.na
 
     # remove 0 ASVs
-    tt = try(psIN.cb <- prune_samples(sample_sums(psIN.na) > 1, psIN.na),T)
+    tt = try(psIN.na1 <- prune_samples(sample_sums(psIN.na) > 1, psIN.na),T)
     if (class(tt) == "try-error"){
       psIN.na1 = prune_samples(sample_sums(psIN.na) > 0, psIN.na)
     }else{
