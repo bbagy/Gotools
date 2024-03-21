@@ -157,7 +157,15 @@ Go_Ancom2 <- function(psIN,  project,
 
     mapping.sel.cb <- subset(mapping.sel, mapping.sel[[mvar]] %in% c(basline, smvar)) # phyloseq subset은 작동을 안한다.
 
-    psIN.cb <- psIN.na
+    # psIN.cb <- psIN.na
+
+    # remove 0 ASVs
+    tt = try(psIN.cb <- prune_samples(sample_sums(psIN.na) > 1, psIN.na),T)
+    if (class(tt) == "try-error"){
+      psIN.cb = prune_samples(sample_sums(psIN.na) > 0, psIN.na)
+    }else{
+      psIN.cb <- prune_samples(sample_sums(psIN.na) > 1, psIN.na)
+    }
 
 
     sample_data(psIN.cb) <- mapping.sel.cb
