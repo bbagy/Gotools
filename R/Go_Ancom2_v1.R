@@ -250,7 +250,7 @@ Go_Ancom2 <- function(psIN,  project,
 
     rownames(ancom_df) <- ancom_df$taxon; ancom_df$taxon <- NULL
 
-    df(ancom_df)
+    dim(ancom_df)
 
     #rownames(df_mvar) <- df_mvar$taxon
     #names(df_mvar)[length(names(df_mvar))]<-"diff_abn"
