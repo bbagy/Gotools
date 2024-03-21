@@ -198,7 +198,7 @@ Go_Ancom2 <- function(psIN,  project,
         em_control = list(tol = 1e-5, max_iter = 100))
     }else{
       confounder <- NULL
-      tt = try(         out <- ancombc2(
+      tt = try(out <- ancombc2(
         data = psIN.cb,
         p_adj_method = "holm",
         lib_cut = 1000,
