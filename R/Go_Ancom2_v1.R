@@ -212,26 +212,26 @@ Go_Ancom2 <- function(psIN,  project,
 
       if (class(tt) == "try-error"){
         # remove 0 ASVs
-        tt = try(psIN.na1 <- prune_samples(sample_sums(psIN.na) > 1, psIN.na),T)
+        tt = try(psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 1, psIN.cb),T)
         if (class(tt) == "try-error"){
-          psIN.na1 = prune_samples(sample_sums(psIN.na) > 0, psIN.na)
+          psIN.cb1 = prune_samples(sample_sums(psIN.cb) > 0, psIN.cb)
         }else{
-          psIN.na1 <- prune_samples(sample_sums(psIN.na) > 1, psIN.na)
+          psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 1, psIN.cb)
         }
 
 
         # Convert the OTU table to a data frame for manipulation
-        otu_df <- as.data.frame(otu_table(psIN.na1))
+        otu_df <- as.data.frame(otu_table(psIN.cb1))
 
         # Filter taxa by directly checking for zero variance
         nonzero_var_taxa <- sapply(otu_df, var) != 0
         otu_df_filtered <- otu_df[, nonzero_var_taxa, drop = FALSE]
 
         # Convert back to an OTU table and update the phyloseq object
-        otu_table_filtered <- otu_table(as.matrix(otu_df_filtered), taxa_are_rows = taxa_are_rows(otu_table(psIN.na1)))
-        psIN.cb <- merge_phyloseq(prune_taxa(taxa_sums(psIN.na1) > 0, psIN.na1), phyloseq(otu_table_filtered))
+        otu_table_filtered <- otu_table(as.matrix(otu_df_filtered), taxa_are_rows = taxa_are_rows(otu_table(psIN.cb1)))
+        psIN.cb2 <- merge_phyloseq(prune_taxa(taxa_sums(psIN.cb1) > 0, psIN.cb1), phyloseq(otu_table_filtered))
         out <- ancombc2(
-          data = psIN.cb,
+          data = psIN.cb2,
           p_adj_method = "holm",
           lib_cut = 1000,
           fix_formula = mvar,
@@ -240,9 +240,7 @@ Go_Ancom2 <- function(psIN,  project,
           neg_lb = TRUE,
           alpha = 0.05,
           global = TRUE,
-          em_control = list(tol = 1e-5, max_iter = 100)
-        )
-
+          em_control = list(tol = 1e-5, max_iter = 100))
       }
     }
 
@@ -252,7 +250,7 @@ Go_Ancom2 <- function(psIN,  project,
 
     rownames(ancom_df) <- ancom_df$taxon; ancom_df$taxon <- NULL
 
-    print(ancom_df)
+    df(ancom_df)
 
     #rownames(df_mvar) <- df_mvar$taxon
     #names(df_mvar)[length(names(df_mvar))]<-"diff_abn"
