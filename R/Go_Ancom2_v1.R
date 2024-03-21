@@ -157,27 +157,7 @@ Go_Ancom2 <- function(psIN,  project,
 
     mapping.sel.cb <- subset(mapping.sel, mapping.sel[[mvar]] %in% c(basline, smvar)) # phyloseq subset은 작동을 안한다.
 
-    # psIN.cb <- psIN.na
-
-    # remove 0 ASVs
-    tt = try(psIN.na1 <- prune_samples(sample_sums(psIN.na) > 1, psIN.na),T)
-    if (class(tt) == "try-error"){
-      psIN.na1 = prune_samples(sample_sums(psIN.na) > 0, psIN.na)
-    }else{
-      psIN.na1 <- prune_samples(sample_sums(psIN.na) > 1, psIN.na)
-    }
-
-
-    # Convert the OTU table to a data frame for manipulation
-    otu_df <- as.data.frame(otu_table(psIN.na1))
-
-    # Filter taxa by directly checking for zero variance
-    nonzero_var_taxa <- sapply(otu_df, var) != 0
-    otu_df_filtered <- otu_df[, nonzero_var_taxa, drop = FALSE]
-
-    # Convert back to an OTU table and update the phyloseq object
-    otu_table_filtered <- otu_table(as.matrix(otu_df_filtered), taxa_are_rows = taxa_are_rows(otu_table(psIN.na1)))
-    psIN.cb <- merge_phyloseq(prune_taxa(taxa_sums(psIN.na1) > 0, psIN.na1), phyloseq(otu_table_filtered))
+    psIN.cb <- psIN.na
 
     sample_data(psIN.cb) <- mapping.sel.cb
 
@@ -215,12 +195,10 @@ Go_Ancom2 <- function(psIN,  project,
         neg_lb = TRUE,
         alpha = 0.05,
         global = TRUE,
-        em_control = list(tol = 1e-5, max_iter = 100)
-      )
+        em_control = list(tol = 1e-5, max_iter = 100))
     }else{
       confounder <- NULL
-
-      out <- ancombc2(
+      tt = try(         out <- ancombc2(
         data = psIN.cb,
         p_adj_method = "holm",
         lib_cut = 1000,
@@ -230,8 +208,42 @@ Go_Ancom2 <- function(psIN,  project,
         neg_lb = TRUE,
         alpha = 0.05,
         global = TRUE,
-        em_control = list(tol = 1e-5, max_iter = 100)
-      )
+        em_control = list(tol = 1e-5, max_iter = 100)),T)
+
+      if (class(tt) == "try-error"){
+        # remove 0 ASVs
+        tt = try(psIN.na1 <- prune_samples(sample_sums(psIN.na) > 1, psIN.na),T)
+        if (class(tt) == "try-error"){
+          psIN.na1 = prune_samples(sample_sums(psIN.na) > 0, psIN.na)
+        }else{
+          psIN.na1 <- prune_samples(sample_sums(psIN.na) > 1, psIN.na)
+        }
+
+
+        # Convert the OTU table to a data frame for manipulation
+        otu_df <- as.data.frame(otu_table(psIN.na1))
+
+        # Filter taxa by directly checking for zero variance
+        nonzero_var_taxa <- sapply(otu_df, var) != 0
+        otu_df_filtered <- otu_df[, nonzero_var_taxa, drop = FALSE]
+
+        # Convert back to an OTU table and update the phyloseq object
+        otu_table_filtered <- otu_table(as.matrix(otu_df_filtered), taxa_are_rows = taxa_are_rows(otu_table(psIN.na1)))
+        psIN.cb <- merge_phyloseq(prune_taxa(taxa_sums(psIN.na1) > 0, psIN.na1), phyloseq(otu_table_filtered))
+        out <- ancombc2(
+          data = psIN.cb,
+          p_adj_method = "holm",
+          lib_cut = 1000,
+          fix_formula = mvar,
+          group = mvar,
+          struc_zero = TRUE,
+          neg_lb = TRUE,
+          alpha = 0.05,
+          global = TRUE,
+          em_control = list(tol = 1e-5, max_iter = 100)
+        )
+
+      }
     }
 
     res.ancom = out$res
