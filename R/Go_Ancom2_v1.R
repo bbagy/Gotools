@@ -162,11 +162,22 @@ Go_Ancom2 <- function(psIN,  project,
     # remove 0 ASVs
     tt = try(psIN.cb <- prune_samples(sample_sums(psIN.na) > 1, psIN.na),T)
     if (class(tt) == "try-error"){
-      psIN.cb = prune_samples(sample_sums(psIN.na) > 0, psIN.na)
+      psIN.na1 = prune_samples(sample_sums(psIN.na) > 0, psIN.na)
     }else{
-      psIN.cb <- prune_samples(sample_sums(psIN.na) > 1, psIN.na)
+      psIN.na1 <- prune_samples(sample_sums(psIN.na) > 1, psIN.na)
     }
 
+
+    # Convert the OTU table to a data frame for manipulation
+    otu_df <- as.data.frame(otu_table(psIN.na1))
+
+    # Filter taxa by directly checking for zero variance
+    nonzero_var_taxa <- sapply(otu_df, var) != 0
+    otu_df_filtered <- otu_df[, nonzero_var_taxa, drop = FALSE]
+
+    # Convert back to an OTU table and update the phyloseq object
+    otu_table_filtered <- otu_table(as.matrix(otu_df_filtered), taxa_are_rows = taxa_are_rows(otu_table(psIN.na1)))
+    psIN.cb <- merge_phyloseq(prune_taxa(taxa_sums(psIN.na1) > 0, psIN.na1), phyloseq(otu_table_filtered))
 
     sample_data(psIN.cb) <- mapping.sel.cb
 
