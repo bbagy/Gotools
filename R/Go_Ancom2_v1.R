@@ -215,32 +215,57 @@ Go_Ancom2 <- function(psIN,  project,
         tt = try(psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 1, psIN.cb),T)
         if (class(tt) == "try-error"){
           psIN.cb1 = prune_samples(sample_sums(psIN.cb) > 0, psIN.cb)
-        }else{
-          psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 1, psIN.cb)
         }
 
+        tt = try(psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 1, psIN.cb),T)
+        if (class(tt) == "try-error"){
+          psIN.cb1 = prune_samples(sample_sums(psIN.cb) > 0, psIN.cb)
+        }
 
-        # Convert the OTU table to a data frame for manipulation
-        otu_df <- as.data.frame(otu_table(psIN.cb1))
+        # Define initial cutoff value and the increment
+        cutoff <- 0.001
+        increment <- 0.0005
+        final_cutoff <- 0.01
 
-        # Filter taxa by directly checking for zero variance
-        nonzero_var_taxa <- sapply(otu_df, var) != 0
-        otu_df_filtered <- otu_df[, nonzero_var_taxa, drop = FALSE]
+        # Loop until the cutoff exceeds the final cutoff value
+        while(cutoff <= final_cutoff) {
+          cat("Trying cutoff value:", cutoff, "\n")
 
-        # Convert back to an OTU table and update the phyloseq object
-        otu_table_filtered <- otu_table(as.matrix(otu_df_filtered), taxa_are_rows = taxa_are_rows(otu_table(psIN.cb1)))
-        psIN.cb2 <- merge_phyloseq(prune_taxa(taxa_sums(psIN.cb1) > 0, psIN.cb1), phyloseq(otu_table_filtered))
-        out <- ancombc2(
-          data = psIN.cb2,
-          p_adj_method = "holm",
-          lib_cut = 1000,
-          fix_formula = mvar,
-          group = mvar,
-          struc_zero = TRUE,
-          neg_lb = TRUE,
-          alpha = 0.05,
-          global = TRUE,
-          em_control = list(tol = 1e-5, max_iter = 100))
+          # Apply filtering based on the current cutoff value
+          psIN.cb2 <- Go_filter(psIN.cb1, cutoff = cutoff)
+
+          # Attempt to run ancombc2 with the filtered data
+          analysis_result <- try({
+            ancombc2(
+              data = psIN.cb2,
+              p_adj_method = "holm",
+              lib_cut = 1000,
+              fix_formula = mvar,
+              group = mvar,
+              struc_zero = TRUE,
+              neg_lb = TRUE,
+              alpha = 0.05,
+              global = TRUE,
+              em_control = list(tol = 1e-5, max_iter = 100)
+            )
+          }, silent = TRUE)
+
+          # Check if the try block succeeded or failed
+          if(!inherits(analysis_result, "try-error")) {
+            cat("Analysis succeeded with cutoff:", cutoff, "\n")
+            break  # Exit the loop if successful
+          } else {
+            cat("Analysis failed with cutoff:", cutoff, " - Increasing cutoff\n")
+            cutoff <- cutoff + increment  # Increase cutoff for the next iteration
+          }
+        }
+
+        if(cutoff > final_cutoff) {
+          cat("Analysis failed with all attempted cutoff values up to", final_cutoff, "\n")
+        } else {
+          cat("Final successful cutoff:", cutoff, "\n")
+          # Proceed with using 'analysis_result' for further analysis
+        }
       }
     }
 
