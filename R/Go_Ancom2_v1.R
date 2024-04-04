@@ -235,7 +235,7 @@ Go_Ancom2 <- function(psIN,  project,
           psIN.cb2 <- Go_filter(psIN.cb1, cutoff = cutoff)
 
           # Attempt to run ancombc2 with the filtered data
-          analysis_result <- try({
+          out <- try({
             ancombc2(
               data = psIN.cb2,
               p_adj_method = "holm",
@@ -251,7 +251,7 @@ Go_Ancom2 <- function(psIN,  project,
           }, silent = TRUE)
 
           # Check if the try block succeeded or failed
-          if(!inherits(analysis_result, "try-error")) {
+          if(!inherits(out, "try-error")) {
             cat("Analysis succeeded with cutoff:", cutoff, "\n")
             break  # Exit the loop if successful
           } else {
