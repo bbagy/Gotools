@@ -51,7 +51,12 @@ Go_SeqLengths <- function(psIN, from=NULL, to=NULL){
   if(!is.null(from) && !is.null(to)) {
     # Filter sequences based on the provided range
     valid_indices <- which(sequence_lengths >= from & sequence_lengths <= to)
-    seqtab <- seqtab[, valid_indices]
+    tt <- try(seqtab <- seqtab[, valid_indices],T)
+    if (class(tt) =="try-error"){
+      seqtab.t <- t(seqtab)
+      seqtab <- seqtab.t[, valid_indices]
+    }
+
     asv_sequences <- asv_sequences[valid_indices]
     sequence_lengths <- sequence_lengths[valid_indices] # Update sequence lengths after filtering
   }
@@ -91,7 +96,7 @@ Go_SeqLengths <- function(psIN, from=NULL, to=NULL){
     }, error = function(e) {
       cat("No phy_tree present in the phyloseq object.\n")
     })
-
+    print(new_ps)
     return(new_ps)
   }
 }
