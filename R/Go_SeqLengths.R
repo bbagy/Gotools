@@ -42,9 +42,9 @@ Go_SeqLengths <- function(psIN, from=NULL, to=NULL){
 
   # Check if sequences contain only valid characters
   if(!all(sapply(strsplit(asv_sequences, ""), function(x) all(x %in% c("A", "T", "C", "G", "N"))))) {
-    stop("Sequences contain invalid characters.")
+    #stop("Sequences contain invalid characters.")
+    asv_sequences <- rownames(seqtab)
   }
-
   # Define sequence lengths
   sequence_lengths <- nchar(asv_sequences)
 
