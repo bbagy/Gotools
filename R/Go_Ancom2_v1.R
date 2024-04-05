@@ -185,7 +185,9 @@ Go_Ancom2 <- function(psIN,  project,
       confounder <- c(cate.conf,cont.conf)
 
       formula_str <- sprintf("%s + %s", mvar, paste(setdiff(confounder, "SampleType"), collapse=" + "))
-      out <- ancombc2(
+      print(formula_str)
+
+      ancom.out <- ancombc2(
         data = psIN.cb,
         p_adj_method = "holm",
         lib_cut = 1000,
@@ -196,9 +198,10 @@ Go_Ancom2 <- function(psIN,  project,
         alpha = 0.05,
         global = TRUE,
         em_control = list(tol = 1e-5, max_iter = 100))
+
     }else{
       confounder <- NULL
-      tt = try(out <- ancombc2(
+      tt = try(ancom.out <- ancombc2(
         data = psIN.cb,
         p_adj_method = "holm",
         lib_cut = 1000,
@@ -235,7 +238,7 @@ Go_Ancom2 <- function(psIN,  project,
           psIN.cb2 <- Go_filter(psIN.cb1, cutoff = cutoff)
 
           # Attempt to run ancombc2 with the filtered data
-          out <- try({
+          ancom.out <- try({
             ancombc2(
               data = psIN.cb2,
               p_adj_method = "holm",
@@ -269,7 +272,9 @@ Go_Ancom2 <- function(psIN,  project,
       }
     }
 
-    res.ancom = out$res
+
+
+    res.ancom = ancom.out$res
     ancom_df = res.ancom %>%
       dplyr::select(taxon, contains(mvar))
 
