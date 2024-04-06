@@ -98,6 +98,9 @@ Go_piePlot <- function(df,
   print(2)
   # Calculate the total values for each type and the percentage
   # Split combined_aggregated by 'pie.group'
+  combined_aggregated$pie.group <- factor(combined_aggregated$pie.group)
+  combined_aggregated$pie.group <- droplevels(combined_aggregated$pie.group)
+
   split_data <- split(combined_aggregated, combined_aggregated$pie.group)
 
   # Function to calculate total and percentage
@@ -133,7 +136,7 @@ Go_piePlot <- function(df,
   }
 
   # Add title and subtitles if they are not NULL
-  p <- p + labs(title = sprintf("Distribution of %s", pie1,
+  p <- p + labs(title = sprintf("Distribution of %s%s%s", pie1,
                                 ifelse(is.null(pie2), "", paste("-",pie2, sep = "")),
                                 ifelse(is.null(pie3), "", paste("-", pie3, sep = ""))))
 
