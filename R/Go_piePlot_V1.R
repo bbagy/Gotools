@@ -65,17 +65,17 @@ Go_piePlot <- function(df,
   dfs <- list()
 
   # Define a vector of pie parameters
-  pies <- c(pie1, pie2, pie3)
+  pies <- Filter(Negate(is.null), list(pie1, pie2, pie3))
+
 
   # Loop through the pie parameters to create and store data frames
   for(pie in pies) {
-    if(!is.null(pie)) {
-      df_temp <- as.data.frame(table(df[[pie]]))
-      names(df_temp) <- c("Category", "Count") # Standardize column names
-      df_temp$pie.group <- pie
-      dfs[[length(dfs) + 1]] <- df_temp # Append to the list
-    }
+    df_temp <- as.data.frame(table(df[[pie]]))
+    names(df_temp) <- c("Category", "Count") # Standardize column names
+    df_temp$pie.group <- pie
+    dfs[[length(dfs) + 1]] <- df_temp # Append to the list
   }
+
 
   # Combine all data frames in the list
   combined <- do.call(rbind, dfs)
