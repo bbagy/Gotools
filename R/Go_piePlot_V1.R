@@ -96,28 +96,13 @@ Go_piePlot <- function(df,
     summarise(val = sum(Count), .groups = 'drop') # Explicitly drop grouping
 
 
-  # Calculate the total values for each type and the percentage
-  # Split combined_aggregated by 'pie.group'
-  combined_aggregated$pie.group <- factor(combined_aggregated$pie.group)
-  combined_aggregated$pie.group <- droplevels(combined_aggregated$pie.group)
-
-  split_data <- split(combined_aggregated, combined_aggregated$pie.group)
   print(2)
-  # Function to calculate total and percentage
-  calc_percentage <- function(df) {
-    df$Total <- sum(df$val) # Calculate total for each type
-    df$Percentage <- (df$val / df$Total) * 100 # Calculate percentage
-    return(df)
-  }
+  # Calculate the total values for each type and the percentage
+  combined_aggregated <- combined_aggregated %>%
+    group_by(pie.group) %>%
+    mutate(Total = sum(val), # Calculate total for each type
+           Percentage = (val / Total) * 100)
 
-  # Apply the function to each subset and combine them back
-  combined_aggregated <- do.call(rbind, lapply(split_data, calc_percentage))
-
-  # If the row names become non-unique and problematic, reset them
-  rownames(combined_aggregated) <- NULL
-
-  # Ensure 'pie.group' is still a factor if needed for subsequent steps
-  combined_aggregated$pie.group <- factor(combined_aggregated$pie.group)
 
   combined_aggregated$Label <- paste0(combined_aggregated$Category, " (", round(combined_aggregated$Percentage, 1), "%)")
 
