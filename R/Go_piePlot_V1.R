@@ -1,6 +1,6 @@
 #' Generate a Pie Plot PDF for a Given Project
 #'
-#' This function generates a pie plot based on the provided data frame and plotting parameters for a specified project. 
+#' This function generates a pie plot based on the provided data frame and plotting parameters for a specified project.
 #' It allows for the creation of pie plots with up to three hierarchical levels and saves the plot in a structured project directory.
 #'
 #' @param df A data frame containing the variables to be plotted.
@@ -23,50 +23,50 @@
 #' @examples
 #' Go_piePlot(df = df, project = "MyProject", pie1 = "Category", pie3 = "Percentage")
 
-Go_piePlot <- function(df, 
-                       project, 
-                       pie1, 
-                       pie2 = NULL, 
-                       pie3 = NULL, 
+Go_piePlot <- function(df,
+                       project,
+                       pie1,
+                       pie2 = NULL,
+                       pie3 = NULL,
                        orders,
-                       mycols = NULL, 
-                       name = NULL, 
-                       height, 
+                       mycols = NULL,
+                       name = NULL,
+                       height,
                        width) {
-  
+
   # Close any open graphic devices to start fresh
   if(!is.null(dev.list())) dev.off()
-  
+
   # Setup output directory
-  out_dir_base <- sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d"))
-  if(!file.exists(out_dir_base)) dir.create(out_dir_base)
-  out_dir_pdf <- file.path(out_dir_base, "pdf")
-  if(!file.exists(out_dir_pdf)) dir.create(out_dir_pdf)
-  
+  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
+  if(!file_test("-d", out)) dir.create(out)
+  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
+  if(!file_test("-d", out_path)) dir.create(out_path)
+
   if (class(name) == "function"){
     name <- NULL
   }
-  
+
   tt <- try(mycols,T)
   if(class(tt) == "try-error"){
     print("mycols is not defined.")
     mycols <- NULL
   }
-  
-  
+
+
   tt <- try(orders,T)
   if(class(tt) == "try-error"){
     print("orders is not defined.")
     orders <- NULL
   }
-  
-  
+
+
   # Initialize an empty list for storing data frames
   dfs <- list()
-  
+
   # Define a vector of pie parameters
   pies <- c(pie1, pie2, pie3)
-  
+
   # Loop through the pie parameters to create and store data frames
   for(pie in pies) {
     if(!is.null(pie)) {
@@ -76,40 +76,40 @@ Go_piePlot <- function(df,
       dfs[[length(dfs) + 1]] <- df_temp # Append to the list
     }
   }
-  
+
   # Combine all data frames in the list
   combined <- do.call(rbind, dfs)
-  
+
   # Check orders
   if (!is.null(orders)){
-    combined$Category <- factor(combined$Category, levels = orders) 
+    combined$Category <- factor(combined$Category, levels = orders)
   }else{
-    combined$Category <- factor(combined$Category) 
+    combined$Category <- factor(combined$Category)
   }
-  
+
   combined$type <- factor(combined$type, levels = pies[!sapply(pies, is.null)])
-  
-  
-  
+
+
+
   combined_aggregated <- combined %>%
     group_by(type, Category) %>% # Grouping by both type and Category might be needed based on your hierarchy.
     summarise(val = sum(Count), .groups = 'drop') # Explicitly drop grouping
-  
-  
+
+
   # Calculate the total values for each type and the percentage
   combined_aggregated <- combined_aggregated %>%
     group_by(type) %>%
     mutate(Total = sum(val), # Calculate total for each type
            Percentage = (val / Total) * 100) %>% # Calculate percentage
     ungroup() # Remove the grouping
-  
+
   combined_aggregated$Label <- paste0(combined_aggregated$Category, " (", round(combined_aggregated$Percentage, 1), "%)")
-  
+
   p <- ggplot(combined_aggregated, aes(x = type, y = val, fill = Category)) +
     geom_bar(stat = "identity", position = "fill") +   theme_minimal() +
     geom_text(aes(label = Label), position = position_fill(vjust = 0.5), size = 3, color = "black")
-  
-  
+
+
 
   if(!is.null(mycols)){
     p <- p + scale_fill_manual(values = mycols)
@@ -121,22 +121,22 @@ Go_piePlot <- function(df,
   p <- p + labs(title = sprintf("Distribution of %s", pie1,
                                 ifelse(is.null(pie2), "", paste("-",pie2, sep = "")),
                                 ifelse(is.null(pie3), "", paste("-", pie3, sep = ""))))
-  
-  
 
-  
-  
-  p1 <- p + coord_polar(theta = "y") 
+
+
+
+
+  p1 <- p + coord_polar(theta = "y")
   print(p1)
   # Save the plot as a PDF
   pdf(sprintf("%s/pie.%s.%s%s.pdf", out_path,
               project,
               ifelse(is.null(name), "", paste(name, ".", sep = "")),
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
-  
+
   print(p)
   print(p1)
-  
+
   dev.off()
 }
 
