@@ -105,6 +105,7 @@ Go_piePlot <- function(df,
   print(2)
   # Calculate the total values for each type and the percentage
   if(!"pie.group" %in% colnames(combined_aggregated)) {
+    print(colnames(combined_aggregated))
     stop("Column 'pie.group' is not found in 'combined_aggregated'.")
   }
 
