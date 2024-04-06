@@ -97,6 +97,7 @@ Go_SeqLengths <- function(psIN, from=NULL, to=NULL){
       cat("No phy_tree present in the phyloseq object.\n")
     })
     print(new_ps)
+
     return(new_ps)
   }
 }
