@@ -98,8 +98,8 @@ Go_piePlot <- function(df,
 
   print(1)
   combined_aggregated <- combined %>%
-    group_by(pie.group, Category) %>% # Grouping by both type and Category might be needed based on your hierarchy.
-    summarise(val = sum(Count), .groups = 'drop') # Explicitly drop grouping
+    dplyr::group_by(pie.group, Category) %>%
+    dplyr::summarise(val = sum(Count), .groups = 'drop')
 
   print(colnames(combined_aggregated))
   print(2)
@@ -110,10 +110,10 @@ Go_piePlot <- function(df,
   }
 
   combined_aggregated <- combined_aggregated %>%
-    group_by(pie.group) %>%
-    mutate(Total = sum(val), # Calculate total for each type
-           Percentage = (val / Total) * 100)
-
+    dplyr::group_by(pie.group) %>%
+    dplyr::mutate(Total = sum(val), # Calculate total for each type
+           Percentage = (val / Total) * 100) %>% # Calculate percentage
+    dplyr::ungroup() # Remove the grouping
 
   combined_aggregated$Label <- paste0(combined_aggregated$Category, " (", round(combined_aggregated$Percentage, 1), "%)")
 
