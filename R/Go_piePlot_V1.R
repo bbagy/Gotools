@@ -91,23 +91,24 @@ Go_piePlot <- function(df,
 
 
   print(1)
-  combined_aggregated <- combined %>%
-    group_by(pie.group, Category) %>% # Grouping by both type and Category might be needed based on your hierarchy.
-    summarise(val = sum(Count), .groups = 'drop') # Explicitly drop grouping
 
-  print(2)
   # Calculate the total values for each type and the percentage
-  combined_aggregated <- combined_aggregated %>%
+  combined_aggregated <- combined %>%
+    group_by(pie.group, Category) %>%
+    # Calculate the sum for each Category within each pie.group
+    summarise(Count = sum(Count), .groups = 'drop') %>%
+    # Now calculate the total count for each pie.group
     group_by(pie.group) %>%
-    mutate(Total = sum(val), # Calculate total for each type
-           Percentage = (val / Total) * 100) %>% # Calculate percentage
-    ungroup() # Remove the grouping
+    mutate(Total = sum(Count)) %>%
+    # Calculate the percentage of each Category within each pie.group
+    mutate(Percentage = (Count / Total) * 100) %>%
+    ungroup()  # Ensure data is fully ungrouped for further operations
 
   combined_aggregated$Label <- paste0(combined_aggregated$Category, " (", round(combined_aggregated$Percentage, 1), "%)")
 
   print(3)
 
-  p <- ggplot(combined_aggregated, aes(x = pie.group, y = val, fill = Category)) +
+  p <- ggplot(combined_aggregated, aes(x = pie.group, y = Count, fill = Category)) +
     geom_bar(stat = "identity", position = "fill") +   theme_minimal() +
     geom_text(aes(label = Label), position = position_fill(vjust = 0.5), size = 3, color = "black")
 
