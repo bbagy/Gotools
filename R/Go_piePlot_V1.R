@@ -60,7 +60,6 @@ Go_piePlot <- function(df,
     orders <- NULL
   }
 
-  print(0)
   # Initialize an empty list for storing data frames
   dfs <- list()
 
