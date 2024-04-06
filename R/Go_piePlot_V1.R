@@ -94,15 +94,12 @@ Go_piePlot <- function(df,
   }
 
   combined$pie.group <- factor(combined$pie.group, levels = pies[!sapply(pies, is.null)])
-  print(colnames(combined))
 
-  print(1)
   combined_aggregated <- combined %>%
     dplyr::group_by(pie.group, Category) %>%
     dplyr::summarise(val = sum(Count), .groups = 'drop')
 
-  print(colnames(combined_aggregated))
-  print(2)
+
   # Calculate the total values for each type and the percentage
   if(!"pie.group" %in% colnames(combined_aggregated)) {
     print(colnames(combined_aggregated))
@@ -116,8 +113,6 @@ Go_piePlot <- function(df,
     dplyr::ungroup() # Remove the grouping
 
   combined_aggregated$Label <- paste0(combined_aggregated$Category, " (", round(combined_aggregated$Percentage, 1), "%)")
-
-  print(3)
 
   p <- ggplot(combined_aggregated, aes(x = pie.group, y = val, fill = Category)) +
     geom_bar(stat = "identity", position = "fill") +   theme_minimal() +
