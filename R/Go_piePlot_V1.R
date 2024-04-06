@@ -72,7 +72,7 @@ Go_piePlot <- function(df,
     if(!is.null(pie)) {
       df_temp <- as.data.frame(table(df[[pie]]))
       names(df_temp) <- c("Category", "Count") # Standardize column names
-      df_temp$type <- pie
+      df_temp$pie.group <- pie
       dfs[[length(dfs) + 1]] <- df_temp # Append to the list
     }
   }
@@ -87,25 +87,25 @@ Go_piePlot <- function(df,
     combined$Category <- factor(combined$Category)
   }
 
-  combined$type <- factor(combined$type, levels = pies[!sapply(pies, is.null)])
+  combined$pie.group <- factor(combined$pie.group, levels = pies[!sapply(pies, is.null)])
 
 
 
   combined_aggregated <- combined %>%
-    group_by(type, Category) %>% # Grouping by both type and Category might be needed based on your hierarchy.
+    group_by(pie.group, Category) %>% # Grouping by both type and Category might be needed based on your hierarchy.
     summarise(val = sum(Count), .groups = 'drop') # Explicitly drop grouping
 
 
   # Calculate the total values for each type and the percentage
   combined_aggregated <- combined_aggregated %>%
-    group_by(type) %>%
+    group_by(pie.group) %>%
     mutate(Total = sum(val), # Calculate total for each type
            Percentage = (val / Total) * 100) %>% # Calculate percentage
     ungroup() # Remove the grouping
 
   combined_aggregated$Label <- paste0(combined_aggregated$Category, " (", round(combined_aggregated$Percentage, 1), "%)")
 
-  p <- ggplot(combined_aggregated, aes(x = type, y = val, fill = Category)) +
+  p <- ggplot(combined_aggregated, aes(x = pie.group, y = val, fill = Category)) +
     geom_bar(stat = "identity", position = "fill") +   theme_minimal() +
     geom_text(aes(label = Label), position = position_fill(vjust = 0.5), size = 3, color = "black")
 
