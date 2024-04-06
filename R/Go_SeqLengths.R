@@ -24,7 +24,6 @@
 #' @importFrom stats nchar table
 #' @importFrom graphics hist
 
-
 Go_SeqLengths <- function(psIN, from=NULL, to=NULL){
   # Ensure the phyloseq package is loaded
   if (!requireNamespace("phyloseq", quietly = TRUE)) {
@@ -76,7 +75,12 @@ Go_SeqLengths <- function(psIN, from=NULL, to=NULL){
 
   # Create a new phyloseq object if filtered
   if(!is.null(from) && !is.null(to)) {
-    new_ps <- phyloseq::phyloseq(phyloseq::otu_table(seqtab, taxa_are_rows = is_taxa_are_rows(psIN)), phyloseq::tax_table(tax_table(psIN)))
+
+    tt <- try(new_ps <- phyloseq::phyloseq(phyloseq::otu_table(seqtab, taxa_are_rows = is_taxa_are_rows(psIN)), phyloseq::tax_table(tax_table(psIN))),T)
+    if (class(tt) =="try-error"){
+      seqtab.t <- t(seqtab)
+      new_ps <- phyloseq::phyloseq(phyloseq::otu_table(seqtab.t, taxa_are_rows = is_taxa_are_rows(psIN)), phyloseq::tax_table(tax_table(psIN)))
+    }
 
     # Attempt to merge sample_data if present
     tryCatch({
