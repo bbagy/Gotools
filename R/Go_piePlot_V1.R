@@ -80,6 +80,12 @@ Go_piePlot <- function(df,
   # Combine all data frames in the list
   combined <- do.call(rbind, dfs)
 
+
+  if(!"pie.group" %in% colnames(combined)) {
+    stop("Column 'pie.group' is not found in the combined dataframe.")
+  }
+
+
   # Check orders
   if (!is.null(orders)){
     combined$Category <- factor(combined$Category, levels = orders)
@@ -98,6 +104,10 @@ Go_piePlot <- function(df,
 
   print(2)
   # Calculate the total values for each type and the percentage
+  if(!"pie.group" %in% colnames(combined_aggregated)) {
+    stop("Column 'pie.group' is not found in 'combined_aggregated'.")
+  }
+
   combined_aggregated <- combined_aggregated %>%
     group_by(pie.group) %>%
     mutate(Total = sum(val), # Calculate total for each type
