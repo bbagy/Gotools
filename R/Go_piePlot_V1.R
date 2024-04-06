@@ -105,6 +105,8 @@ Go_piePlot <- function(df,
 
   combined_aggregated$Label <- paste0(combined_aggregated$Category, " (", round(combined_aggregated$Percentage, 1), "%)")
 
+  print(3)
+
   p <- ggplot(combined_aggregated, aes(x = pie.group, y = val, fill = Category)) +
     geom_bar(stat = "identity", position = "fill") +   theme_minimal() +
     geom_text(aes(label = Label), position = position_fill(vjust = 0.5), size = 3, color = "black")
