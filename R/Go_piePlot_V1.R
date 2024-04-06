@@ -91,24 +91,36 @@ Go_piePlot <- function(df,
 
 
   print(1)
-
-  # Calculate the total values for each type and the percentage
   combined_aggregated <- combined %>%
-    group_by(pie.group, Category) %>%
-    # Calculate the sum for each Category within each pie.group
-    summarise(Count = sum(Count), .groups = 'drop') %>%
-    # Now calculate the total count for each pie.group
-    group_by(pie.group) %>%
-    mutate(Total = sum(Count)) %>%
-    # Calculate the percentage of each Category within each pie.group
-    mutate(Percentage = (Count / Total) * 100) %>%
-    ungroup()  # Ensure data is fully ungrouped for further operations
+    group_by(pie.group, Category) %>% # Grouping by both type and Category might be needed based on your hierarchy.
+    summarise(val = sum(Count), .groups = 'drop') # Explicitly drop grouping
+
+  print(2)
+  # Calculate the total values for each type and the percentage
+  # Split combined_aggregated by 'pie.group'
+  split_data <- split(combined_aggregated, combined_aggregated$pie.group)
+
+  # Function to calculate total and percentage
+  calc_percentage <- function(df) {
+    df$Total <- sum(df$val) # Calculate total for each type
+    df$Percentage <- (df$val / df$Total) * 100 # Calculate percentage
+    return(df)
+  }
+
+  # Apply the function to each subset and combine them back
+  combined_aggregated <- do.call(rbind, lapply(split_data, calc_percentage))
+
+  # If the row names become non-unique and problematic, reset them
+  rownames(combined_aggregated) <- NULL
+
+  # Ensure 'pie.group' is still a factor if needed for subsequent steps
+  combined_aggregated$pie.group <- factor(combined_aggregated$pie.group)
 
   combined_aggregated$Label <- paste0(combined_aggregated$Category, " (", round(combined_aggregated$Percentage, 1), "%)")
 
   print(3)
 
-  p <- ggplot(combined_aggregated, aes(x = pie.group, y = Count, fill = Category)) +
+  p <- ggplot(combined_aggregated, aes(x = pie.group, y = val, fill = Category)) +
     geom_bar(stat = "identity", position = "fill") +   theme_minimal() +
     geom_text(aes(label = Label), position = position_fill(vjust = 0.5), size = 3, color = "black")
 
