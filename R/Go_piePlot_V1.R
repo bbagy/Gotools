@@ -128,7 +128,10 @@ Go_piePlot <- function(df,
   # Add title and subtitles if they are not NULL
   p <- p + labs(title = sprintf("Distribution of %s%s%s", pie1,
                                 ifelse(is.null(pie2), "", paste("-",pie2, sep = "")),
-                                ifelse(is.null(pie3), "", paste("-", pie3, sep = ""))))
+                                ifelse(is.null(pie3), "", paste("-", pie3, sep = ""))))+
+    theme(legend.position="none",
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank())
 
 
 
