@@ -137,7 +137,8 @@ Go_piePlot <- function(df,
 
 
 
-  p1 <- p + coord_polar(theta = "y")
+  p1 <- p + coord_polar(theta = "y") +theme(axis.text.x=element_blank())
+
   print(p1)
   # Save the plot as a PDF
   pdf(sprintf("%s/pie.%s.%s%s.pdf", out_path,
