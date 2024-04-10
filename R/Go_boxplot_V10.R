@@ -367,14 +367,17 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             }
           }else if(testmethod == "wilcox.test" | testmethod == "t.test"){
             if (statistics){
+              print(1)
               if (star) {
                 p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
-
+                print(2)
               } else{
                 p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
+                print(3)
               }
             }else{
               p1 <- p1
+              print(4)
             }
           }
 
