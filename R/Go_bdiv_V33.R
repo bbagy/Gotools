@@ -53,8 +53,8 @@
 Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                     cate.conf=NULL,
                     plot="PCoA",
-                    ellipse="yes",
-                    statistics = "yes",
+                    ellipse=TRUE,
+                    statistics = TRUE,
                     mycols=NULL,
                     paired = NULL,
                     combination=NULL,
@@ -272,11 +272,10 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           }
 
           # ellipse variation
-          if (ellipse == "yes" | ellipse == "Yes" ) {
+          if (ellipse) {  # If ellipse is TRUE
             p = p + stat_ellipse(type = "norm", linetype = 2)
-          } else if (ellipse == "no" | ellipse == "No" ){
-            p = p
           }
+
 
           if (!is.null(facet)) {
             ncol <- length(unique(mapping.sel.na.rem[,facet]))
@@ -293,7 +292,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           #===================================#
           # Add permanova for two combination #
           #===================================#
-          if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
+          if (statistics){
             set.seed(1)
             distance <- Go_dist(psIN = psIN.cbn.na, project = project, cate.vars = mvar, distance_metrics = distance_metric)
 
@@ -480,7 +479,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         # Add permanova                     #
         #===================================#
 
-        if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
+        if (statistics){
           set.seed(1)
           distance <- Go_dist(psIN = psIN.na, project = project, name = NULL, cate.vars = mvar,distance_metrics = distance_metric)
 
