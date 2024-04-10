@@ -51,9 +51,9 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                        ncol=NULL,
                        addnumber=TRUE,
                        standardsize=TRUE,
-                       statistics = "yes",
-                       parametric= "no",
-                       star="no",
+                       statistics = TRUE,
+                       parametric= FALSE,
+                       star=TRUE,
                        xangle=90,
                        cutoff = 0.1,
                        height, width, plotCols, plotRows){
@@ -298,8 +298,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           print(oc)
 
            # check statistics method
-          if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
-            if (parametric == "yes"| parametric == "YES"|parametric == "Yes"){
+          if (statistics){
+            if (parametric){
               if (nlevels(factor(df.cbn[,mvar])) > 2) {
                 test <- aov(as.formula(sprintf("%s ~ %s", oc, mvar)), df.cbn)
                 pval <- round(summary(test)[[1]][["Pr(>F)"]][1],4)
@@ -353,26 +353,27 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             p1 <- p1
           } else if(test.name == "KW" | test.name == "ANOVA"){
             if(pval < cutoff){
-              if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
-                if (star == "no") {
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-                }  else if (star == "yes") {
+              if (statistics){
+                if (star) {
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
+                }  else {
+                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
                 }
-              }else if(statistics == "no"| statistics == "NO"|statistics == "No"){
+              }else{
                 p1 <- p1
               }
             }else {
               p1 <- p1
             }
           }else if(testmethod == "wilcox.test" | testmethod == "t.test"){
-            if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
-              if (star == "no") {
-                p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-              }  else if (star == "yes") {
+            if (statistics){
+              if (star) {
                 p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
+
+              } else{
+                p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
               }
-            }else if(statistics == "no"| statistics == "NO"|statistics == "No"){
+            }else{
               p1 <- p1
             }
           }
@@ -485,8 +486,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
         print(oc)
 
-        if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
-          if (parametric == "yes"| parametric == "YES"|parametric == "Yes"){
+        if (statistics){
+          if (parametric){
             if (nlevels(factor(df.na[,mvar])) > 2) {
               test <- aov(as.formula(sprintf("%s ~ %s", oc, mvar)), df.na)
               pval <- round(summary(test)[[1]][["Pr(>F)"]][1],4)
@@ -571,26 +572,27 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             p1 <- p1
           } else if(test.name == "KW" | test.name == "ANOVA"){
             if(pval < cutoff){
-              if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
-                if (star == "no") {
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-                } else if (star == "yes") {
+              if (statistics){
+                if (star) {
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
+                } else {
+                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
                 }
-              }else if(statistics == "no"| statistics == "NO"|statistics == "No"){
+              }else{
                 p1 <- p1
               }
             }else {
               p1 <- p1
             }
           }else if(testmethod == "wilcox.test" | testmethod == "t.test"){
-            if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
-              if (star == "no") {
-                p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-              }  else if (star == "yes") {
+            if (statistics){
+              if (star) {
                 p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
+
+              }  else{
+                p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
               }
-            }else if(statistics == "no"| statistics == "NO"|statistics == "No"){
+            }else{
               p1 <- p1
             }
           }
@@ -601,31 +603,28 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             p1 <- p1
           } else if(test.name == "KW" | test.name == "ANOVA"){
             if(pval < cutoff){
-              if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
-                if (star == "no") {
+              if (statistics){
+                if (star) {
+                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3,paired = TRUE)
+                } else{
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2, paired = TRUE)
-                } else if (star == "yes") {
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE,
-                                                size = 3,paired = TRUE)
                 }
-              }else if(statistics == "no"| statistics == "NO"|statistics == "No"){
+              }else{
                 p1 <- p1
               }
             }else {
               p1 <- p1
             }
           }else if(testmethod == "wilcox.test" | testmethod == "t.test"){
-            if (statistics == "yes"| statistics == "YES"|statistics == "Yes"){
-              if (star == "no") {
-
+            if (statistics){
+              if (star) {
                 if (data.frame(table(df.na[,mvar]))$Freq[1] ==  data.frame(table(df.na[,mvar]))$Freq[2]){
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2,paired = TRUE)
                 }else{
                   test.name <- paste(test.name, "\n","(not fully paired) ", sep = "")
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
                 }
-              }  else if (star == "yes") {
-
+              } else if (star) {
                 if (data.frame(table(df.na[,mvar]))$Freq[1] ==  data.frame(table(df.na[,mvar]))$Freq[2]){
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, size = 2,paired = TRUE)
                 }else{
@@ -633,7 +632,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                 }
 
               }
-            }else if(statistics == "no"| statistics == "NO"|statistics == "No"){
+            }else{
               p1 <- p1
             }
           }
