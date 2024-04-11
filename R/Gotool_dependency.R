@@ -26,7 +26,7 @@ Gotool_dependency <- function() {
                      "irr", "lme4", "lmerTest", "nnet", "MLmetrics",
                      "Matrix", "magrittr", "MASS", "missForest", "magick", "nlme",
                      "phangorn", "pheatmap", "pkgconfig", "dplyr", "parallel", "pscl",
-                     "plotly", "pdftools", "rfUtilities", "rlang", "randomForest",
+                     "plotly", "pdftools",  "rlang", "randomForest", #"rfUtilities",
                      "readxl", "RColorBrewer", "ROCR", "reshape", "reshape2", "yarrr",
                      "stringi", "tidyverse", "vegan", "VGAM", "picante", "zoo",
                      "RcppZiggurat", "Rfast", "survival", "withr", "knitr", "kableExtra", "DT")
