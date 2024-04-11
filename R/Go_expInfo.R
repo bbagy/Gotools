@@ -50,7 +50,7 @@ Go_expInfo <- function(kit_number = NA, prep_number = NA, spikein_number = NA) {
         "3: Zymo Quick-16S/ V3V4 Plus NGS Library prep kit (#catalog D6420)\n\n",
         "Available spike-in numbers and their descriptions:\n",
         "1: / ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)\n",
-        "2: No Spike-in Control\n",
+        "2: No Spike-in Control\n\n",
         "Available Technicians and email address:\n",
         "Sofia Moscovitz : szm2110@cumc.columbia.edu\n",
         "Dalia Moallem : dhm2127@cumc.columbia.edu\n",
