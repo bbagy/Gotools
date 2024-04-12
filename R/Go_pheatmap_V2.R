@@ -114,10 +114,9 @@ print("Check the psIN")
    }
 
 
-  matrix <- data.frame(t(otu_table(ps.rel.sel)))
+  matrix <- data.frame(t(otu_table(ps.rel.sel)));head(matrix)
 
-
-
+  matrix <- data.frame(otu_table(ps.rel.sel));head(matrix)
   # normalization for log2
   is.na(matrix)<-sapply(matrix, is.infinite)
   matrix[is.na(matrix)]<-0
@@ -171,7 +170,13 @@ print("Check the psIN")
   tt <- try(sel <- intersect(rownames(mapping), colnames(matrix)), T)
 
   if (length(tt) == 0){
-    sel <- intersect(rownames(mapping), rownames(matrix)); head(sel, 3)
+    tt1 <- try(sel <- intersect(rownames(mapping), rownames(matrix)),T)
+    if (length(tt1) == 0){
+      rownames(mapping) <- gsub("-",".",rownames(mapping))
+      sel <- intersect(rownames(mapping), colnames(matrix))
+    }else{
+      sel <- intersect(rownames(mapping), rownames(matrix))
+    }
   }else{
     sel <- intersect(rownames(mapping), colnames(matrix)); head(sel, 3)
   }
