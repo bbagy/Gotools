@@ -452,8 +452,8 @@ Go_Aldex2 <- function(psIN,  project,
       merged_results <- merged_results[order(merged_results$spearman.ep, decreasing = F), ]
 
       name_prefix <- ifelse(is.null(name), "", paste0(name, "."))
-      filename <- sprintf("%s/aldex2.continuous.Sig%s.%s.%s%s.%s.csv",
-                          out_DA, num_significant, mvar, model, name_prefix, project)
+      filename <- sprintf("%s/aldex2.continuous.Sig%s.%s.%s.%s%s.csv",
+                          out_DA, num_significant,  model, mvar, name_prefix, project)
       write.csv(merged_results, quote = FALSE, col.names = NA, file = filename)
 
     }
