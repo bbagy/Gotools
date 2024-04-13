@@ -4,7 +4,13 @@
 \alias{Go_expInfo}
 \title{Go_expInfo - Experiment Information Retrieval Function}
 \usage{
-Go_expInfo(kit_number = NA, prep_number = NA, spikein_number = NA)
+Go_expInfo(
+  kit_number = NA,
+  prep_number = NA,
+  spikein_number = NA,
+  authorName1 = NA,
+  authorName2 = NULL
+)
 }
 \arguments{
 \item{kit_number}{An optional integer parameter for selecting the kit.
