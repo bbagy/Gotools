@@ -307,16 +307,16 @@ Go_volcanoPlot <- function(project,
             aspect.ratio = 1/1.5)
 
 
-    pdf(sprintf("%s/%s.%s%s.(%s.vs.%s).%s.%s%s%s(cutoff=%s).%s.pdf", out_DA,
+    pdf(sprintf("%s/%s.%s%s.(%s.vs.%s%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
                 tool,
                 ifelse(is.null(plot), "", paste(plot, ".", sep = "")),
                 mvar,
                 basline,
                 smvar,
+                ifelse(is.null(name), "", paste(name, ".", sep = "")),
                 project,
                 ifelse(is.null(model), "", paste(model, ".", sep = "")),
                 ifelse(is.null(confounder), "", paste(confounder, ".", sep = "")),
-                ifelse(is.null(name), "", paste(name, ".", sep = "")),
                 fc,
                 format(Sys.Date(), "%y%m%d")), height = height, width = width)
     print(p2)
