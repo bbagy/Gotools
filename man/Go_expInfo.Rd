@@ -5,6 +5,10 @@
 \title{Go_expInfo - Experiment Information Retrieval Function}
 \usage{
 Go_expInfo(
+  Project_name = NA,
+  Samples_info = NA,
+  Sequencing_date = NA,
+  Sequencing_platform = NA,
   kit_number = NA,
   prep_number = NA,
   spikein_number = NA,
