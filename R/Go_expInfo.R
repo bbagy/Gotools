@@ -33,10 +33,19 @@
 #' exp_info <- Go_expInfo(kit_number = 6, prep_number = 1, spikein_number = 2)
 #' print(exp_info)
 
-Go_expInfo <- function(kit_number = NA, prep_number = NA, spikein_number = NA, authorName1=NA ,authorName2 = NULL) {
+Go_expInfo <- function(Project_name=NA,
+                       Samples_info=NA,
+                       Sequencing_date=NA,
+                       Sequencing_platform=NA,
+                       kit_number = NA, prep_number = NA, spikein_number = NA, authorName1=NA ,authorName2 = NULL) {
   # Check if all arguments are missing and print options if they are
   if (is.na(kit_number) && is.na(prep_number) && is.na(spikein_number)) {
-    cat("Available kit numbers and their descriptions:\n",
+    cat(
+        "Project_name: Add the project name.\n",
+        "Samples_info: Add the sample information incouding number of samples. \n",
+        "Sequencing_date: Add the sequenicng date.\n",
+        "Sequencing_platform: Add the sequenicng platform and sequencing kit. \n\n",
+        "Available kit numbers and their descriptions:\n",
         "1: ZymoBIOMICS 96 MagBead DNA/RNA Kit (Catalog# D4300)\n",
         "2: DNeasy® 96 PowerSoil® Pro QIAcube® HT Kit (Catalog# 47021)\n",
         "3: QIAamp® 96 Virus QIAcube® HT (Catalog# 57731)\n",
@@ -107,6 +116,10 @@ Go_expInfo <- function(kit_number = NA, prep_number = NA, spikein_number = NA, a
 
   # Return a list containing the selected options, including author names and their email addresses
   return(list(
+    project = Project_name,
+    samples = Samples_info,
+    date = Sequencing_date,
+    platform = Sequencing_platform,
     kit = kit,
     prep = prep,
     spikein = spikein,
