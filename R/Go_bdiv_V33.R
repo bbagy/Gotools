@@ -190,20 +190,31 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
 
           ord_meths = plot # c("DCA", "CCA", "RDA", "DPCoA", "NMDS","PCoA")
-          plist = llply(as.list(ord_meths), function(i, psIN.cbn.na, distance_metric){
-            ordi = ordinate(psIN.cbn.na, method=i, distance=distance_metric)
-            plot_ordination(psIN.cbn.na, ordi, type = "samples", color= mvar)
+          # Execute ordination and collect necessary outputs
+          plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
+            ordi = ordinate(psIN.na, method=i, distance=distance_metric)
+            df = as.data.frame(ordi$vectors[, 1:2])  # Assuming 'vectors' has the axes coordinates
+            colnames(df) = c("Axis_1", "Axis_2")
+
+            # Calculate percentage of variance explained for the first two axes
+            if ("Eigenvalues" %in% names(ordi$values)) {
+              var_explained = ordi$values$Eigenvalues / sum(ordi$values$Eigenvalues) * 100
+              df$Axis1_Percent = var_explained[1]  # Percentage for Axis 1
+              df$Axis2_Percent = var_explained[2]  # Percentage for Axis 2
+            }
+
+            # Merge with sample metadata
+            metadata = as.data.frame(sample_data(psIN.na))
+            return(cbind(df, metadata))  # Combine ordination data with sample metadata
           }, psIN.cbn.na, distance_metric)
 
-
-
+          # Name the list elements according to the ordination methods
           names(plist) <- ord_meths
 
-          pdataframe = ldply(plist, function(x){
-            df = x$data[, 1:2]
-            colnames(df) = c("Axis_1", "Axis_2")
-            return(cbind(df, x$data))
-          })
+          # Convert the list to a dataframe
+          pdataframe = plyr::ldply(plist, identity)
+
+
           names(pdataframe)[1] = "method"
 
           pdataframe[,facet] <- factor(pdataframe[,facet], levels = orders)
@@ -228,20 +239,20 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             pdataframe <- pdataframe
           }
 
-
-
-
-
-
-
-
-
           # Plots
-          p = ggplot(pdataframe, aes_string("Axis_1", "Axis_2", color=mvar))
+          axis1_percent_avg <- mean(pdataframe$Axis1_Percent, na.rm = TRUE)
+          axis2_percent_avg <- mean(pdataframe$Axis2_Percent, na.rm = TRUE)
+
+          p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar)) +
+            geom_point() +  # Add points to the plot
+            labs(
+              x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "% variance explained)", sep = ""),
+              y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "% variance explained)", sep = "")
+            )
+
 
 
           if (!is.null(shapes)) {
-
             pdataframe[,shapes] <- factor(pdataframe[,shapes], levels = orders)
             p = p +  geom_point(aes_string(shape=shapes), size=0.8, alpha = 1) + scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
 
@@ -261,7 +272,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           if(!is.null(mycols)){
             p <- p + scale_color_manual(values = mycols)
           }else{
-            p <- p
+            p <- plist[[1]]
           }
 
           # ID variation
@@ -384,18 +395,32 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
 
         ord_meths= plot # c("DCA", "CCA", "RDA", "DPCoA", "NMDS","PCoA")
-        plist = llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
+        # Execute ordination and collect necessary outputs
+        plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
           ordi = ordinate(psIN.na, method=i, distance=distance_metric)
-          plot_ordination(psIN.na, ordi, type = "samples", color= mvar)
+          df = as.data.frame(ordi$vectors[, 1:2])  # Assuming 'vectors' has the axes coordinates
+          colnames(df) = c("Axis_1", "Axis_2")
+
+          # Calculate percentage of variance explained for the first two axes
+          if ("Eigenvalues" %in% names(ordi$values)) {
+            var_explained = ordi$values$Eigenvalues / sum(ordi$values$Eigenvalues) * 100
+            df$Axis1_Percent = var_explained[1]  # Percentage for Axis 1
+            df$Axis2_Percent = var_explained[2]  # Percentage for Axis 2
+          }
+
+          # Merge with sample metadata
+          metadata = as.data.frame(sample_data(psIN.na))
+          return(cbind(df, metadata))  # Combine ordination data with sample metadata
         }, psIN.na, distance_metric)
 
+        # Name the list elements according to the ordination methods
         names(plist) <- ord_meths
 
-        pdataframe = ldply(plist, function(x){
-          df = x$data[, 1:2]
-          colnames(df) = c("Axis_1", "Axis_2")
-          return(cbind(df, x$data))
-        })
+        # Convert the list to a dataframe
+        pdataframe = plyr::ldply(plist, identity)
+
+
+
         names(pdataframe)[1] = "method"
 
         pdataframe[,facet] <- factor(pdataframe[,facet], levels = orders)
@@ -421,7 +446,16 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
 
         # Plots
-        p = ggplot(pdataframe, aes_string("Axis_1", "Axis_2", color=mvar))
+        axis1_percent_avg <- mean(pdataframe$Axis1_Percent, na.rm = TRUE)
+        axis2_percent_avg <- mean(pdataframe$Axis2_Percent, na.rm = TRUE)
+
+        p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar)) +
+          geom_point() +  # Add points to the plot
+          labs(
+            x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "% variance explained)", sep = ""),
+            y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "% variance explained)", sep = "")
+          )
+
 
 
         if (!is.null(shapes)) {
