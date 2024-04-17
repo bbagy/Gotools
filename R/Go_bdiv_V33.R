@@ -246,8 +246,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar)) +
             geom_point() +  # Add points to the plot
             labs(
-              x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "% variance explained)", sep = ""),
-              y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "% variance explained)", sep = "")
+              x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "%)", sep = ""),
+              y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "%)", sep = "")
             )
 
 
@@ -452,8 +452,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar)) +
           geom_point() +  # Add points to the plot
           labs(
-            x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "% variance explained)", sep = ""),
-            y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "% variance explained)", sep = "")
+            x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "%)", sep = ""),
+            y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "%)", sep = "")
           )
 
 
