@@ -38,66 +38,93 @@
 #'
 #' @export
 
-Go_DA_heat <- function(df, project, data_type, facet,groupby,font,
-                       addnumber=TRUE,
-                       fdr,fc, orders, name, height, width){
-    
+Go_DA_heat <- function(df, project, data_type, font,
+                       addnumber=TRUE, facet=NULL,
+                       pval,fc, orders, name, height, width){
+
   if(!is.null(dev.list())) dev.off()
-   
+
   # out dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
+  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
-  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d"))) 
+  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_path)) dir.create(out_path)
-  
+
   # out file
   # "name" definition
   if (class(name) == "function"){
     name <- NULL
   }
-  pdf(sprintf("%s/DA.heatmap.%s.%s%s(%s.%s).%s.pdf", out_path, 
-              project, 
-              ifelse(is.null(facet), "", paste(facet, ".", sep = "")), 
-              ifelse(is.null(name), "", paste(name, ".", sep = "")), 
-              fdr, 
-              fc, 
-              format(Sys.Date(), "%y%m%d")), height = height, width = width)
-  
-  
-  resSig <- as.data.frame(subset(df, padj < fdr)); resSig <- resSig[order(resSig$log2FoldChange),]
-  
-  
-  if (length(subset(resSig, ancom == TRUE)) > 1){
-    print(sprintf("Combination Deseq2(%s) and Ancom(%s)",length(resSig$deseq2),length(subset(resSig, ancom == TRUE))))
-    resSig.top <- as.data.frame(subset(resSig, abs(resSig$log2FoldChange) > fc))
-    resSig.top <- subset(resSig.top, ancom == TRUE)
-    
-  } else{
-    print(sprintf("Use only Deseq2(%s)",length(resSig.top$deseq2)))
-    resSig.top <- as.data.frame(subset(resSig, abs(resSig$log2FoldChange) > fc))
+
+  # Assuming df is your dataframe
+  if("deseq2.P" %in% colnames(df)){
+    tool <- "deseq2"
+  } else if("aldex2.P" %in% colnames(df)){
+    tool <- "aldex2"
+  } else if("ancom2.P" %in% colnames(df)){
+    tool <- "ancom2"
+  } else {
+    tool <- NA  # or some default value or error handling
   }
-  
-  #print("c")
-  #if (length(unique(resSig$smvar)) >=2 ){
-  
+
+  print(tool)
+  if(tool == "deseq2"){
+    asvs <- "taxa"
+    p.value <- "pvalue"
+    fdr <- "padj"
+    lfc <- "log2FoldChange"
+  }else if(tool == "ancom2"){
+    asvs <- "ASV"
+    p.value <- "pvalue_ancombc"
+    fdr <- "qvalue_ancombc"
+    lfc <- "lfc_ancombc"
+  }else if(tool == "aldex2"){
+    asvs <- "ASV"
+    p.value <- "pvalue"
+    fdr <- "padj"
+    lfc <- "Est"
+  }
+
+
+
+
+  pdf(sprintf("%s/DA.heatmap.%s.%s%s(%s.%s).%s.%s.pdf", out_path,
+              project,
+              ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+              ifelse(is.null(name), "", paste(name, ".", sep = "")),
+              pval,
+              fc,
+              paste("(",tool,"_heatmap",")",sep=""),
+              format(Sys.Date(), "%y%m%d")), height = height, width = width)
+
+
+  resSig <- subset(df, df[,p.value] < pval)
+  resSig <- resSig[order(resSig[[lfc]]),]
+  resSig <- as.data.frame(resSig)
+
+  print(sprintf("p < %s (n = %s) and padj < 0.05 (n = %s)",pval, length(resSig[,p.value]),dim(subset(resSig, resSig[,fdr] < 0.05))[1]))
+  resSig.top <- as.data.frame(subset(resSig, abs(resSig[,lfc]) > fc))
+  resSig.top <- subset(resSig.top, resSig.top[,p.value] < pval)
+  resSig.top$Significance <-cut(resSig.top[,fdr], breaks=c(-Inf, 0.01, 0.05, 0.08, Inf), label=c("**", "*", ".", ""))
+  resSig.top$smvar
+
+
+
+
   if (dim(resSig)[1] >= 1) {
     # re-order
     if (!is.null(orders)) {
-      resSig.top[,groupby] <- factor(resSig.top[,groupby], levels = intersect(orders, resSig.top[,groupby]))
+      resSig.top$smvar <- factor(resSig.top$smvar, levels = intersect(orders, resSig.top$smvar))
       resSig.top[,facet] <- factor(resSig.top[,facet], levels = intersect(orders, resSig.top[,facet]))
-      print("Re-ordered")
     } else {
-      resSig.top[,groupby] <- factor(resSig.top[,groupby])
+      resSig.top$smvar <- factor(resSig.top$smvar)
       resSig.top[,facet] <- factor(resSig.top[,facet])
-      print(2)
     }
-    
-
 
     resSig.top$basline <- paste(resSig.top$basline," (n=",resSig.top$bas.count, ")",sep="")
     resSig.top$smvar <- paste(resSig.top$smvar," (n=", resSig.top$smvar.count, ")",sep="")
-    
-    
+
+
     # re-order using number
     new.orders <- c()
     for(i in orders){
@@ -106,71 +133,68 @@ Go_DA_heat <- function(df, project, data_type, facet,groupby,font,
       }
       new.orders <- c(new.orders, order)
     }
-    
-    tt <- try(resSig.top$smvar  <- factor(resSig.top[,facet], levels = intersect(new.orders, resSig.top$smvar)),T)
-    
-    if (class(tt) =="try-error"){
-      resSig.top$smvar  <- factor(resSig.top[,groupby], levels = intersect(new.orders, resSig.top$smvar))
-    } else{
-      resSig.top$smvar  <- factor(resSig.top[,facet], levels = intersect(new.orders, resSig.top$smvar))
-    }
-    
+
+    new.orders <- c(new.orders, orders)
 
 
-    
-    
+    resSig.top$smvar  <- factor(resSig.top$smvar, levels = intersect(new.orders, resSig.top$smvar))
 
-    print(1)
-    if (groupby == "smvar"){
-      p <- ggplot(resSig.top, aes(x=reorder(taxa,log2FoldChange), y=smvar, color=smvar)) + theme_classic()+ coord_flip() #x=reorder(taxa,Estimate); 원래 x=factor(taxa). 값에 따라 정열 하기 위해x=reorder(taxa,Estimate)를 사용함
- 
-    }  else {
-      p <- ggplot(resSig.top, aes(x=reorder(taxa,log2FoldChange), y=mvar, color=mvar)) + theme_classic()+ coord_flip()#x=reorder(taxa,Estimate); 원래 x=factor(taxa). 값에 따라 정열 하기 위해x=reorder(taxa,Estimate)를 사용함
+
+
+    if(tool == "deseq2"){
+      p <- ggplot(resSig.top, aes(x=reorder(taxa, log2FoldChange), y=smvar, color=smvar))
+    }else if(tool == "ancom2"){
+      p <- ggplot(resSig.top, aes(x=reorder(ASV, lfc_ancombc), y=smvar, color=smvar))
+    }else if(tool == "aldex2"){
+      p <- ggplot(resSig.top, aes(x=reorder(ASV, Est), y=smvar, color=smvar))
     }
 
-    
-    p = p + geom_tile(aes(fill = log2FoldChange), colour = "white") + 
-      labs(y = "Comparison Group") +labs(x = NULL) +
-      scale_fill_gradient2(low = "#1170aa", mid = "white", high = "#fc7d0b")+
-      ggtitle(sprintf("%s baseline %s vs %s (padj < %s, cutoff=%s) ", unique(resSig$mvar), unique(resSig$basline), "All groups",  fdr,fc))  + 
-      theme(plot.title = element_text(hjust = 0.5),legend.position= "right")+ #0.5
-      theme(axis.text.x = element_text(angle=0, vjust=0.5, hjust=1, size=8),
-             axis.text.y = element_text(angle=0, vjust=0.5, hjust=1, size=8,face = "italic"),
-            plot.title=element_text(size=9,face="bold")) 
-    
-    
-    print(2)
+
+
+
+
+    p <- p + labs(y = "Comparison Group") + theme_classic() + coord_flip() +
+      geom_tile(aes_string(fill = lfc), colour = "white") +
+      scale_fill_gradient2(low = "#2366C0FF", mid = "white", high = "#B91226FF") +
+      ggtitle(sprintf("%s baseline %s vs All group (pvalue < %s, cutoff=%s) ", unique(resSig$mvar), unique(resSig$basline), pval, fc)) +
+      theme(plot.title = element_text(hjust = 0.5), legend.position = "right") +
+      facet_wrap(~ smvar, scales="free_x", ncol = 10) +
+      theme(axis.text.x = element_blank(), axis.ticks = element_blank(), text = element_text(size=12), plot.title = element_text(hjust=1),
+            axis.text.y = element_text(angle=0, vjust=0.5, hjust=1, size=font,face = "italic"))
+
+
     if (data_type == "dada2" | data_type == "DADA2") {
-      p1 = p + scale_x_discrete(breaks = as.character(resSig$taxa), labels = as.character(paste(resSig$Phylum, resSig$ShortName)))
+      p1 = p + scale_x_discrete(breaks = as.character(resSig[,asvs]), labels = as.character(paste(resSig$Phylum, resSig$Species)))
     } else if (data_type == "Other" | data_type == "other") {
       p1 = p + scale_x_discrete(breaks = as.character(resSig$taxa), labels = as.character(paste(resSig$KOName)))
     }
-    
-    print(3)
-    if (groupby == "smvar"){
-      if (length(facet) == 1) {
-        ncol <- length(unique(resSig.top[,facet]))*length(unique(resSig.top[,"smvar"]))
-        p2 = p1 + facet_wrap(as.formula(sprintf("~ %s+%s", "smvar", facet)), scales="free_x", ncol = ncol)
-      } else {
-        p2 = p1 + facet_wrap(~  smvar, scales="free_x", ncol = 10)
-      }
-    }else if (groupby == "des"){
-      if (length(facet) == 1) {
-        ncol <- length(unique(resSig.top[,facet]))*length(unique(resSig.top[,"des"]))
-        p2 = p1 + facet_wrap(as.formula(sprintf("~ %s+%s", "des", facet)), scales="free_x", ncol = ncol)
-      } else {
-        p2 = p1 + facet_wrap(~  des, scales="free_x", ncol = 10)
-      }
+
+    # Assuming groupby is always 'smvar' and there is no facet variable
+
+
+    if (!is.null(facet)) {
+      ncol <- length(unique(resSig.top[,facet]))*length(unique(resSig.top$smvar))
+      p2 = p1 + facet_wrap(as.formula(sprintf("~ %s+%s", facet,  "smvar")), scales="free_x", ncol = ncol) +
+        geom_text(aes_string(label="Significance"), color="black", size=3)
+    } else {
+
+      p2 = p1 + facet_wrap(~ smvar, scales="free_x", ncol = 10) +
+        geom_text(aes_string(label="Significance"), color="black", size=3)
     }
-    #print(4)
-    #plotlist[[length(plotlist)+1]] <- p
-    p3 = p2 + theme(axis.text.x = element_blank(), axis.ticks = element_blank()) + theme(text = element_text(size=font), plot.title = element_text(hjust=1))
-   # print(p3)
-  }else{
+    p3 <- p2 + theme(
+      axis.text.x = element_blank(),
+      axis.ticks = element_blank(),
+      text = element_text(size=font),  # Ensure 'font' is defined, e.g., font <- 12
+      plot.title = element_text(hjust=1),
+      strip.background = element_blank()
+    )
+
+
+
+  } else{
     next
   }
 
-  
   p4 <- ggplotGrob(p3)
   id <- which(p4$layout$name == "title")
   p4$layout[id, c("l","r")] <- c(1, ncol(p4))
@@ -178,4 +202,7 @@ Go_DA_heat <- function(df, project, data_type, facet,groupby,font,
   grid.draw(p4)
   dev.off()
 }
+
+
+
 
