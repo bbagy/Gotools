@@ -139,7 +139,7 @@ Go_groupBox <- function(psIN, mainGroup, project,
   rownames(agg_t)
 
   # Add grouping information
-  map <- sample_data(ps.top.rel);dim(map)
+  map <- sample_data(ps.top);dim(map)
   df <- data.frame(agg_t, Group = map[,mainGroup]) #, name = map$StudyID,  NoOfFMT= map$NoOfFMT );head(df)
 
   df[,mainGroup] <- as.character(df[,mainGroup]);df[,mainGroup]
@@ -197,7 +197,7 @@ Go_groupBox <- function(psIN, mainGroup, project,
   sig.result <- result.table[which(result.table$p.value < pval),]
 
   # Reporting the number of significant results
-  cat(paste("There are ", nrow(sig.result), " significant results at p < ", pvalue, "\n", sep=""))
+  cat(paste("There are ", nrow(sig.result), " significant results at p < ", pval, "\n", sep=""))
 
   sig.mat <- as.matrix(sig.result)
   funcNames.sig <- sig.mat[,1]
@@ -231,7 +231,7 @@ Go_groupBox <- function(psIN, mainGroup, project,
   print(unique(df.sel.melt.clean$variable))
   p <- ggplot(df.sel.melt.clean, aes_string(x="variable", y="value", fill=mainGroup)) +  geom_boxplot(outlier.shape = NA,lwd=0.3) +
     theme_bw() + theme(strip.background = element_blank()) +
-    labs(y=yaxis, x= NULL) + ggtitle(sprintf("%s p < %s", sig.test,pval)) + ylab("Centered Log Ratio (CLR)")
+    labs(y="Centered Log Ratio (CLR)", x= NULL) + ggtitle(sprintf("%s p < %s", sig.test,pval))
 
   # + stat_compare_means(aes_string(group = mainGroup),label = "p.format") +
 
