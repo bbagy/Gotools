@@ -78,27 +78,28 @@ Go_extendedBarplot <- function(psIN,
   ps1.sel <- subset_samples(psIN, sample_data(psIN)[[mvar]] %in% c(group1, group2))
 
 
-  #ps1.sel <- subset_samples(psIN, map[,mvar] %in% c(group1,group2));ps1.sel
+  ps1.sel <- subset_samples(psIN, map[,mvar] %in% c(group1,group2));ps1.sel
+
   df <- psmelt(ps1.sel)
 
   #===TSS
   df_top_norm <- df %>%
-    group_by(Sample) %>%
-    mutate(Abundance = Abundance / sum(Abundance) * 1e6)
+    dplyr::group_by(Sample) %>%
+    dplyr::mutate(Abundance = Abundance / sum(Abundance) * 1e6)
 
   head(df_top_norm$Abundance)
 
   #===relative
   df_top_norm <- df %>%
-    group_by(Sample) %>%
-    mutate(Abundance = Abundance / sum(Abundance))
+    dplyr::group_by(Sample) %>%
+    dplyr::mutate(Abundance = Abundance / sum(Abundance))
 
 
 
   #==== Centered Log Ratio (CLR) transformation
   df_top_norm <- df %>%
-    group_by(Sample) %>%
-    mutate(
+    dplyr::group_by(Sample) %>%
+    dplyr::mutate(
       Log_Abundance = log(Abundance + 1),
       Geometric_Mean = exp(mean(Log_Abundance)),
       Abundance = Log_Abundance - log(Geometric_Mean)
@@ -121,7 +122,7 @@ Go_extendedBarplot <- function(psIN,
   # Function to perform Wilcoxon tests with dynamic group names
   perform_wilcox_test <- function(data, group1, group2) {
     data %>%
-      group_by(.data[[func1]], .data[[func2]]) %>%
+      dplyr::group_by(.data[[func1]], .data[[func2]]) %>%
       summarise(
         list_group1 = list(Abundance[.data[[mvar]] == group1]),
         list_group2 = list(Abundance[.data[[mvar]] == group2]),
@@ -130,14 +131,14 @@ Go_extendedBarplot <- function(psIN,
         .groups = 'drop'
       ) %>%
       rowwise() %>%
-      mutate(
+      dplyr::mutate(
         p_value = if (count_group1 > 1 && count_group2 > 1) {
           wilcox.test(unlist(list_group1), unlist(list_group2), exact = FALSE)$p.value
         } else {
           NA_real_  # Not enough data to perform test
         }
       ) %>%
-      select(.data[[func1]], .data[[func2]], p_value, count_group1, count_group2)
+      dplyr::select(.data[[func1]], .data[[func2]], p_value, count_group1, count_group2)
   }
 
 
@@ -155,8 +156,8 @@ Go_extendedBarplot <- function(psIN,
 
   # Function to perform Wilcoxon tests with dynamic group names
   df_summary <- df_top_norm %>%
-    group_by(.data[[func]], .data[[mvar]]) %>%
-    summarise(
+    dplyr::group_by(.data[[func]], .data[[mvar]]) %>%
+    dplyr::summarise(
       Mean_Abundance = mean(Abundance, na.rm = TRUE),
       Lower_CI = quantile(Abundance, probs = 0.025),
       Upper_CI = quantile(Abundance, probs = 0.975),
@@ -182,7 +183,7 @@ Go_extendedBarplot <- function(psIN,
 
 
   df_wide <- df_wide %>%
-    mutate(
+    dplyr::mutate(
       Diff_Mean = .data[[mean_col_group1]] - .data[[mean_col_group2]],
       Diff_Lower = .data[[lower_col_group1]] - .data[[upper_col_group2]],
       Diff_Upper = .data[[upper_col_group1]] - .data[[lower_col_group2]]
@@ -206,8 +207,8 @@ Go_extendedBarplot <- function(psIN,
 
 
   data_long <- data_long %>%
-    group_by(.data[[func]]) %>%
-    mutate(Higher_Group = ifelse(Mean_Abundance[.data[[mvar]] == group1] > Mean_Abundance[.data[[mvar]] == group2], group1, group2)) %>%
+    dplyr::group_by(.data[[func]]) %>%
+    dplyr::mutate(Higher_Group = ifelse(Mean_Abundance[.data[[mvar]] == group1] > Mean_Abundance[.data[[mvar]] == group2], group1, group2)) %>%
     ungroup()
 
 
