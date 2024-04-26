@@ -12,7 +12,7 @@ Go_groupBox(
   top = NULL,
   name = NULL,
   rank,
-  cutoff,
+  pval,
   standardsize = TRUE,
   mycols = NULL,
   ylim = NULL,
@@ -36,7 +36,7 @@ Go_groupBox(
 
 \item{rank}{Taxonomic rank to consider for boxplot generation.}
 
-\item{cutoff}{P-value threshold for significance in the analysis.}
+\item{pval}{P-value threshold for significance in the analysis.}
 
 \item{standardsize}{Logical value indicating whether to standardize plot size.}
 
@@ -71,7 +71,7 @@ Go_groupBox(psIN = psIN,
             top = 10,
             name = "Analysis1",
             rank = "Genus",
-            cutoff = 0.05,
+            pval = 0.05,
             height = 8,
             width = 10)
 

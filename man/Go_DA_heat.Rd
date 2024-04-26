@@ -8,11 +8,10 @@ Go_DA_heat(
   df,
   project,
   data_type,
-  facet,
-  groupby,
   font,
   addnumber = TRUE,
-  fdr,
+  facet = NULL,
+  pval,
   fc,
   orders,
   name,
@@ -27,15 +26,11 @@ Go_DA_heat(
 
 \item{data_type}{Type of data used, e.g., 'dada2' or 'other'.}
 
-\item{facet}{Name of the facet column in the data frame.}
-
-\item{groupby}{Name of the grouping column in the data frame.}
-
 \item{font}{Font size for the plot text.}
 
 \item{addnumber}{Logical indicating whether to add numbers to the plot.}
 
-\item{fdr}{False Discovery Rate threshold for filtering significant features.}
+\item{facet}{Name of the facet column in the data frame.}
 
 \item{fc}{Fold Change threshold for filtering significant features.}
 
@@ -46,6 +41,10 @@ Go_DA_heat(
 \item{height}{Height of the output plot.}
 
 \item{width}{Width of the output plot.}
+
+\item{groupby}{Name of the grouping column in the data frame.}
+
+\item{fdr}{False Discovery Rate threshold for filtering significant features.}
 }
 \value{
 A heatmap plot saved as a PDF file, showing differentially abundant features.
