@@ -73,10 +73,19 @@ Go_extendedBarplot <- function(psIN,
     stop("mvar is not a valid column in the sample data.")
   }
 
-  ps1.sel <- subset_samples(psIN, map[[mvar]] %in% c(group1, group2))
-
-
+  # ps1.sel <- subset_samples(psIN, map[[mvar]] %in% c(group1, group2)) # it doesn't work.
+  # ps1.sel <- subset_samples(psIN, get_variable(psIN, mvar) %in% c(group1, group2))
   # ps1.sel <- subset_samples(psIN, map[,mvar] %in% c(group1,group2));ps1.sel
+
+  # Manually define a logical condition function
+  manual_in <- function(x, y) {
+    sapply(x, function(xi) any(xi == y))
+  }
+
+  # Apply this in the subset_samples context
+  samples_to_keep <- manual_in(sample_data(psIN)[[mvar]], c(group1, group2))
+  ps1.sel <- prune_samples(samples_to_keep, psIN)
+
 
   df <- psmelt(ps1.sel)
 
