@@ -127,30 +127,34 @@ Go_extendedBarplot <- function(psIN,
 
 
   # Function to perform Wilcoxon tests with dynamic group names
-  perform_wilcox_test <- function(data, group1, group2) {
+  perform_wilcox_test <- function(data, group1, group2, func1, func2, mvar) {
+    # Make sure to import necessary libraries
+    library(dplyr)
+    library(tidyr)
+
     data %>%
-      dplyr::group_by(.data[[func1]], .data[[func2]]) %>%
-      summarise(
-        list_group1 = list(Abundance[.data[[mvar]] == group1]),
-        list_group2 = list(Abundance[.data[[mvar]] == group2]),
-        count_group1 = length(Abundance[.data[[mvar]] == group1]),
-        count_group2 = length(Abundance[.data[[mvar]] == group2]),
+      dplyr::group_by(!!rlang::sym(func1), !!rlang::sym(func2)) %>%
+      dplyr::summarise(
+        list_group1 = list(Abundance[get(mvar) == group1]),
+        list_group2 = list(Abundance[get(mvar) == group2]),
+        count_group1 = length(Abundance[get(mvar) == group1]),
+        count_group2 = length(Abundance[get(mvar) == group2]),
         .groups = 'drop'
       ) %>%
-      rowwise() %>%
+      dplyr::rowwise() %>%
       dplyr::mutate(
         p_value = if (count_group1 > 1 && count_group2 > 1) {
-          wilcox.test(unlist(list_group1), unlist(list_group2), exact = FALSE)$p.value
+          stats::wilcox.test(unlist(list_group1), unlist(list_group2), exact = FALSE)$p.value
         } else {
           NA_real_  # Not enough data to perform test
         }
       ) %>%
-      dplyr::select(.data[[func1]], .data[[func2]], p_value, count_group1, count_group2)
+      dplyr::select(!!rlang::sym(func1), !!rlang::sym(func2), p_value, count_group1, count_group2)
   }
 
 
   # Example usage
-  wilcox_results <- perform_wilcox_test(df_top_norm, group1, group2)
+  wilcox_results <- perform_wilcox_test(df_top_norm, group1, group2,func1, func2, mvar)
 
   # Print results to debug
   print(wilcox_results)
@@ -163,7 +167,7 @@ Go_extendedBarplot <- function(psIN,
 
   # Function to perform Wilcoxon tests with dynamic group names
   df_summary <- df_top_norm %>%
-    dplyr::group_by(.data[[func]], .data[[mvar]]) %>%
+    dplyr::group_by(!!rlang::sym(func), !!rlang::sym(mvar)) %>%
     dplyr::summarise(
       Mean_Abundance = mean(Abundance, na.rm = TRUE),
       Lower_CI = quantile(Abundance, probs = 0.025),
@@ -175,7 +179,7 @@ Go_extendedBarplot <- function(psIN,
   #===== table transform
   df_wide <- df_summary %>%
     pivot_wider(
-      names_from = .data[[mvar]],
+      names_from = !!rlang::sym(mvar),
       values_from = c(Mean_Abundance, Lower_CI, Upper_CI),
       names_sep = "_"
     )
@@ -191,9 +195,9 @@ Go_extendedBarplot <- function(psIN,
 
   df_wide <- df_wide %>%
     dplyr::mutate(
-      Diff_Mean = .data[[mean_col_group1]] - .data[[mean_col_group2]],
-      Diff_Lower = .data[[lower_col_group1]] - .data[[upper_col_group2]],
-      Diff_Upper = .data[[upper_col_group1]] - .data[[lower_col_group2]]
+      Diff_Mean = !!rlang::sym(mean_col_group1) - !!rlang::sym(mean_col_group2),
+      Diff_Lower = !!rlang::sym(lower_col_group1) - !!rlang::sym(upper_col_group2),
+      Diff_Upper = !!rlang::sym(upper_col_group1) - !!rlang::sym(lower_col_group2)
     )
 
   data_long <- df_wide %>%
@@ -214,8 +218,8 @@ Go_extendedBarplot <- function(psIN,
 
 
   data_long <- data_long %>%
-    dplyr::group_by(.data[[func]]) %>%
-    dplyr::mutate(Higher_Group = ifelse(Mean_Abundance[.data[[mvar]] == group1] > Mean_Abundance[.data[[mvar]] == group2], group1, group2)) %>%
+    dplyr::group_by(!!rlang::sym(func)) %>%
+    dplyr::mutate(Higher_Group = ifelse(Mean_Abundance[!!rlang::sym(mvar) == group1] > Mean_Abundance[!!rlang::sym(mvar) == group2], group1, group2)) %>%
     ungroup()
 
 
