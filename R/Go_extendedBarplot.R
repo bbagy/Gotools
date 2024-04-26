@@ -73,12 +73,10 @@ Go_extendedBarplot <- function(psIN,
     stop("mvar is not a valid column in the sample data.")
   }
 
-  column_values <- map[[mvar]]  # Safer access that returns a vector or gives a clear error
-
-  ps1.sel <- subset_samples(psIN, sample_data(psIN)[[mvar]] %in% c(group1, group2))
+  ps1.sel <- subset_samples(psIN, map[[mvar]] %in% c(group1, group2))
 
 
-  ps1.sel <- subset_samples(psIN, map[,mvar] %in% c(group1,group2));ps1.sel
+  # ps1.sel <- subset_samples(psIN, map[,mvar] %in% c(group1,group2));ps1.sel
 
   df <- psmelt(ps1.sel)
 
