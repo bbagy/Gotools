@@ -161,7 +161,7 @@ Go_DA_heat <- function(df, project, data_type, font,
     p <- p + labs(y = "Comparison Group") + theme_classic() + coord_flip() +
       geom_tile(aes_string(fill = lfc), colour = "white") +
       scale_fill_gradient2(low = "#149BEDFF", mid = "white", high = "#FA6B09FF") +
-      ggtitle(sprintf("%s baseline %s vs All group (pvalue < %s, cutoff=%s) ", unique(resSig$mvar), unique(resSig$basline), pval, fc)) +
+      ggtitle(sprintf("%s baseline %s vs All group (pvalue < %s, cutoff=%s) ", unique(resSig$mvar), unique(resSig.top$basline), pval, fc)) +
       theme(plot.title = element_text(hjust = 0.5), legend.position = "right") +
       facet_wrap(~ smvar, scales="free_x", ncol = 10) +
       theme(axis.text.x = element_blank(), axis.ticks = element_blank(), text = element_text(size=12), plot.title = element_text(hjust=1),
