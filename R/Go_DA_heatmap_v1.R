@@ -109,8 +109,6 @@ Go_DA_heat <- function(df, project, data_type, font,
   resSig.top$smvar
 
 
-
-
   if (dim(resSig)[1] >= 1) {
     # re-order
     if (!is.null(orders)) {
@@ -122,22 +120,29 @@ Go_DA_heat <- function(df, project, data_type, font,
     }
 
     resSig.top$basline <- paste(resSig.top$basline," (n=",resSig.top$bas.count, ")",sep="")
-    resSig.top$smvar <- paste(resSig.top$smvar," (n=", resSig.top$smvar.count, ")",sep="")
+
+    # Create formatted labels
+    formatted_labels <- paste(resSig.top$smvar, " (n=", resSig.top$smvar.count, ")", sep="")
+    formatted_orders <- paste(orders, " (n=", resSig.top$smvar.count[match(orders, resSig.top$smvar)], ")", sep="")
 
 
+
+    # resSig.top$smvar <- paste(resSig.top$smvar," (n=", resSig.top$smvar.count, ")",sep="")
     # re-order using number
-    new.orders <- c()
-    for(i in orders){
-      if(length(order <- grep(i, unique(resSig.top$smvar)))){
-        order <- c(unique(resSig.top$smvar)[order])
-      }
-      new.orders <- c(new.orders, order)
-    }
+    # new.orders <- c()
+    # for(i in orders){
+    #   if(length(order <- grep(i, unique(resSig.top$smvar)))){
+    #     order <- c(unique(resSig.top$smvar)[order])
+    #  }
+    #  new.orders <- c(new.orders, order)
+    # }
 
-    new.orders <- c(new.orders, orders)
+    new.orders <- c(formatted_orders, orders)
+    # resSig.top$smvar  <- factor(resSig.top$smvar, levels = intersect(new.orders, resSig.top$smvar))
+    # Convert formatted labels back into a factor with the specified order
+    resSig.top$smvar <- factor(formatted_labels, levels = new.orders)
 
 
-    resSig.top$smvar  <- factor(resSig.top$smvar, levels = intersect(new.orders, resSig.top$smvar))
 
 
 
@@ -155,7 +160,7 @@ Go_DA_heat <- function(df, project, data_type, font,
 
     p <- p + labs(y = "Comparison Group") + theme_classic() + coord_flip() +
       geom_tile(aes_string(fill = lfc), colour = "white") +
-      scale_fill_gradient2(low = "#2366C0FF", mid = "white", high = "#B91226FF") +
+      scale_fill_gradient2(low = "#149BEDFF", mid = "white", high = "#FA6B09FF") +
       ggtitle(sprintf("%s baseline %s vs All group (pvalue < %s, cutoff=%s) ", unique(resSig$mvar), unique(resSig$basline), pval, fc)) +
       theme(plot.title = element_text(hjust = 0.5), legend.position = "right") +
       facet_wrap(~ smvar, scales="free_x", ncol = 10) +
