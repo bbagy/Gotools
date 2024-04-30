@@ -296,7 +296,7 @@ print("Check the psIN")
   bk <- c(0,0.5,1)
   print("p0")
 
-  tt<-try(ComplexHeatmap::pheatmap(matrix, annotation_col = annotation_col),T)
+  tt<-try(pheatmap(matrix, annotation_col = annotation_col),T)
   if (class(tt) == "try-error"){
     matrix <- t(matrix)
   }else{
@@ -305,7 +305,7 @@ print("Check the psIN")
 
   if (showPhylum ==TRUE){
     print("with annotation_row")
-    p <- ComplexHeatmap::pheatmap(matrix,  fontsize =8,main = title,
+    p <- pheatmap(matrix,  fontsize =8,main = title,
                                   #scale= "row",
                                   annotation_col = annotation_col,
                                   annotation_row = annotation_row,
@@ -330,7 +330,7 @@ print("Check the psIN")
       matrix.orderd <- matrix
     }
 
-    p <- ComplexHeatmap::pheatmap(matrix.orderd,  fontsize =8, main = title,
+    p <- pheatmap(matrix.orderd,  fontsize =8, main = title,
                                   annotation_col = annotation_col,
                                   show_rownames = show_rownames,
                                   show_colnames = show_colnames,
