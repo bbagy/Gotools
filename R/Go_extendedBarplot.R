@@ -230,7 +230,7 @@ Go_extendedBarplot <- function(psIN,
   data_long$Panel <- "Difference Mean with CI"  # for points and their error bars
   # Create a separate data frame for the points and error bars
   point_data <- data_long
-  point_data$Panel <- "Proportion with CI"  # for bar plots and their error bars
+  point_data$Panel <- "Mean Proportion"  # for bar plots and their error bars
 
   pvalue_data <- data_long
   pvalue_data$Panel <- "p_value"
@@ -239,7 +239,7 @@ Go_extendedBarplot <- function(psIN,
   plot_data <- rbind(data_long, point_data,pvalue_data)
 
   # Ensure that the Panel factor has the intended order
-  plot_data$Panel <- factor(plot_data$Panel, levels = c("Proportion with CI", "Difference Mean with CI","p_value"))
+  plot_data$Panel <- factor(plot_data$Panel, levels = c("Mean Proportion", "Difference Mean with CI","p_value"))
 
 
   colnames(plot_data)
@@ -256,11 +256,11 @@ Go_extendedBarplot <- function(psIN,
   p <- ggplot(merged_data.sig, aes_string(x = "Reordered_Category", y = "Mean_Abundance", fill = mvar))
 
 
-  p1 <- p + geom_bar(data = subset(merged_data.sig, Panel == "Proportion with CI"),
+  p1 <- p + geom_bar(data = subset(merged_data.sig, Panel == "Mean Proportion"),
                      stat = "identity", position = position_dodge(width = 0.7), width = 0.6) +
-    geom_errorbar(data = subset(merged_data.sig, Panel == "Proportion with CI"),
-                  aes_string(ymin = "Lower_CI", ymax = "Upper_CI", group = mvar),
-                  position = position_dodge(width = 0.7), width = 0.25)
+   # geom_errorbar(data = subset(merged_data.sig, Panel == "Proportion with CI"),
+   #                aes_string(ymin = "Lower_CI", ymax = "Upper_CI", group = mvar),
+   #               position = position_dodge(width = 0.7), width = 0.25)
 
   p2 <- p1 + geom_point(data = subset(merged_data.sig, Panel == "Difference Mean with CI"),
                         aes_string(x = "Reordered_Category", y = "Diff_Mean", group = mvar, fill = "Higher_Group"),
