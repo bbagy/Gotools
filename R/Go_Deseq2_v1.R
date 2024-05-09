@@ -230,22 +230,16 @@ Go_Deseq2 <- function(psIN,  project,
 
       tt <- try(filled_data <- apply(res[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE)), T)
 
-
       if(inherits(tt, "try-error")){
-        filled_data <- apply(res[, c("Rank1", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE))
+        filled_data <- apply(res[, c("locus_tag", "symbol")], 1, function(x) na.locf(x, na.rm = FALSE))
       }
-
-
-
-
-
 
 
       filled_data <- t(as.data.frame(filled_data))
       tt <- try(res[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- filled_data, T)
 
       if(inherits(tt, "try-error")){
-        res[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- t(filled_data)
+        res[, c("locus_tag", "symbol")] <- t(filled_data)
       }
 
 
