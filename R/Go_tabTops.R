@@ -30,7 +30,7 @@ Go_tabTops <- function(csv, project){
   }
 
   # Check if a column is numeric
-  is_numeric <- sapply(tab, is.numeric)
+  is_numeric <- sapply(tab.cleaned, is.numeric)
 
   # Separate the data into two matrices based on the column type
   otu <- as.matrix(tab.cleaned[, is_numeric])
