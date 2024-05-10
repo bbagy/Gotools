@@ -25,8 +25,9 @@ Go_tabTops <- function(csv, project){
 
   tab <- read.csv(csv, row.names = NULL, check.names = FALSE)
 
+  tab.cleaned <- tab
   for(cleaned in c("__no_feature", "__ambiguous","__too_low_aQual","__not_aligned", "__alignment_not_unique")){
-    tab.cleaned <- subset(tab,locus_tag != cleaned)
+    tab.cleaned <- subset(tab.cleaned, locus_tag != cleaned)
   }
 
   # Check if a column is numeric
