@@ -22,13 +22,18 @@ Go_tabTops <- function(csv, project){
   rds <- file.path("2_rds")
   if(!file_test("-d", rds)) dir.create(rds)
 
-
   tab <- read.csv(csv, row.names = NULL, check.names = FALSE)
 
   tab.cleaned <- tab
-  for(cleaned in c("__no_feature", "__ambiguous","__too_low_aQual","__not_aligned", "__alignment_not_unique")){
+
+  tt <- try(  for(cleaned in c("__no_feature", "__ambiguous","__too_low_aQual","__not_aligned", "__alignment_not_unique")){
     tab.cleaned <- subset(tab.cleaned, locus_tag != cleaned)
+  },T)
+
+  if(class(tt) =="try-error"){
+    tab.cleaned <- tab
   }
+
 
   # Check if a column is numeric
   is_numeric <- sapply(tab.cleaned, is.numeric)
