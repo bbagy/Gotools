@@ -26,15 +26,15 @@ Go_tabTops <- function(csv, project){
   tab <- read.csv(csv, row.names = NULL, check.names = FALSE)
 
   for(cleaned in c("__no_feature", "__ambiguous","__too_low_aQual","__not_aligned", "__alignment_not_unique")){
-    tab <- subset(tab,locus_tag != cleaned)
+    tab.cleaned <- subset(tab,locus_tag != cleaned)
   }
 
   # Check if a column is numeric
   is_numeric <- sapply(tab, is.numeric)
 
   # Separate the data into two matrices based on the column type
-  otu <- as.matrix(tab[, is_numeric])
-  tax <- as.matrix(tab[, !is_numeric])
+  otu <- as.matrix(tab.cleaned[, is_numeric])
+  tax <- as.matrix(tab.cleaned[, !is_numeric])
 
   ps <- phyloseq(otu_table(otu, taxa_are_rows=T),  tax_table(tax));ps
 
