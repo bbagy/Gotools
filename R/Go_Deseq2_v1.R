@@ -228,23 +228,24 @@ Go_Deseq2 <- function(psIN,  project,
       res <- merge(tmp, tax_table, by = 0, all.x = TRUE)
       res[res == "NA NA"] <- NA
 
-      tt <- try(filled_data <- apply(res[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE)), T)
-
-      if(inherits(tt, "try-error")){
-        filled_data <- apply(res[, c("locus_tag", "symbol")], 1, function(x) na.locf(x, na.rm = FALSE))
-      }
-
-
-      filled_data <- t(as.data.frame(filled_data))
-      tt <- try(res[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- filled_data, T)
-
-      if(inherits(tt, "try-error")){
-        res[, c("locus_tag", "symbol")] <- t(filled_data)
-      }
 
 
 
       if (type == "taxonomy"){
+        tt <- try(filled_data <- apply(res[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE)), T)
+
+        if(inherits(tt, "try-error")){
+          filled_data <- apply(res[,  c("Rank", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE))
+        }
+
+
+        filled_data <- t(as.data.frame(filled_data))
+        tt <- try(res[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- filled_data, T)
+
+        if(inherits(tt, "try-error")){
+          res[, c("Rank", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- t(filled_data)
+        }
+
         taxaRanks <- c("Kingdon","Phylum","Class","Order","Family","Genus","Species")
         for(t in 2:length(taxaRanks)){
 
@@ -328,9 +329,6 @@ Go_Deseq2 <- function(psIN,  project,
       # Write the csv and rds files
       write.csv(res, quote = FALSE, col.names = NA, file = csv_filename)
       #saveRDS(ps.taxa.sig, rds_filename)
-
-
-
     }
   }
 }
