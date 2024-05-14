@@ -244,7 +244,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           axis2_percent_avg <- mean(pdataframe$Axis2_Percent, na.rm = TRUE)
 
           p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar)) +
-            geom_point() +  # Add points to the plot
+            geom_point(aes_string(shape=shapes), size=0.9, alpha = 1) +  # Add points to the plot
             labs(
               x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "%)", sep = ""),
               y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "%)", sep = "")
@@ -254,10 +254,10 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
           if (!is.null(shapes)) {
             pdataframe[,shapes] <- factor(pdataframe[,shapes], levels = orders)
-            p = p +  geom_point(aes_string(shape=shapes), size=0.8, alpha = 1) + scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
+            p = p + scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
 
           }else{
-            p = p + geom_point(size=0.8, alpha = 1)+ ggtitle(sprintf("%s (%s)",mvar,distance_metric))
+            p = p
           }
 
           p = p + ggtitle(sprintf("%s (%s)",mvar,distance_metric))
@@ -450,7 +450,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         axis2_percent_avg <- mean(pdataframe$Axis2_Percent, na.rm = TRUE)
 
         p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar)) +
-          geom_point() +  # Add points to the plot
+          geom_point(aes_string(shape=shapes), size=0.9, alpha = 1)+  # Add points to the plot
           labs(
             x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "%)", sep = ""),
             y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "%)", sep = "")
@@ -460,10 +460,10 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
         if (!is.null(shapes)) {
           pdataframe[,shapes] <- factor(pdataframe[,shapes], levels = orders)
-          p = p +  geom_point(aes_string(shape=shapes), size=0.8, alpha = 1) + scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
+          p = p +  scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
 
         }else{
-          p = p + geom_point(size=0.8, alpha = 1)+ ggtitle(sprintf("%s (%s)",mvar,distance_metric))
+          p = p
         }
 
         p = p + ggtitle(sprintf("%s (%s)",mvar,distance_metric))
@@ -585,3 +585,4 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
   }
   dev.off()
 }
+
