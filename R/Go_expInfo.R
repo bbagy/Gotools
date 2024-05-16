@@ -53,10 +53,14 @@ Go_expInfo <- function(Project_name=NA,
         "5: ZymoBIOMICS DNA Miniprep Kit (Catalog# R2002)\n",
         "6: DNeasy PowerSoil Pro Kit (Catalog# 47016)\n",
         "7: DNeasy DNA and Blood kit (Catalog# 69506)\n\n",
+        "8: RNeasy Mini Kit (Catalog# 74104)\n\n",
+
         "Available prep numbers and their descriptions:\n",
         "1: Illumina V3V4\n",
         "2: Illumina V1V2\n",
         "3: Zymo Quick-16S/ V3V4 Plus NGS Library prep kit (#catalog D6420)\n\n",
+        "4: QIAseq Stranded RNA Lib Kit UDI ((#catalog 180450)\n\n",
+
         "Available spike-in numbers and their descriptions:\n",
         "1: / ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)\n",
         "2: No Spike-in Control\n\n",
@@ -78,6 +82,7 @@ Go_expInfo <- function(Project_name=NA,
                 "5" = "ZymoBIOMICS DNA Miniprep Kit (Catalog# R2002)",
                 "6" = "DNeasy PowerSoil Pro Kit (Catalog# 47016)",
                 "7" = "DNeasy DNA and Blood kit (Catalog# 69506)",
+                "8" = "RNeasy Mini Kit (Catalog# 74104)",
                 "Unknown kit")
 
   # Define the prep based on prep_number
