@@ -36,10 +36,10 @@ Go_imgInfo <- function(Rarefaction=NA,
                        DAplot=NA) {
   # Check if all arguments are missing and print options if they are
   if (is.na(Rarefaction) && is.na(Barchart) && is.na(Bac.heatmap) &&
-      is.na(Adivplot) && is.na(Foreplot) && is.na(Bdivplot) && is.na(DAplot)) {
+      is.na(Adivplot) && is.na(Foreplot) && is.na(Bdivplot) && is.na(DAplot) && is.na(RNAseq.heatmap)) {
     cat(
       "Provide paths for the respective graphical outputs. Each parameter expects a path or a vector of paths for its respective images. \n",
-      "Available parameters are: Rarefaction, Barchart, Bac.heatmap, Adivplot, Foreplot, Bdivplot, and DAplot. \n",
+      "Available parameters are: Rarefaction, Barchart, Bac.heatmap, RNAseq.heatmap, Adivplot, Foreplot, Bdivplot, and DAplot. \n",
       "Specify paths to utilize the function fully, or review the @examples in the documentation for more details.\n"
     )
     return(invisible())
