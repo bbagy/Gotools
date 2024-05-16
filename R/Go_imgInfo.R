@@ -1,8 +1,8 @@
 
 #' Retrieve and Organize Image Information
 #'
-#' This function organizes paths to various graphical outputs such as rarefaction curves, 
-#' bar charts, heatmaps, etc., and returns a list of these paths. The function checks if any 
+#' This function organizes paths to various graphical outputs such as rarefaction curves,
+#' bar charts, heatmaps, etc., and returns a list of these paths. The function checks if any
 #' paths are provided and prints details about what each parameter expects if none are given.
 #'
 #' @param Rarefaction Path or vector of paths for rarefaction curve images.
@@ -29,6 +29,7 @@
 Go_imgInfo <- function(Rarefaction=NA,
                        Barchart=NA,
                        Bac.heatmap=NA,
+                       RNAseq.heatmap=NA,
                        Adivplot=NA,
                        Foreplot=NA,
                        Bdivplot=NA,
@@ -43,12 +44,13 @@ Go_imgInfo <- function(Rarefaction=NA,
     )
     return(invisible())
   }
-  
+
   # Return a list with all the inputs, treating them directly as paths or vectors of paths
   return(list(
     rarefaction = Rarefaction,
     barchart = Barchart,
     bac.heatmap = Bac.heatmap,
+    rnaseq.heatmap = RNAseq.heatmap,
     adivplot = Adivplot,
     foreplot = Foreplot,
     bdivplot = Bdivplot,
