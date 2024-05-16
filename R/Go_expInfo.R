@@ -85,6 +85,7 @@ Go_expInfo <- function(Project_name=NA,
                  "1" = "Illumina V3V4",
                  "2" = "Illumina V1V2",
                  "3" = "Zymo Quick-16S/ V3V4 Plus NGS Library prep kit (#catalog D6420)",
+                 "4" = "QIAseq Stranded RNA Lib Kit UDI ((#catalog 180450)",
                  "Unknown prep")
 
   # Define the spikein based on spikein_number
