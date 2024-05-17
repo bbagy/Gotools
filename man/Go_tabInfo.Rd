@@ -9,6 +9,8 @@ Go_tabInfo(
   Tract_Tab = NA,
   Alpha_divTab = NA,
   Alpha_div_LmerTab = NA,
+  RNAseq = NA,
+  Tab1 = NA,
   PermanovaTab = NA
 )
 }

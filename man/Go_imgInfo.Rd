@@ -8,6 +8,7 @@ Go_imgInfo(
   Rarefaction = NA,
   Barchart = NA,
   Bac.heatmap = NA,
+  RNAseq.heatmap = NA,
   Adivplot = NA,
   Foreplot = NA,
   Bdivplot = NA,
