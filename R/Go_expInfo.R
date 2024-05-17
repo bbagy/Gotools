@@ -37,6 +37,7 @@ Go_expInfo <- function(Project_name=NA,
                        Samples_info=NA,
                        Sequencing_date=NA,
                        Sequencing_platform=NA,
+                       RNAseq_reference=NA,
                        kit_number = NA, prep_number = NA, spikein_number = NA, authorName1=NA ,authorName2 = NULL) {
   # Check if all arguments are missing and print options if they are
   if (is.na(kit_number) && is.na(prep_number) && is.na(spikein_number)) {
@@ -129,6 +130,7 @@ Go_expInfo <- function(Project_name=NA,
     kit = kit,
     prep = prep,
     spikein = spikein,
+    rnaseq_reference=RNAseq_reference
     authorName1 = authorName1,
     authorName2 = authorName2,
     contact_email = contact_email
