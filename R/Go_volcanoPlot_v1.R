@@ -270,23 +270,34 @@ Go_volcanoPlot <- function(project,
     p1 <- ggplot(data=df.na, aes_string(x=x_var, y=y_var, colour=pval)) +
       xlab(vx) +
       ylab(vy) +
-      geom_vline(xintercept = c(-log2(fc), 0, log2(fc)), col = dircolors, linetype = "dotted", size = 1)
+      geom_vline(xintercept = c(-fc, 0, fc), col = dircolors, linetype = "dotted", size = 1)
 
     p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE)
 
     if (type == "taxonomy" | type == "taxanomy" | type == "bacmet") {
       label_name <- "Species"
+      label_condition <- sprintf(
+        "ifelse(%s != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(%s), '')",
+        label_name, p, x_var, label_name
+      )
+
     } else if (type == "function") {
       label_name <- "KOName"
+      label_condition <- sprintf(
+        "ifelse(%s != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(%s), '')",
+        label_name, p, x_var, label_name
+      )
+
     } else if (type == "RNAseq") {
       label_name <- "symbol"
+      label_condition <- sprintf(
+        "ifelse(%s != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(%s), '')",
+        label_name, "padj", x_var, label_name
+      )
+
     }
 
-    # Construct the label condition as a string using sprintf
-    label_condition <- sprintf(
-      "ifelse(%s != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(%s), '')",
-      label_name, p, x_var, label_name
-    )
+
 
     # Use the constructed label_condition in your geom_text_repel function
     p1 <- p1 + geom_text_repel(aes_string(label=label_condition), size=font, fontface="italic", max.overlaps=overlaps)
@@ -353,7 +364,7 @@ Go_volcanoPlot <- function(project,
       p1 <- ggplot(data=df.na, aes_string(x=a_var, y=b_var, colour=spearman)) +
         xlab(vx) +
         ylab(vy) +
-        geom_vline(xintercept = c(-log2(fc), 0, log2(fc)), col = dircolors, linetype = "dotted", size = 1)
+        geom_vline(xintercept = c(-fc, 0, fc), col = dircolors, linetype = "dotted", size = 1)
 
       p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE)
 
