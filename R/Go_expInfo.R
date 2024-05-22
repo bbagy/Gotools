@@ -60,13 +60,18 @@ Go_expInfo <- function(Project_name=NA,
         "1: Illumina V3V4\n",
         "2: Illumina V1V2\n",
         "3: Zymo Quick-16S/ V3V4 Plus NGS Library prep kit (#catalog D6420)\n\n",
-        "4: QIAseq Stranded RNA Lib Kit UDI ((#catalog 180450)\n\n",
+
+        "4: Illumina DNA Prep (#catalog 20060059)\n\n",
+
+        "5: QIAseq Stranded RNA Lib Kit UDI ((#catalog 180450)\n",
+        "6: QIAseq UPXome RNA Library Kits ((#catalog 334702)\n\n",
 
         "Available spike-in numbers and their descriptions:\n",
         "1: / ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)\n",
         "2: No Spike-in Control\n\n",
         "Available Technicians and email address:\n",
         "Heekuk Park : hp2523@cumc.columbia.edu\n",
+        "Djamila Eliby : dj2711@cumc.columbia.edu\n",
         "Sofia Moscovitz : szm2110@cumc.columbia.edu\n",
         "Dalia Moallem : dhm2127@cumc.columbia.edu\n",
         "Dwayne Seeram : ds4057@cumc.columbia.edu\n",
@@ -91,7 +96,10 @@ Go_expInfo <- function(Project_name=NA,
                  "1" = "Illumina V3V4",
                  "2" = "Illumina V1V2",
                  "3" = "Zymo Quick-16S/ V3V4 Plus NGS Library prep kit (#catalog D6420)",
-                 "4" = "QIAseq Stranded RNA Lib Kit UDI ((#catalog 180450)",
+                 "4" = "Illumina DNA Prep (#catalog 20060059)"
+                 "5" = "QIAseq Stranded RNA Lib Kit UDI ((#catalog 180450)",
+                 "6" = "QIAseq UPXome RNA Library Kits ((#catalog 334702)",
+
                  "Unknown prep")
 
   # Define the spikein based on spikein_number
@@ -104,6 +112,7 @@ Go_expInfo <- function(Project_name=NA,
   getEmail <- function(name) {
     switch(name,
            "Heekuk Park" = "hp2523@cumc.columbia.edu",
+           "Djamila Eliby" = "dj2711@cumc.columbia.edu",
            "Sofia Moscovitz" = "szm2110@cumc.columbia.edu",
            "Dalia Moallem" = "dhm2127@cumc.columbia.edu",
            "Dwayne Seeram" = "ds4057@cumc.columbia.edu",
