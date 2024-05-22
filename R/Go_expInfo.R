@@ -96,7 +96,7 @@ Go_expInfo <- function(Project_name=NA,
                  "1" = "Illumina V3V4",
                  "2" = "Illumina V1V2",
                  "3" = "Zymo Quick-16S/ V3V4 Plus NGS Library prep kit (#catalog D6420)",
-                 "4" = "Illumina DNA Prep (#catalog 20060059)"
+                 "4" = "Illumina DNA Prep (#catalog 20060059)",
                  "5" = "QIAseq Stranded RNA Lib Kit UDI ((#catalog 180450)",
                  "6" = "QIAseq UPXome RNA Library Kits ((#catalog 334702)",
 
