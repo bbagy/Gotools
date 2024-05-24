@@ -38,7 +38,7 @@ Go_expInfo <- function(Project_name=NA,
                        Sequencing_date=NA,
                        Sequencing_platform=NA,
                        RNAseq_reference=NA,
-                       kit_number = NA, prep_number = NA, spikein_number = NA, authorName1=NA ,authorName2 = NULL) {
+                       kit_number = NA, pos_number=NA,prep_number = NA, spikein_number = NA, authorName1=NA ,authorName2 = NULL) {
   # Check if all arguments are missing and print options if they are
   if (is.na(kit_number) && is.na(prep_number) && is.na(spikein_number)) {
     cat(
@@ -55,6 +55,9 @@ Go_expInfo <- function(Project_name=NA,
         "6: DNeasy PowerSoil Pro Kit (Catalog# 47016)\n",
         "7: DNeasy DNA and Blood kit (Catalog# 69506)\n\n",
         "8: RNeasy Mini Kit (Catalog# 74104)\n\n",
+
+        "Available positive control numbers and their descriptions:\n",
+        "1: ZymoBIOMICS Microbial Community Standard (D6300)\n\n",
 
         "Available prep numbers and their descriptions:\n",
         "1: Illumina V3V4\n",
@@ -90,6 +93,12 @@ Go_expInfo <- function(Project_name=NA,
                 "7" = "DNeasy DNA and Blood kit (Catalog# 69506)",
                 "8" = "RNeasy Mini Kit (Catalog# 74104)",
                 "Unknown kit")
+
+
+  # Define the positive control based on prep_number
+  pos <- switch(as.character(pos_number),
+                 "1" = "ZymoBIOMICS Microbial Community Standard (D6300)",
+                 "Unknown prep")
 
   # Define the prep based on prep_number
   prep <- switch(as.character(prep_number),
@@ -137,6 +146,7 @@ Go_expInfo <- function(Project_name=NA,
     date = Sequencing_date,
     platform = Sequencing_platform,
     kit = kit,
+    pos = pos,
     prep = prep,
     spikein = spikein,
     rnaseq_reference=RNAseq_reference,
