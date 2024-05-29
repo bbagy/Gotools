@@ -93,7 +93,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
   }
 
 
-  pdf(sprintf("%s/ordi.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
+  pdf(sprintf("%s/ordi.%s.%s%s%s%s%s%s%s.pdf", out_path,
               project,
               ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
               ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
