@@ -498,10 +498,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         }
 
         # ellipse variation
-        if (ellipse == "yes" | ellipse == "Yes" ) {
-          p <- p + stat_ellipse(type = "norm", linetype = 2)
-        } else if (ellipse == "no" | ellipse == "No" ){
-          p <- p
+        if (ellipse) {  # If ellipse is TRUE
+          p = p + stat_ellipse(type = "norm", linetype = 2)
         }
 
         if (!is.null(facet)) {
