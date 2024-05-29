@@ -92,14 +92,18 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
     orders <- NULL
   }
 
-  pdf(sprintf("%s/ordi.%s.%s%s%s%s%s%s.pdf", out_path,
+
+  pdf(sprintf("%s/ordi.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
               project,
               ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
               ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
               ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
               ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
               ifelse(is.null(name), "", paste(name, ".", sep = "")),
+              ifelse(ellipse, "", "ellipse_FALSE."),
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
+
+
 
 
   plotlist <- list()
