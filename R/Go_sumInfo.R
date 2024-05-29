@@ -38,21 +38,20 @@
 #'
 #' @export
 
-Go_sumInfo <- function(Extraction_Summary=NA,
-                       Taxa_overview=NA,
-                       Alpha_div=NA,
-                       Beta_div=NA,
-                       DA_test=NA,
-                       Conclusion=NA){
-
+Go_sumInfo <- function(Extraction_Summary,
+                       Taxa_overview,
+                       Alpha_div,
+                       Beta_div,
+                       DA_test,
+                       Conclusion) {
 
   # Check if all arguments are missing and print options if they are
-  if (is.na(Extraction_Summary) && is.na(Taxa_overview) && is.na(Alpha_div) &&
-      is.na(Beta_div) && is.na(DA_test) && is.na(Conclusion)) {
+  if (missing(Extraction_Summary) && missing(Taxa_overview) && missing(Alpha_div) &&
+      missing(Beta_div) && missing(DA_test) && missing(Conclusion)) {
     cat(
-      "Provide paths for the respective summary text. Each parameter expects a path or a vector of paths for its respective text \n",
-      "Available parameters are: Extraction_Summary, Taxa_overview, Alpha_div, Beta_div, Adivplot, DA_test, and Conclusion. \n\n",
-
+      "Provide paths for the respective summary text. Each parameter expects a path or a vector of paths for its respective text.\n",
+      "Available parameters are: Extraction_Summary, Taxa_overview, Alpha_div, Beta_div, DA_test, and Conclusion. \n\n",
+      "Formatting options:\n",
       "Link text: [Link Text](http://example.com).\n",
       "*text* : italic. \n",
       "**text** : bold. \n",
@@ -67,9 +66,8 @@ Go_sumInfo <- function(Extraction_Summary=NA,
     taxa_overview = Taxa_overview,
     alpha_div = Alpha_div,
     beta_div = Beta_div,
-    dA_test = DA_test,
+    da_test = DA_test,
     conclusion = Conclusion
   ))
 }
-
 
