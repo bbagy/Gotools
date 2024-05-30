@@ -257,7 +257,7 @@ Go_extendedBarplot <- function(psIN,
 
 
   p1 <- p + geom_bar(data = subset(merged_data.sig, Panel == "Mean Proportion"),
-                     stat = "identity", position = position_dodge(width = 0.7), width = 0.6) +
+                     stat = "identity", position = position_dodge(width = 0.7), width = 0.6)
    # geom_errorbar(data = subset(merged_data.sig, Panel == "Proportion with CI"),
    #                aes_string(ymin = "Lower_CI", ymax = "Upper_CI", group = mvar),
    #               position = position_dodge(width = 0.7), width = 0.25)
