@@ -35,7 +35,7 @@
 #'         distance_metrics = c("bray", "unifrac"),
 #'         cate.conf = "AgeGroup",
 #'         plot = "PCoA",
-#'         ellipse = TRUE,
+#'         ellipse = TRUE, or group names
 #'         statistics = TRUE,
 #'         mycols = c("blue", "red"),
 #'         paired = "PatientID",
@@ -100,11 +100,9 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
               ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
               ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
               ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              ifelse(ellipse, "", "ellipse_FALSE."),
+              ifelse(ellipse == FALSE, "ellipse_FALSE.",
+                     ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
-
-
-
 
   plotlist <- list()
   for (mvar in cate.vars) {
@@ -247,23 +245,22 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           axis1_percent_avg <- mean(pdataframe$Axis1_Percent, na.rm = TRUE)
           axis2_percent_avg <- mean(pdataframe$Axis2_Percent, na.rm = TRUE)
 
-          p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar)) +
-            geom_point(aes_string(shape=shapes), size=0.9, alpha = 1) +  # Add points to the plot
-            labs(
-              x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "%)", sep = ""),
-              y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "%)", sep = "")
-            )
-
-
-
           if (!is.null(shapes)) {
             pdataframe[,shapes] <- factor(pdataframe[,shapes], levels = orders)
-            p = p + scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
+            p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar))
+            p = p + geom_point(aes_string(shape=shapes), size=0.9, alpha = 1) +  # Add points to the plot
+              scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
 
           }else{
-            p = p
+            p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar))
+            p = p + geom_point(size=0.9, alpha = 1)
           }
 
+
+          p = p + labs(
+              x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "%)", sep = ""),
+              y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "%)", sep = "")
+            )# Add points to the plot
           p = p + ggtitle(sprintf("%s (%s)",mvar,distance_metric))
           p = p + facet_wrap(~ method, scales="free") + theme_bw() + theme(strip.background = element_blank())# open(1), cross(10), closed(2)
           p = p + theme(legend.position = "bottom",
@@ -287,9 +284,13 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           }
 
           # ellipse variation
-          if (ellipse) {  # If ellipse is TRUE
-            p = p + stat_ellipse(type = "norm", linetype = 2)
+          if (!is.null(ellipse) && ellipse != TRUE) {
+            p <- p + stat_ellipse(aes_string(group = ellipse, color = ellipse), type = "norm", linetype = 2)
+          } else if (ellipse == TRUE) {
+            p <- p + stat_ellipse(type = "norm", linetype = 2)
           }
+
+
 
 
           if (!is.null(facet)) {
@@ -454,30 +455,23 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         axis2_percent_avg <- mean(pdataframe$Axis2_Percent, na.rm = TRUE)
 
 
+
         if (!is.null(shapes)) {
           pdataframe[,shapes] <- factor(pdataframe[,shapes], levels = orders)
-
-          p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar)) +
-            geom_point(aes_string(shape=shapes), size=0.9, alpha = 1)+  # Add points to the plot
-            labs(
-              x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "%)", sep = ""),
-              y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "%)", sep = "")
-            )
-
-
-
-          p = p +  scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
+          p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar))
+          p = p + geom_point(aes_string(shape=shapes), size=0.9, alpha = 1) +  # Add points to the plot
+            scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
 
         }else{
-          p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar)) +
-            geom_point(size=0.9, alpha = 1)+  # Add points to the plot
-            labs(
-              x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "%)", sep = ""),
-              y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "%)", sep = "")
-            )
-
-
+          p = ggplot(pdataframe, aes_string(x = "Axis_1", y = "Axis_2", color = mvar))
+          p = p + geom_point(size=0.9, alpha = 1)
         }
+
+
+        p = p + labs(
+          x = paste("Axis 1 (", sprintf("%.2f", axis1_percent_avg), "%)", sep = ""),
+          y = paste("Axis 2 (", sprintf("%.2f", axis2_percent_avg), "%)", sep = "")
+        )# Add points to the plot
 
         p = p + ggtitle(sprintf("%s (%s)",mvar,distance_metric))
         p = p + facet_wrap(~ method, scales="free") + theme_bw() + theme(strip.background = element_blank())# open(1), cross(10), closed(2)
@@ -502,8 +496,10 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         }
 
         # ellipse variation
-        if (ellipse) {  # If ellipse is TRUE
-          p = p + stat_ellipse(type = "norm", linetype = 2)
+        if (!is.null(ellipse) && ellipse != TRUE) {
+          p <- p + stat_ellipse(aes_string(group = ellipse, color = ellipse), type = "norm", linetype = 2)
+        } else if (ellipse == TRUE) {
+          p <- p + stat_ellipse(type = "norm", linetype = 2)
         }
 
         if (!is.null(facet)) {
