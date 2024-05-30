@@ -288,6 +288,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             p <- p + stat_ellipse(aes_string(group = ellipse, color = ellipse), type = "norm", linetype = 2)
           } else if (ellipse == TRUE) {
             p <- p + stat_ellipse(type = "norm", linetype = 2)
+          } else if (ellipse == FALSE) {
+            p <- p
           }
 
 
@@ -500,6 +502,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           p <- p + stat_ellipse(aes_string(group = ellipse, color = ellipse), type = "norm", linetype = 2)
         } else if (ellipse == TRUE) {
           p <- p + stat_ellipse(type = "norm", linetype = 2)
+        } else if (ellipse == FALSE) {
+          p <- p
         }
 
         if (!is.null(facet)) {
