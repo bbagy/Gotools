@@ -284,12 +284,12 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           }
 
           # ellipse variation
-          if (!is.null(ellipse) && ellipse != TRUE) {
-            p <- p + stat_ellipse(aes_string(group = ellipse, color = ellipse), type = "norm", linetype = 2)
-          } else if (ellipse == TRUE) {
-            p <- p + stat_ellipse(type = "norm", linetype = 2)
-          } else if (ellipse == FALSE) {
+          if (ellipse == FALSE){
             p <- p
+          } else if (!is.null(ellipse) && ellipse != TRUE){
+            p <- p + stat_ellipse(aes_string(group = ellipse, color = ellipse), type = "norm", linetype = 2)
+          }else if (ellipse == TRUE) {
+            p <- p + stat_ellipse(type = "norm", linetype = 2)
           }
 
 
@@ -498,12 +498,12 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         }
 
         # ellipse variation
-        if (!is.null(ellipse) && ellipse != TRUE) {
-          p <- p + stat_ellipse(aes_string(group = ellipse, color = ellipse), type = "norm", linetype = 2)
-        } else if (ellipse == TRUE) {
-          p <- p + stat_ellipse(type = "norm", linetype = 2)
-        } else if (ellipse == FALSE) {
+        if (ellipse == FALSE){
           p <- p
+        } else if (!is.null(ellipse) && ellipse != TRUE){
+          p <- p + stat_ellipse(aes_string(group = ellipse, color = ellipse), type = "norm", linetype = 2)
+        }else if (ellipse == TRUE) {
+          p <- p + stat_ellipse(type = "norm", linetype = 2)
         }
 
         if (!is.null(facet)) {
