@@ -254,7 +254,7 @@ Go_Ancom2 <- function(psIN,  project,
           }, silent = TRUE)
 
           # Check if the try block succeeded or failed
-          if(!inherits(out, "try-error")) {
+          if(!inherits(ancom.out, "try-error")) {
             cat("Analysis succeeded with cutoff:", cutoff, "\n")
             break  # Exit the loop if successful
           } else {
