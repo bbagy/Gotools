@@ -92,19 +92,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
     orders <- NULL
   }
 
-
-  pdf(sprintf("%s/ordi.%s.%s%s%s%s%s%s%s.pdf", out_path,
-              project,
-              ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-              ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
-              ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
-              ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
-              ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              ifelse(ellipse == FALSE, "ellipse_FALSE.",
-                     ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
-              format(Sys.Date(), "%y%m%d")), height = height, width = width)
-
-  plotlist <- list()
+  #plotlist <- list()
   for (mvar in cate.vars) {
     mapping <- data.frame(sample_data(psIN))
     mapping[,mvar] <- factor(mapping[,mvar])
@@ -231,11 +219,11 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           if (length(renamed_levels) == 0) {
             renamed_levels <- oldNames
           }
-          for (name in oldNames) {
-            total <- length(which(pdataframe[,mvar] == name));total
-            new_n <- paste(name, " (n=", total, ")", sep="");new_n
-            levels(pdataframe[[mvar]])[levels(pdataframe[[mvar]])== name] <- new_n
-            renamed_levels <- replace(renamed_levels, renamed_levels == name, new_n);renamed_levels
+          for (Name in oldNames) {
+            total <- length(which(pdataframe[,mvar] == Name));total
+            new_n <- paste(Name, " (n=", total, ")", sep="");new_n
+            levels(pdataframe[[mvar]])[levels(pdataframe[[mvar]])== Name] <- new_n
+            renamed_levels <- replace(renamed_levels, renamed_levels == Name, new_n);renamed_levels
           }
           }else{
             pdataframe <- pdataframe
@@ -372,7 +360,21 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           }
 
           #plotlist[[length(plotlist)+1]] <- p
+          pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
+                      ord_meths,
+                      distance_metric,
+                      project,
+                      mvar,
+                      ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+                      ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
+                      ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
+                      ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
+                      ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                      ifelse(ellipse == FALSE, "ellipse_FALSE.",
+                             ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
+                      format(Sys.Date(), "%y%m%d")), height = height, width = width)
           print(p)
+          dev.off()
         }
       }
     }  else{
@@ -441,11 +443,11 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           if (length(renamed_levels) == 0) {
             renamed_levels <- oldNames
           }
-          for (name in oldNames) {
-            total <- length(which(pdataframe[,mvar] == name));total
-            new_n <- paste(name, " (n=", total, ")", sep="");new_n
-            levels(pdataframe[[mvar]])[levels(pdataframe[[mvar]])== name] <- new_n
-            renamed_levels <- replace(renamed_levels, renamed_levels == name, new_n);renamed_levels
+          for (Name in oldNames) {
+            total <- length(which(pdataframe[,mvar] == Name));total
+            new_n <- paste(Name, " (n=", total, ")", sep="");new_n
+            levels(pdataframe[[mvar]])[levels(pdataframe[[mvar]])== Name] <- new_n
+            renamed_levels <- replace(renamed_levels, renamed_levels == Name, new_n);renamed_levels
           }
           }else{
             pdataframe <- pdataframe
@@ -590,10 +592,25 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                          panel.background = element_rect(fill = "white", colour = "Black",size = 0.7, linetype = "solid"),
                          aspect.ratio = 1) +
           geom_vline(xintercept = 0, size = 0.1) + geom_hline(yintercept = 0, size = 0.1)
+
+
+        pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
+                    ord_meths,
+                    distance_metric,
+                    project,
+                    mvar,
+                    ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+                    ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
+                    ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
+                    ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
+                    ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                    ifelse(ellipse == FALSE, "ellipse_FALSE.",
+                           ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
+                    format(Sys.Date(), "%y%m%d")), height = height, width = width)
         print(p)
+        dev.off()
       }
     }
   }
-  dev.off()
 }
 

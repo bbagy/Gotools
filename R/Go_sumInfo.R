@@ -38,17 +38,18 @@
 #'
 #' @export
 
-Go_sumInfo <- function(Extraction_Summary,
+Go_sumInfo <- function(Prep_overview,
                        Taxa_overview,
                        Alpha_div,
                        Beta_div,
+                       Bacterial_div,
                        DA_test,
                        Conclusion,
                        Useful_info) {
 
   # Check if all arguments are missing and print options if they are
-  if (missing(Extraction_Summary) && missing(Taxa_overview) && missing(Alpha_div) &&
-      missing(Beta_div) && missing(DA_test) && missing(Conclusion) && missing(Useful_info) ) {
+  if (missing(Prep_overview) && missing(Taxa_overview) && missing(Alpha_div) &&
+      missing(Beta_div) && missing(Bacterial_div) && missing(DA_test) &&missing(Conclusion) && missing(Useful_info) ) {
     cat(
       "Provide paths for the respective summary text. Each parameter expects a path or a vector of paths for its respective text.\n",
       "Available parameters are: Extraction_Summary, Taxa_overview, Alpha_div, Beta_div, DA_test, and Conclusion. \n\n",
@@ -63,10 +64,11 @@ Go_sumInfo <- function(Extraction_Summary,
 
   # Return a list with all the inputs, treating them directly as paths or vectors of paths
   return(list(
-    extraction_summary = Extraction_Summary,
+    prep_overview = Prep_overview,
     taxa_overview = Taxa_overview,
     alpha_div = Alpha_div,
     beta_div = Beta_div,
+    bacterial_div = Bacterial_div,
     da_test = DA_test,
     conclusion = Conclusion,
     useful_info = Useful_info
