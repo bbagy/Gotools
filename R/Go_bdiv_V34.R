@@ -72,6 +72,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
   if(!file_test("-d", out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_path)) dir.create(out_path)
+  out_dist <- file.path(sprintf("%s_%s/table/dist",project, format(Sys.Date(), "%y%m%d")))
+  if(!file_test("-d", out_dist)) dir.create(out_dist)
 
   # out file
   # "name" definition
@@ -198,11 +200,25 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             return(cbind(df, metadata))  # Combine ordination data with sample metadata
           }, psIN.cbn.na, distance_metric)
 
+
+          write.csv(plist, quote = FALSE,col.names = NA, sprintf("%s/distance3.%s.%s.%s.%s%s%s.csv", out_dist,
+                                                                 project,
+                                                                 ord_meths,
+                                                                 distance_metric,
+                                                                 ifelse(is.null(mvar), "", paste(mvar, ".", sep = "")),
+                                                                 ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                                                                 format(Sys.Date(), "%y%m%d")),sep="/")
           # Name the list elements according to the ordination methods
           names(plist) <- ord_meths
 
           # Convert the list to a dataframe
           pdataframe = plyr::ldply(plist, identity)
+
+
+
+
+
+
 
 
           names(pdataframe)[1] = "method"
@@ -422,12 +438,20 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           return(cbind(df, metadata))  # Combine ordination data with sample metadata
         }, psIN.na, distance_metric)
 
+        write.csv(plist, quote = FALSE,col.names = NA, sprintf("%s/distance3.%s.%s.%s.%s%s%s.csv", out_dist,
+                                                               project,
+                                                               ord_meths,
+                                                               distance_metric,
+                                                               ifelse(is.null(mvar), "", paste(mvar, ".", sep = "")),
+                                                               ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                                                               format(Sys.Date(), "%y%m%d")),sep="/")
+
+
         # Name the list elements according to the ordination methods
         names(plist) <- ord_meths
 
         # Convert the list to a dataframe
         pdataframe = plyr::ldply(plist, identity)
-
 
 
         names(pdataframe)[1] = "method"
