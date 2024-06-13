@@ -601,7 +601,6 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           }
         }else{
           print("paired")
-
           if(is.null(test.name)){
             p1 <- p1
           } else if(test.name == "KW" | test.name == "ANOVA"){
@@ -619,6 +618,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               p1 <- p1
             }
           }else if(testmethod == "wilcox.test" | testmethod == "t.test"){
+            print(1)
             if (statistics){
               if (star) {
                 if (data.frame(table(df.na[,mvar]))$Freq[1] ==  data.frame(table(df.na[,mvar]))$Freq[2]){
@@ -627,7 +627,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                   test.name <- paste(test.name, "\n","(not fully paired) ", sep = "")
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
                 }
-              } else if (star) {
+              } else{
                 if (data.frame(table(df.na[,mvar]))$Freq[1] ==  data.frame(table(df.na[,mvar]))$Freq[2]){
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, size = 2,paired = TRUE)
                 }else{
