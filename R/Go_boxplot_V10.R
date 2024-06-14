@@ -655,8 +655,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                                      ifelse(is.null(test.name), "", paste("\n",test.name, " ", sep = "")),
                                      ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
                                      ifelse(is.null(pval), "", paste(pval, " ", sep = "")), sep=""))
-        }
 
+        }
 
         # y axis limit
         if(!is.null(ylim)){
