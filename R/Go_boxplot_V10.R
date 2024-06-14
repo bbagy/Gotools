@@ -629,9 +629,10 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                 }
               } else{
                 if (data.frame(table(df.na[,mvar]))$Freq[1] ==  data.frame(table(df.na[,mvar]))$Freq[2]){
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, size = 2,paired = TRUE)
+                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2,paired = TRUE)
                 }else{
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, size = 2)
+                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
+
                 }
 
               }
