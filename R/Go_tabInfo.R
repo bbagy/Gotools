@@ -42,9 +42,14 @@ Go_tabInfo <- function(ASVs_Tab=NA,
                        RNAseq=NA,
                        Tab1=NA,
                        PermanovaTab=NA) {
+  # Helper function to check if all elements are NA
+  all_na <- function(x) {
+    all(is.na(x)) && length(x) == 1
+  }
+
   # Check if all arguments are missing and print options if they are
-  if (is.na(ASVs_Tab) && is.na(Tract_Tab) && is.na(Alpha_divTab) && is.na(Alpha_div_LmerTab) &&
-      is.na(PermanovaTab) && is.na(RNAseq)  && is.na(tab1)) {
+  if (all_na(ASVs_Tab) && all_na(Tract_Tab) && all_na(Alpha_divTab) && all_na(Alpha_div_LmerTab) &&
+      all_na(PermanovaTab) && all_na(RNAseq) && all_na(Tab1)) {
     cat(
       "ASVs_Tab: Add the location of the ASVs table. \n",
       "Tract_Tab: Add the location of the sequencing QC tract table.\n\n",
@@ -56,7 +61,7 @@ Go_tabInfo <- function(ASVs_Tab=NA,
 
   # Using safely read.csv to handle potential read errors or empty paths
   safely_read_csv <- function(path) {
-    if (!is.na(path) && nzchar(path)) {
+    if (!is.null(path) && !all(is.na(path))) {
       tryCatch({
         read.csv(path, row.names=1, check.names=FALSE)
       }, error = function(e) {
@@ -68,7 +73,7 @@ Go_tabInfo <- function(ASVs_Tab=NA,
   }
 
   return(list(
-    asvs = safely_read_csv(ASVs_Tab),
+    asvs = lapply(ASVs_Tab, safely_read_csv),
     track = safely_read_csv(Tract_Tab),
     rnaseq = safely_read_csv(RNAseq),
     tab1 = safely_read_csv(Tab1),
