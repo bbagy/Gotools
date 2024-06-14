@@ -62,12 +62,11 @@ Go_expInfo <- function(Project_name=NA,
         "Available prep numbers and their descriptions:\n",
         "1: Illumina V3V4\n",
         "2: Illumina V1V2\n",
-        "3: Zymo Quick-16S/ V3V4 Plus NGS Library prep kit (#catalog D6420)\n\n",
-
+        "3: Zymo Quick-16S/ V3V4 Plus NGS Library prep kit (#catalog D6420)\n",
         "4: Illumina DNA Prep (#catalog 20060059)\n\n",
-
         "5: QIAseq Stranded RNA Lib Kit UDI ((#catalog 180450)\n",
-        "6: QIAseq UPXome RNA Library Kits ((#catalog 334702)\n\n",
+        "6: QIAseq UPXome RNA Library Kits ((#catalog 334702)\n",
+        "7: \n\n",
 
         "Available spike-in numbers and their descriptions:\n",
         "1: / ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)\n",
@@ -108,6 +107,7 @@ Go_expInfo <- function(Project_name=NA,
                  "4" = "Illumina DNA Prep (#catalog 20060059)",
                  "5" = "QIAseq Stranded RNA Lib Kit UDI ((#catalog 180450)",
                  "6" = "QIAseq UPXome RNA Library Kits ((#catalog 334702)",
+                 "7" = "",
 
                  "Unknown prep")
 
