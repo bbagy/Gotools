@@ -77,7 +77,7 @@ Go_tabInfo <- function(ASVs_Tab=NA,
     track = safely_read_csv(Tract_Tab),
     rnaseq = safely_read_csv(RNAseq),
     tab1 = safely_read_csv(Tab1),
-    adiv = Alpha_divTab,
+    adiv = lapply(Alpha_divTab, safely_read_csv),
     lmer.tab = Alpha_div_LmerTab,
     Permanova = PermanovaTab
   ))

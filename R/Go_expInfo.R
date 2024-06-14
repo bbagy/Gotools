@@ -113,7 +113,7 @@ Go_expInfo <- function(Project_name=NA,
 
   # Define the spikein based on spikein_number
   spikein <- switch(as.character(spikein_number),
-                    "1" = "/ ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)",
+                    "1" = "ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)",
                     "2" = NULL,  # Representing no spike-in control
                     "Unknown Spike-in")
 
