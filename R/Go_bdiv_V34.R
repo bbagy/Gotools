@@ -131,6 +131,22 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
       };group_comparisons
 
       print(1)
+
+      ord_meths = plot # c("DCA", "CCA", "RDA", "DPCoA", "NMDS","PCoA")
+      pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
+                  ord_meths,
+                  "distance_metric",
+                  project,
+                  mvar,
+                  ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+                  ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
+                  ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
+                  ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
+                  ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                  ifelse(ellipse == FALSE, "ellipse_FALSE.",
+                         ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
+                  format(Sys.Date(), "%y%m%d")), height = height, width = width)
+
       for(i in 1:length(group_comparisons)){
         print(group_comparisons[i])
         group.combination <- unlist(group_comparisons[i]);group.combination
@@ -157,6 +173,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
         psIN.cbn <- psIN
         sample_data(psIN.cbn) <- mapping.cbn
+
         for(distance_metric in distance_metrics){
           # remove na
           mapping.sel <- data.frame(sample_data(psIN.cbn))
@@ -181,7 +198,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
 
 
-          ord_meths = plot # c("DCA", "CCA", "RDA", "DPCoA", "NMDS","PCoA")
+
           # Execute ordination and collect necessary outputs
           plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
             ordi = ordinate(psIN.na, method=i, distance=distance_metric)
@@ -369,23 +386,11 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           }
 
           #plotlist[[length(plotlist)+1]] <- p
-          pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
-                      ord_meths,
-                      distance_metric,
-                      project,
-                      mvar,
-                      ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-                      ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
-                      ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
-                      ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
-                      ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                      ifelse(ellipse == FALSE, "ellipse_FALSE.",
-                             ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
-                      format(Sys.Date(), "%y%m%d")), height = height, width = width)
+
           print(p)
         }
-        dev.off()
       }
+      dev.off()
     }  else{
       for(distance_metric in distance_metrics){
         # remove na
