@@ -214,13 +214,6 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           # Convert the list to a dataframe
           pdataframe = plyr::ldply(plist, identity)
 
-
-
-
-
-
-
-
           names(pdataframe)[1] = "method"
 
           pdataframe[,facet] <- factor(pdataframe[,facet], levels = orders)
@@ -390,9 +383,9 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                              ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
                       format(Sys.Date(), "%y%m%d")), height = height, width = width)
           print(p)
-          dev.off()
         }
       }
+      dev.off()
     }  else{
       for(distance_metric in distance_metrics){
         # remove na
