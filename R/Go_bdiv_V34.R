@@ -384,8 +384,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                       format(Sys.Date(), "%y%m%d")), height = height, width = width)
           print(p)
         }
+        dev.off()
       }
-      dev.off()
     }  else{
       for(distance_metric in distance_metrics){
         # remove na
