@@ -121,7 +121,7 @@ Go_expInfo <- function(Project_name=NA,
   getEmail <- function(name) {
     switch(name,
            "Heekuk Park" = "hp2523@cumc.columbia.edu",
-           "Djamila Eliby" = "dj2711@cumc.columbia.edu",
+           "Djamila Eliby" = "de2477@cumc.columbia.edu",
            "Sofia Moscovitz" = "szm2110@cumc.columbia.edu",
            "Dalia Moallem" = "dhm2127@cumc.columbia.edu",
            "Dwayne Seeram" = "ds4057@cumc.columbia.edu",

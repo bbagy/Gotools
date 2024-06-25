@@ -6,6 +6,8 @@
 #'
 #' @param psIN Phyloseq object containing the data for analysis.
 #' @param project Name of the project or analysis.
+#' @param taxanames Rank of taxa.
+#' @param rand.eff
 #' @param data_type Type of data in the Phyloseq object ("taxonomy", "kegg", "pathway", "RNAseq").
 #' @param cate.outs Categorical outcomes to be analyzed.
 #' @param cate.conf Categorical confounding variables to adjust for in the analysis.
@@ -43,9 +45,11 @@
 
 Go_Ancom2 <- function(psIN,  project,
                       data_type = "other",
+                      taxanames = NULL,
                       cate.outs,
                       cate.conf=NULL,
                       cont.conf=NULL,
+                      rand.eff=NULL,
                       orders=NULL,
                       name=NULL){
 
@@ -177,98 +181,80 @@ Go_Ancom2 <- function(psIN,  project,
       }
     }
 
-
-
     #-- ANCOM-bc for phyloseq --#
 
+    # confounder 설정 및 fixed_formula 생성
     if (!is.null(cate.conf) | !is.null(cont.conf)) {
-      confounder <- c(cate.conf,cont.conf)
-
-      formula_str <- sprintf("%s + %s", mvar, paste(setdiff(confounder, "SampleType"), collapse=" + "))
-      print(formula_str)
-
-      ancom.out <- ancombc2(
-        data = psIN.cb,
-        p_adj_method = "holm",
-        lib_cut = 1000,
-        fix_formula = formula_str,
-        group = mvar,
-        struc_zero = TRUE,
-        neg_lb = TRUE,
-        alpha = 0.05,
-        global = TRUE,
-        em_control = list(tol = 1e-5, max_iter = 100))
-
-    }else{
+      confounder <- c(cate.conf, cont.conf)
+      fixed_formula <- sprintf("%s + %s", mvar, paste(setdiff(confounder, "SampleType"), collapse = " + "))
+      print(fixed_formula)
+    } else {
       confounder <- NULL
-      tt = try(ancom.out <- ancombc2(
-        data = psIN.cb,
+      fixed_formula <- mvar
+    }
+
+    # rand_formula 설정
+    if (!is.null(rand.eff)) {
+      rand_formula <- formula(sprintf("~ (1 | %s)", rand.eff))
+      print(rand_formula)
+    } else {
+      rand_formula <- NULL
+    }
+
+    # tax_level 변수 설정
+    taxanames <- NULL
+
+    # ancombc2 실행 함수
+    run_ancombc2 <- function(data, fixed_formula, mvar, rand_formula, taxanames) {
+      ancombc2(
+        data = data,
         p_adj_method = "holm",
         lib_cut = 1000,
-        fix_formula = mvar,
+        fix_formula = fixed_formula,
+        rand_formula = rand_formula,
         group = mvar,
+        tax_level = taxanames,
         struc_zero = TRUE,
         neg_lb = TRUE,
         alpha = 0.05,
         global = TRUE,
-        em_control = list(tol = 1e-5, max_iter = 100)),T)
+        em_control = list(tol = 1e-5, max_iter = 100)
+      )
+    }
 
-      if (class(tt) == "try-error"){
-        # remove 0 ASVs
-        tt = try(psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 1, psIN.cb),T)
-        if (class(tt) == "try-error"){
-          psIN.cb1 = prune_samples(sample_sums(psIN.cb) > 0, psIN.cb)
-        }
+    # ancombc2 실행 및 에러 처리
+    tt <- try(ancom.out <- run_ancombc2(psIN.cb, fixed_formula, mvar, rand_formula, taxanames), TRUE)
 
-        tt = try(psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 1, psIN.cb),T)
-        if (class(tt) == "try-error"){
-          psIN.cb1 = prune_samples(sample_sums(psIN.cb) > 0, psIN.cb)
-        }
+    if (class(tt) == "try-error") {
+      # 샘플 0인 ASV 제거
+      psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 0, psIN.cb)
 
-        # Define initial cutoff value and the increment
-        cutoff <- 0.001
-        increment <- 0.0005
-        final_cutoff <- 0.01
+      # 초기 cutoff 설정
+      cutoff <- 0.001
+      increment <- 0.0005
+      final_cutoff <- 0.01
 
-        # Loop until the cutoff exceeds the final cutoff value
-        while(cutoff <= final_cutoff) {
-          cat("Trying cutoff value:", cutoff, "\n")
+      # cutoff를 점진적으로 증가시키면서 ancombc2 실행
+      while (cutoff <= final_cutoff) {
+        cat("Trying cutoff value:", cutoff, "\n")
+        psIN.cb2 <- Go_filter(psIN.cb1, cutoff = cutoff)
 
-          # Apply filtering based on the current cutoff value
-          psIN.cb2 <- Go_filter(psIN.cb1, cutoff = cutoff)
+        ancom.out <- try(run_ancombc2(psIN.cb2, fixed_formula, mvar, rand_formula, taxanames), silent = TRUE)
 
-          # Attempt to run ancombc2 with the filtered data
-          ancom.out <- try({
-            ancombc2(
-              data = psIN.cb2,
-              p_adj_method = "holm",
-              lib_cut = 1000,
-              fix_formula = mvar,
-              group = mvar,
-              struc_zero = TRUE,
-              neg_lb = TRUE,
-              alpha = 0.05,
-              global = TRUE,
-              em_control = list(tol = 1e-5, max_iter = 100)
-            )
-          }, silent = TRUE)
-
-          # Check if the try block succeeded or failed
-          if(!inherits(ancom.out, "try-error")) {
-            cat("Analysis succeeded with cutoff:", cutoff, "\n")
-            break  # Exit the loop if successful
-          } else {
-            cat("Analysis failed with cutoff:", cutoff, " - Increasing cutoff\n")
-            cutoff <- cutoff + increment  # Increase cutoff for the next iteration
-          }
-        }
-
-        if(cutoff > final_cutoff) {
-          cat("Analysis failed with all attempted cutoff values up to", final_cutoff, "\n")
+        if (!inherits(ancom.out, "try-error")) {
+          cat("Analysis succeeded with cutoff:", cutoff, "\n")
+          break
         } else {
-          cat("Final successful cutoff:", cutoff, "\n")
-          # Proceed with using 'analysis_result' for further analysis
+          cat("Analysis failed with cutoff:", cutoff, " - Increasing cutoff\n")
+          cutoff <- cutoff + increment
         }
+      }
+
+      if (cutoff > final_cutoff) {
+        cat("Analysis failed with all attempted cutoff values up to", final_cutoff, "\n")
+      } else {
+        cat("Final successful cutoff:", cutoff, "\n")
+        # 추가 분석 진행
       }
     }
 
@@ -277,6 +263,8 @@ Go_Ancom2 <- function(psIN,  project,
     res.ancom = ancom.out$res
     ancom_df = res.ancom %>%
       dplyr::select(taxon, contains(mvar))
+
+    View(res.ancom)
 
     rownames(ancom_df) <- ancom_df$taxon; ancom_df$taxon <- NULL
 
@@ -327,10 +315,11 @@ Go_Ancom2 <- function(psIN,  project,
     num_significant <- nrow(significant_bacteria)
 
     confounder_part <- ifelse(!is.null(confounder), ".with_confounder", "")
+    rand.eff_part <- ifelse(!is.null(rand.eff), paste0(".with_random_effect_",rand.eff),"")
     name_part <- ifelse(!is.null(name), paste0(".", name), "")
-    filename <- sprintf("ancom2.(%s.vs.%s).Sig%s.%s%s%s.%s.csv",
+    filename <- sprintf("ancom2.(%s.vs.%s).Sig%s.%s%s%s%s.%s.csv",
                         basline, smvar, num_significant, mvar,
-                        confounder_part, name_part, project)
+                        confounder_part,rand.eff_part, name_part, project)
 
     output_path <- file.path(out_DA, filename)
     write.csv(merged_results, quote = FALSE, col.names = NA, file = output_path)

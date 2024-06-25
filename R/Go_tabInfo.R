@@ -37,6 +37,7 @@
 
 Go_tabInfo <- function(ASVs_Tab=NA,
                        Tract_Tab=NA,
+                       Other_Tab=NA,
                        Alpha_divTab=NA,
                        Alpha_div_LmerTab=NA,
                        RNAseq=NA,
@@ -74,6 +75,7 @@ Go_tabInfo <- function(ASVs_Tab=NA,
 
   return(list(
     asvs = lapply(ASVs_Tab, safely_read_csv),
+    otherTab = lapply(Other_Tab, safely_read_csv),
     track = safely_read_csv(Tract_Tab),
     rnaseq = safely_read_csv(RNAseq),
     tab1 = safely_read_csv(Tab1),
