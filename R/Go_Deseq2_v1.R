@@ -178,13 +178,14 @@ Go_Deseq2 <- function(psIN,  project,
     if (length(cont.conf) >= 1) {
       for(cont in cont.conf){
         mapping.sel.cb[,cont] <- as.numeric(mapping.sel.cb[,cont])
-        mapping.sel.cb <- na.omit(mapping.sel.cb[!is.na(mapping.sel.cb[,cont]), ])
+        # mapping.sel.cb <- na.omit(mapping.sel.cb[!is.na(mapping.sel.cb[,cont]), ])
+        mapping.sel.cb <- mapping.sel.cb[!is.na(mapping.sel.cb[,cont]), ]
         sample_data(psIN.cb) <- mapping.sel.cb
       }
     }
 
 
-
+class(mapping.sel.cb[,cont])
 
     if (!is.null(cate.conf) | !is.null(cont.conf)) {
       confounder <- c(cate.conf,cont.conf)

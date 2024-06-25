@@ -69,7 +69,7 @@ Go_expInfo <- function(Project_name=NA,
         "7: \n\n",
 
         "Available spike-in numbers and their descriptions:\n",
-        "1: / ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)\n",
+        "1: ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)\n",
         "2: No Spike-in Control\n\n",
         "Available Technicians and email address:\n",
         "Heekuk Park : hp2523@cumc.columbia.edu\n",
