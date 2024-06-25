@@ -26,7 +26,8 @@
 #' }
 #'
 #' @export
-Go_imgInfo <- function(Rarefaction=NA,
+Go_imgInfo <- function(Overview=NA,
+                       Rarefaction=NA,
                        Barchart=NA,
                        Bac.heatmap=NA,
                        RNAseq.heatmap=NA,
@@ -35,7 +36,7 @@ Go_imgInfo <- function(Rarefaction=NA,
                        Bdivplot=NA,
                        DAplot=NA) {
   # Check if all arguments are missing and print options if they are
-  if (all(is.na(Rarefaction)) && all(is.na(Barchart)) && all(is.na(Bac.heatmap)) &&
+  if (all(is.na(Overview)) && all(is.na(Rarefaction)) && all(is.na(Barchart)) && all(is.na(Bac.heatmap)) &&
       all(is.na(RNAseq.heatmap)) && all(is.na(Adivplot)) && all(is.na(Foreplot)) &&
       all(is.na(Bdivplot)) && all(is.na(DAplot))) {
     cat(
@@ -48,6 +49,7 @@ Go_imgInfo <- function(Rarefaction=NA,
 
   # Return a list with all the inputs, treating them directly as paths or vectors of paths
   return(list(
+    overview = Overview,
     rarefaction = Rarefaction,
     barchart = Barchart,
     bac.heatmap = Bac.heatmap,
