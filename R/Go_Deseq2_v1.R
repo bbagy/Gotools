@@ -184,9 +184,6 @@ Go_Deseq2 <- function(psIN,  project,
       }
     }
 
-
-class(mapping.sel.cb[,cont])
-
     if (!is.null(cate.conf) | !is.null(cont.conf)) {
       confounder <- c(cate.conf,cont.conf)
 

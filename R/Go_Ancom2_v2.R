@@ -208,7 +208,7 @@ Go_Ancom2 <- function(psIN,  project,
     run_ancombc2 <- function(data, fixed_formula, mvar, rand_formula, taxanames) {
       ancombc2(
         data = data,
-        p_adj_method = "holm",
+        p_adj_method = "BH", # "holm"
         lib_cut = 1000,
         fix_formula = fixed_formula,
         rand_formula = rand_formula,
