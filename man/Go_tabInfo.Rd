@@ -7,6 +7,7 @@
 Go_tabInfo(
   ASVs_Tab = NA,
   Tract_Tab = NA,
+  Other_Tab = NA,
   Alpha_divTab = NA,
   Alpha_div_LmerTab = NA,
   RNAseq = NA,

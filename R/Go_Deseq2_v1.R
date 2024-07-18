@@ -233,7 +233,7 @@ Go_Deseq2 <- function(psIN,  project,
         tt <- try(filled_data <- apply(res[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE)), T)
 
         if(inherits(tt, "try-error")){
-          filled_data <- apply(res[,  c("Rank", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE))
+          filled_data <- apply(res[,  c("Rank1", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE))
         }
 
 
@@ -241,7 +241,7 @@ Go_Deseq2 <- function(psIN,  project,
         tt <- try(res[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- filled_data, T)
 
         if(inherits(tt, "try-error")){
-          res[, c("Rank", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- t(filled_data)
+          res[, c("Rank1", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- t(filled_data)
         }
 
         taxaRanks <- c("Kingdon","Phylum","Class","Order","Family","Genus","Species")

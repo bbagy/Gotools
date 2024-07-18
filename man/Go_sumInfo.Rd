@@ -5,17 +5,17 @@
 \title{Summarize and Organize Text Information}
 \usage{
 Go_sumInfo(
-  Extraction_Summary = NA,
-  Taxa_overview = NA,
-  Alpha_div = NA,
-  Beta_div = NA,
-  DA_test = NA,
-  Conclusion = NA
+  Prep_overview,
+  Taxa_overview,
+  Alpha_div,
+  Beta_div,
+  Bacterial_div,
+  DA_test,
+  Conclusion,
+  Useful_info
 )
 }
 \arguments{
-\item{Extraction_Summary}{Path or vector of paths to the extraction summary text.}
-
 \item{Taxa_overview}{Path or vector of paths to the taxa overview text.}
 
 \item{Alpha_div}{Path or vector of paths to the alpha diversity summary text.}
@@ -25,6 +25,8 @@ Go_sumInfo(
 \item{DA_test}{Path or vector of paths to the differential abundance test summary text.}
 
 \item{Conclusion}{Path or vector of paths to the conclusion text.}
+
+\item{Extraction_Summary}{Path or vector of paths to the extraction summary text.}
 }
 \value{
 A list containing the following elements:
