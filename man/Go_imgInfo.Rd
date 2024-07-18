@@ -5,6 +5,7 @@
 \title{Retrieve and Organize Image Information}
 \usage{
 Go_imgInfo(
+  Overview = NA,
   Rarefaction = NA,
   Barchart = NA,
   Bac.heatmap = NA,

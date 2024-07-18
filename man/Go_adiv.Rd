@@ -4,7 +4,7 @@
 \alias{Go_adiv}
 \title{Alpha Diversity Analysis for Microbiome Data}
 \usage{
-Go_adiv(psIN, project, alpha_metrics)
+Go_adiv(psIN, project, alpha_metrics, name = NULL)
 }
 \arguments{
 \item{psIN}{A phyloseq object containing microbiome data.}
