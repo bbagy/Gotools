@@ -80,7 +80,7 @@ Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NUL
       permanova_result <- adonis2(form, data = map_no_na, permutations = 999)
 
       # PERMANOVA 결과를 데이터 프레임으로 변환하고 변수와 메소드 정보를 추가
-      result_df <- as.data.frame(permanova_result$aov.tab)
+      result_df <- as.data.frame(permanova_result)
       result_df$Variable <- "Multivariate"
       result_df$Method <- dist
 
