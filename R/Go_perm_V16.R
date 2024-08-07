@@ -19,140 +19,101 @@
 #' @examples
 #' # Example usage:
 #' permanova_results <- Go_perm(psIN = my_phyloseq_object,
-#'                              cate.vars = c("TreatmentGroup", "AgeGroup"),
+#'                              vars = c("TreatmentGroup", "AgeGroup"),
 #'                              project = "MyMicrobiomeStudy",
 #'                              distance_metrics = c("bray", "unifrac"),
-#'                              mul.vars = FALSE,
+#'                              multi = FALSE,
 #'                              name = "MyAnalysis")
 #'
 #' @export
 
-Go_perm <- function(psIN, cate.vars, project, distance_metrics, mul.vars=FALSE, name=NULL){
+Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NULL){
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
-  out_path <- file.path(sprintf("%s/table",out))
+  out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_path)) dir.create(out_path)
-  out_perm <- file.path(sprintf("%s/perm",out_path))
-  if(!file_test("-d", out_perm)) dir.create(out_perm)
+  out_dist <- file.path(sprintf("%s_%s/table/dist",project, format(Sys.Date(), "%y%m%d")))
+  if(!file_test("-d", out_dist)) dir.create(out_dist)
 
-  # Run
-  set.seed(1)
-  mapping.sel <-data.frame(sample_data(psIN))
+  results_df <- data.frame()
+  for (dist in distance_metrics) {
+    # 파일 경로 설정
+    file_path <- sprintf("CCM_phase1_9th_240807/table/%s_distance.RData", dist)
 
-  res <-{}
-  # Run
-  for (mvar in cate.vars) {
-    mapping.sel.na <- mapping.sel[!is.na(mapping.sel[,mvar]), ]
-
-
-    if (length(unique(mapping.sel.na[,mvar])) == 1){
-      cat(sprintf("there is no group campare to %s\n",unique(mapping.sel[,mvar])))
-      next
+    # 거리 행렬 계산 또는 로드
+    if (file.exists(file_path)) {
+      load(file_path)
+      print(sprintf("%s loading the distance_matrix", dist))
+    } else {
+      print(sprintf("%s calculating the distance_matrix", dist))
+      distance_matrix <- phyloseq::distance(psIN, method = dist)
+      save(distance_matrix, file = file_path)
     }
-    for (distance_metric in distance_metrics) {
 
-      psIN.sel <- prune_samples(rownames(mapping.sel[!is.na(mapping.sel.na[,mvar]), ]), psIN)
+    # 거리 행렬과 map의 샘플 수 및 순서 일치 확인
+    distance_samples <- rownames(as.matrix(distance_matrix))
 
-      ## fix factor  and  numeric
-      mapping.sel.na[,mvar] <- factor(mapping.sel.na[,mvar])
+    map <- data.frame(sample_data(psIN))
+    map_samples <- rownames(map)
 
-      distance <- Go_dist(psIN = psIN.sel, project = project, cate.vars = mvar, distance_metrics = distance_metric)
+    # map을 distance_matrix의 순서에 맞추어 정렬
+    map <- map[distance_samples, ]
 
-      x <- as.dist(distance[[distance_metric]])
+    # NA 값이 있는 행 제거
+    complete_cases <- complete.cases(map[, cate.vars])
+    map_no_na <- map[complete_cases, ]
+    distance_matrix_no_na <- as.matrix(distance_matrix)[complete_cases, complete_cases]
 
-
-
-      # write.csv(as.data.frame(x), quote = FALSE,col.names = NA, sprintf("%s/distance.%s.%s.%s%s.csv", out_distance,
-      #                                                     project,
-      #                                                     distance_metric,
-      #                                                     ifelse(is.null(name), "", paste(name, ".", sep = "")),
-      #                                                     format(Sys.Date(), "%y%m%d")),sep="/")
-
-
-
-      factors <-  mapping.sel.na[,mvar]
-
-      R2 <- c()
-      p.value <- c()
-      F.Model <- c()
-      pairs <- c()
-      SumsOfSqs <- c()
-      Df <- c()
-
-      x1=as.matrix(x)[factors %in% unique(factors), factors %in% unique(factors)]
-
-      # run
-      map.pair <- subset(mapping.sel.na, mapping.sel.na[,mvar] %in% unique(factors))
-
-      # count to table
-
-      if (mul.vars == T) {
-
-        form <- as.formula(sprintf("x1 ~ %s", paste(setdiff(cate.vars, "SampleType"), collapse="+")))
-        print(form)
-      }else{
-        form <- as.formula(sprintf("x1 ~ %s", mvar))
-        print(form)
-      }
-
-      ad <- adonis2(form, data = map.pair, permutations=999, by="terms")# "terms"  "margin" NULL
-
-      plot(ad)
-
-
-      Df <- c(Df,ad[1,1])
-      SumsOfSqs <- c(SumsOfSqs, ad[1,2])
-      R2 <- round(c(R2,ad[1,3]), digits=3)
-      F.Model <- c(F.Model,ad[1,4]);
-      p.value <- c(p.value,ad[1,5])
-
-      pairw.res <- data.frame(Df,SumsOfSqs,R2,F.Model,p.value)
-
-      class(pairw.res) <- c("pwadonis", "data.frame")
-      # end adonis end
-      tmp <- as.data.frame(pairw.res)
-      tmp$distance_metric <- distance_metric
-
-
-      # end adonis end
-      tmp <- as.data.frame(pairw.res)
-      tmp$distance_metric <- distance_metric
-
-      if(mul.vars == TRUE){
-        mul.form <- sprintf("x1 ~ %s", paste(setdiff(cate.vars, "SampleType"), collapse="+"))
-        tmp$formula <- mul.form
-        type <- "mulit"
-      } else {
-        tmp$mvar <- mvar
-        type <- "uni"
-      }
-
-      res <- rbind(res, tmp)
-
-
+    # 데이터 확인
+    if (!all(rownames(distance_matrix_no_na) == rownames(map_no_na))) {
+      stop("The sample order of the distance matrix and the data frame does not match.")
     }
-    if(mul.vars == TRUE){
-      break
+
+    if (multi) {
+      # 다변량 PERMANOVA 분석
+      formula_str <- paste("distance_matrix_no_na ~", paste(cate.vars, collapse = " + "))
+      form <- as.formula(formula_str)
+
+      set.seed(123)
+      print(paste("Running multivariate adonis2 with", dist, "distance"))
+      permanova_result <- adonis2(form, data = map_no_na, permutations = 999)
+
+      # PERMANOVA 결과를 데이터 프레임으로 변환하고 변수와 메소드 정보를 추가
+      result_df <- as.data.frame(permanova_result$aov.tab)
+      result_df$Variable <- "Multivariate"
+      result_df$Method <- dist
+
+      # 결과를 결과 데이터 프레임에 추가
+      results_df <- rbind(results_df, result_df)
+    } else {
+      # 각 변수에 대해 단변량 PERMANOVA 분석
+      for (var in cate.vars) {
+        formula_str <- paste("distance_matrix_no_na ~", var)
+        form <- as.formula(formula_str)
+
+        set.seed(123)
+        print(paste("Running univariate adonis2 for", var, "with", dist, "distance"))
+        permanova_result <- adonis2(form, data = map_no_na, permutations = 999)
+
+        # PERMANOVA 결과를 데이터 프레임으로 변환하고 변수와 메소드 정보를 추가
+        result_df <- as.data.frame(permanova_result)
+        result_df$Variable <- var
+        result_df$Method <- dist
+
+        # 결과를 결과 데이터 프레임에 추가
+        results_df <- rbind(results_df, result_df)
+      }
     }
   }
 
-  res$padj <- p.adjust(res$p.value, method="bonferroni")
+  # 결과 출력
+
+  write.csv(results_df, sprintf("%s/permanova.%s.%s.%s%s.csv", out_dist,
+                                project,
+                                ifelse(multi, "multivariate", "univariate"),
+                                ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                                format(Sys.Date(), "%y%m%d")))
 
 
-  if(mul.vars == TRUE){
-    res <- res[,c("Df","SumsOfSqs","R2","F.Model", "p.value", "padj", "distance_metric","formula")]
-  } else {
-    res <- res[,c("Df","SumsOfSqs","R2","F.Model", "p.value", "padj", "distance_metric","mvar")]
-  }
-
-  # output
-    write.csv(res, quote = FALSE,col.names = NA, sprintf("%s/global_permanova.%s.%s.%s%s.csv", out_perm,
-              project,
-              type,
-              ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              format(Sys.Date(), "%y%m%d")),sep="/")
-
-
-  return(res)
 }
