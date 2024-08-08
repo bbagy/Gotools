@@ -4,7 +4,7 @@
 #' This function performs global permutation (PERMANOVA) analysis on microbiome data.
 #'
 #' @param psIN A phyloseq object containing microbiome data.
-#' @param cate.vars A vector of categorical variables for which PERMANOVA will be performed.
+#' @param vars A vector of categorical variables for which PERMANOVA will be performed.
 #' @param project A string representing the project name, used for file naming and directory creation.
 #' @param distance_metrics A vector of distance metrics to be used in the analysis.
 #' @param mul.vars A boolean value indicating whether to use multiple variables in the PERMANOVA model.
@@ -61,7 +61,7 @@ Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NUL
     map <- map[distance_samples, ]
 
     # NA 값이 있는 행 제거
-    complete_cases <- complete.cases(map[, cate.vars])
+    complete_cases <- complete.cases(map[, vars])
     map_no_na <- map[complete_cases, ]
     distance_matrix_no_na <- as.matrix(distance_matrix)[complete_cases, complete_cases]
 
@@ -72,7 +72,7 @@ Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NUL
 
     if (multi) {
       # 다변량 PERMANOVA 분석
-      formula_str <- paste("distance_matrix_no_na ~", paste(cate.vars, collapse = " + "))
+      formula_str <- paste("distance_matrix_no_na ~", paste(vars, collapse = " + "))
       form <- as.formula(formula_str)
 
       set.seed(123)
@@ -88,7 +88,7 @@ Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NUL
       results_df <- rbind(results_df, result_df)
     } else {
       # 각 변수에 대해 단변량 PERMANOVA 분석
-      for (var in cate.vars) {
+      for (var in vars) {
         formula_str <- paste("distance_matrix_no_na ~", var)
         form <- as.formula(formula_str)
 
