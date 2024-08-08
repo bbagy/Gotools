@@ -39,7 +39,7 @@ Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NUL
   results_df <- data.frame()
   for (dist in distance_metrics) {
     # 파일 경로 설정
-    file_path <- sprintf("CCM_phase1_9th_240807/table/%s_distance.RData", dist)
+    file_path <- sprintf("%s/%s_distance.RData", out_dist,dist)
 
     # 거리 행렬 계산 또는 로드
     if (file.exists(file_path)) {
