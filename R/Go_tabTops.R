@@ -22,7 +22,7 @@ Go_tabTops <- function(csv, project){
   rds <- file.path("2_rds")
   if(!file_test("-d", rds)) dir.create(rds)
 
-  tab <- read.csv(csv, row.names = NULL, check.names = FALSE)
+  tab <- read.csv(csv, row.names = 1, check.names = FALSE)
 
   tab.cleaned <- tab
 
