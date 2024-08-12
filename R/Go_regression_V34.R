@@ -225,7 +225,7 @@ Go_regression <- function(data, project,
       print(1.2)
       coef <- coef[setdiff(rownames(coef), "(Intercept)"),,drop=F]
       print(1.3)
-      colnames(coef) <- c("Estimate", "SE", "t", "pval")
+      # colnames(coef) <- c("Estimate", "SE", "t", "pval")
 
       print(1.4)
       if(!is.null(randomEff)){
