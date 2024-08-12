@@ -224,19 +224,20 @@ Go_regression <- function(data, project,
       coef <- coef[setdiff(rownames(coef), "(Intercept)"),,drop=F]
       colnames(coef) <- c("Estimate", "SE", "t", "pval")
 
+      print(1.1)
       if(!is.null(randomEff)){
         colnames(coef) <- c("Estimate", "SE", "df","t", "pval")
       }else{
         colnames(coef) <- c("Estimate", "SE", "t", "pval")
       }
 
-
+      print(1.2)
 
       if (dim(coef)[1] == 0){
         next
       }
 
-      print(1)
+      print(3)
 
       # out for the confidence interval
       conf <- data.frame(confint(mod))
