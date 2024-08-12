@@ -227,14 +227,14 @@ Go_regression <- function(data, project,
       print(1.3)
       colnames(coef) <- c("Estimate", "SE", "t", "pval")
 
-
+      print(1.4)
       if(!is.null(randomEff)){
         colnames(coef) <- c("Estimate", "SE", "df","t", "pval")
       }else{
         colnames(coef) <- c("Estimate", "SE", "t", "pval")
       }
 
-
+      print(1.5)
 
       if (dim(coef)[1] == 0){
         next
