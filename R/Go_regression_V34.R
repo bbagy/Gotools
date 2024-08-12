@@ -204,7 +204,7 @@ Go_regression <- function(data, project,
 
       if(!is.null(randomEff)){
         m <- "Regression (LMEM)"
-        mod <- lmer(form, data=data, control=lmerControl(check.nobs.vs.nlev = "ignore",check.nobs.vs.rankZ = "ignore",check.nobs.vs.nRE="ignore"))
+        mod <- lmerTest::lmer(form, data=data, control=lmerControl(check.nobs.vs.nlev = "ignore",check.nobs.vs.rankZ = "ignore",check.nobs.vs.nRE="ignore"))
       }else{
         if (class(data[,outcome]) == "numeric"){
           m <- "Regression (glm-poisson)"
@@ -220,15 +220,9 @@ Go_regression <- function(data, project,
 
 
       # out for the model
-      print(1.1)
       coef <- as.data.frame(summary(mod)$coefficients)
-      print(1.2)
       coef <- coef[setdiff(rownames(coef), "(Intercept)"),,drop=F]
-      print(1.3)
-      # colnames(coef) <- c("Estimate", "SE", "t", "pval")
 
-      print(coef)
-      print(1.4)
       if(!is.null(randomEff)){
         colnames(coef) <- c("Estimate", "SE", "df","t", "pval")
       }else{
@@ -274,7 +268,6 @@ Go_regression <- function(data, project,
         coef$deviance <- pchisq(q=mod$null.deviance-mod$deviance,df=mod$df.null-mod$df.residual, lower.tail = FALSE)
       }
 
-      print(2)
       # get formula
 
 
@@ -298,7 +291,6 @@ Go_regression <- function(data, project,
       ifelse(!is.null(randomEff), "", sprintf("(1 | %s)", randomEff))
 
       res <- rbind(res, coef)
-      print(3)
 
       # stop looing for multivariate analysis
       if(isTRUE(mul.vars) | !is.null(interaction)){
