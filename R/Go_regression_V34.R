@@ -27,8 +27,7 @@
 #'               con.outs = "Outcome3",
 #'               cate.vars = c("Predictor1", "Predictor2"),
 #'               con.vars = "Predictor3",
-#'               mul.vars = FALSE,
-#'               interaction = "Predictor1:Predictor2",
+#'               mul.vars = "Predictor1 + Predictor2 + (1 | Subject)",
 #'               randomEff = "Subject",
 #'               orders = c("Level1", "Level2"),
 #'               pvalue = 0.05,
@@ -42,7 +41,6 @@ Go_regression <- function(data, project,
                           cate.vars=NULL,
                           con.vars=NULL,
                           mul.vars=FALSE,
-                          interaction=NULL,
                           randomEff=NULL,
                           orders, pvalue=0.05, name=NULL){
   # out dir
@@ -53,22 +51,19 @@ Go_regression <- function(data, project,
   out_table <- file.path(sprintf("%s_%s/table/regression",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_table)) dir.create(out_table)
 
-
   # data control
-
   # fix outcome column types
   if(!is.null(cate.outs)){
-    for (cate.out in  cate.outs) {
+    for (cate.out in cate.outs) {
       data[,cate.out] <- factor(data[,cate.out], levels = intersect(orders, data[,cate.out]))
     }
     outcomes <- c(cate.outs)
   }
 
   if(!is.null(con.outs)){
-    for (con.out in  con.outs) {
-      # NA 제거
-      data[,con.out] <- as.character(data[[con.out]]);data[,con.out]
-      data[,con.out][data[,con.out]==""] <- "NA";data[,con.out]
+    for (con.out in con.outs) {
+      data[,con.out] <- as.character(data[[con.out]])
+      data[,con.out][data[,con.out]==""] <- NA  # "NA" 대신 NA로 처리
       data[,con.out] <- as.numeric(data[[con.out]])
     }
     outcomes <- c(con.outs)
@@ -80,17 +75,16 @@ Go_regression <- function(data, project,
 
   # fix variation column types
   if(!is.null(cate.vars)){
-    for (cate in  cate.vars) {
+    for (cate in cate.vars) {
       data[,cate] <- factor(data[,cate], levels = intersect(orders, data[,cate]))
     }
     varis <- c(cate.vars)
   }
 
   if(!is.null(con.vars)){
-    for (con in  con.vars) {
-      # NA 제거
-      data[,con] <- as.character(data[[con]]);data[,con]
-      data[,con][data[,con]==""] <- "NA";data[,con]
+    for (con in con.vars) {
+      data[,con] <- as.character(data[[con]])
+      data[,con][data[,con]==""] <- NA  # "NA" 대신 NA로 처리
       data[,con] <- as.numeric(data[[con]])
     }
     varis <- c(con.vars)
@@ -100,112 +94,32 @@ Go_regression <- function(data, project,
     varis <- unique(c(cate.vars, con.vars))
   }
 
-
   #----------------------------------------------------#
   #--------------    regression model     -------------#
   #----------------------------------------------------#
   set.seed(1)
-  for (outcome in outcomes){
-    if (class(data[,outcome]) == "character") {
-      if (class(data[,outcome]) == "character" | length(unique(data[,outcome])) > 3){
-        print("Not able to analysis using")
-        break
-      }
-      data[,outcome] <- factor(data[,outcome])
-      data[,outcome] <- factor(data[,outcome], levels = intersect(orders, data[,outcome]))
+  for (outcome in outcomes) {
+    if (!is.null(mul.vars)) {
+      # Multivariate analysis
 
-      # NA 제거
-      data[,outcome] <- as.character(data[[outcome]]);data[,outcome]
-      data[,outcome][data[,outcome]==""] <- "NA";data[,outcome]
-      #data.na <- subset(data, data[,outcome] != "NA");data.na[,outcome]  # subset 를 사용한 NA 삭제
-      # set the baseline for outcome
-
-      if(length(unique(data[,outcome])) == 2){
-
-        data[,outcome] <- factor(data[,outcome])
-        out <- levels(data[,outcome])[1]
-
-
-        data[,outcome] <- factor(ifelse(data[,outcome]== levels(data[,outcome])[1],0,1), levels=c(0,1),
-                                 labels = levels(data[,outcome]))
-
-
-        print(levels(data[,outcome]))
-      }
-    } else if (class(data[,outcome])  == "numeric") {
-
-      # NA 제거
-      data[,outcome] <- as.character(data[[outcome]]);data[,outcome]
-      data[,outcome][data[,outcome]==""] <- "NA";data[,outcome]
-      # data <- subset(data, data[,mvar] != "NA");data[,outcome]  # subset 를 사용한 NA 삭제
-      data[,outcome] <- as.numeric(as.character(data[[outcome]]))
-
-      data[,outcome] <- as.numeric(data[,outcome])
-    }
-
-    res <- {}
-
-    for (mvar in varis) {
-      if (outcome == mvar) {
+      if (class(data[,outcome]) == "character" && length(unique(data[,outcome])) > 3) {
+        print("Not able to analyze due to more than 3 unique levels")
         next
       }
 
-      # print(sprintf("##-- %s (total without NA: %s/%s) --##",
-      #              mvar, dim(data.na)[1], dim(data)[1]))
+      # Prepare formula
+      form <- as.formula(sprintf("%s ~ %s", outcome, mul.vars))
 
-      if (length(unique(data[,mvar])) ==1) {
-        next
-      }
-
-      # get formula
-      if(!is.null(randomEff)){
-        if(!isTRUE(mul.vars)){
-          form <- as.formula(sprintf("%s ~ (1 | %s) + %s", outcome, randomEff,mvar))
-          print("Univariate anaysis")
-          type <- "LMEM_uni"
-        } else if ( isTRUE(mul.vars)){
-          if (!is.null(interaction)){
-            mul.vars.interaction <- c(varis, interaction)
-            form <- as.formula(sprintf("%s ~ (1 | %s) + %s", outcome, randomEff,paste(setdiff(mul.vars.interaction, "SampleType"), collapse="+")))
-            print("Multivariate anaysis with interaction effect")
-            type <- "LMEM_multi-interantion"
-          }else{
-            form <- as.formula(sprintf("%s ~ (1 | %s) + %s", outcome, randomEff,paste(setdiff(varis, "SampleType"), collapse="+"))) # , "SampleType"
-            print("Multivariate anaysis")
-            type <- "LMEM_multi"
-          }
-        }
-      }else{
-        if( !isTRUE(mul.vars)){
-          form <- as.formula(sprintf("%s ~ %s", outcome, mvar))
-          print("Univariate anaysis")
-          type <- "uni"
-        } else if ( isTRUE(mul.vars)){
-          if (!is.null(interaction)){
-            mul.vars.interaction <- c(varis, interaction)
-            form <- as.formula(sprintf("%s ~ %s", outcome, paste(setdiff(mul.vars.interaction, "SampleType"), collapse="+")))
-            print("Multivariate anaysis with interaction effect")
-            type <- "multi-interantion"
-          }else{
-            form <- as.formula(sprintf("%s ~ %s", outcome, paste(setdiff(varis, "SampleType"), collapse="+"))) # , "SampleType"
-            print("Multivariate anaysis")
-            type <- "multi"
-          }
-        }
-      }
-
-
+      print("Multivariate analysis")
+      type <- "multi"
 
       print(form)
 
-      #=============#
-      #    model    #
-      #=============#
-
+      # Fit model
       if(!is.null(randomEff)){
         m <- "Regression (LMEM)"
-        mod <- lmerTest::lmer(form, data=data, control=lmerControl(check.nobs.vs.nlev = "ignore",check.nobs.vs.rankZ = "ignore",check.nobs.vs.nRE="ignore"))
-      }else{
+        mod <- lmerTest::lmer(form, data=adiv)
+      } else {
         if (class(data[,outcome]) == "numeric"){
           m <- "Regression (glm-poisson)"
           mod <- glm(form, data=data,  family = poisson(link='log'))
@@ -217,9 +131,7 @@ Go_regression <- function(data, project,
 
       print(m)
 
-
-
-      # out for the model
+      # Extract results
       coef <- as.data.frame(summary(mod)$coefficients)
       coef <- coef[setdiff(rownames(coef), "(Intercept)"),,drop=F]
 
@@ -229,23 +141,15 @@ Go_regression <- function(data, project,
         colnames(coef) <- c("Estimate", "SE", "t", "pval")
       }
 
-      print(1.5)
-
       if (dim(coef)[1] == 0){
         next
       }
 
-
-
-      # out for the confidence interval
       conf <- data.frame(confint(mod))
       conf <- conf[setdiff(rownames(conf), "(Intercept)"),,drop=F]
       conf.na <- na.omit(conf)
-
       if(dim(conf.na)[1] == 0){
         conf.na <- conf
-      }else{
-        conf.na <- conf.na
       }
 
       colnames(conf.na) <- c("2.5 %", "97.5 %")
@@ -257,73 +161,133 @@ Go_regression <- function(data, project,
         coef$`97.5 %` <- conf.na$`97.5 %`
       }
 
-
       coef$outcome <- outcome
-      coef$mvar <- mvar
       coef$model <- m
+      coef$formula <- rep(paste(deparse(form), collapse = ""), nrow(coef))
 
       if(!is.null(randomEff)){
         coef <- coef
       }else{
-        coef$deviance <- pchisq(q=mod$null.deviance-mod$deviance,df=mod$df.null-mod$df.residual, lower.tail = FALSE)
+        coef$deviance <- pchisq(q=mod$null.deviance-mod$deviance, df=mod$df.null-mod$df.residual, lower.tail = FALSE)
       }
 
-      # get formula
+      res <- coef
+      res$padj <- p.adjust(res$pval, method="fdr")
+      res$comp <- factor(rownames(res), levels=rownames(res))
+      res$dir <- ifelse(res$pval < pvalue, ifelse(sign(res$Estimate)==1, "up", "down"), "NS")
 
+      write.csv(res, quote = FALSE, col.names = NA, file=sprintf("%s/regression_%s.%s.%s.%s%s.csv",
+                                                                 out_table, project, outcome, type,
+                                                                 ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                                                                 format(Sys.Date(), "%y%m%d"), sep="/"))
 
-      if ( isTRUE(mul.vars)){
-        if (!is.null(interaction)){
-          mul.vars.interaction <- c(varis, interaction)
-          mul.inter.form <- sprintf("%s ~ %s %s", outcome, ifelse(is.null(randomEff), "", sprintf("(1 | %s) +", randomEff)),
-                                    paste(setdiff(mul.vars.interaction, "SampleType"), collapse="+"))
-          coef$formula <- mul.inter.form
-        }else{
-          mul.form <- sprintf("%s ~ %s %s", outcome, ifelse(is.null(randomEff), "", sprintf("(1 | %s) +", randomEff)),
-                              paste(setdiff(varis, "SampleType"), collapse="+"))
-          coef$formula <- mul.form
+      saveRDS(mod, sprintf("%s/regression_%s.%s.%s.%s%s.rds",
+                           out_table, project, outcome, type,
+                           ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                           format(Sys.Date(), "%y%m%d"), sep="/"))
+    }else {
+      # Univariate analysis
+
+      if (class(data[,outcome]) == "character") {
+        if (length(unique(data[,outcome])) > 3){
+          print("Not able to analyze due to more than 3 unique levels")
+          next
         }
-      } else{
+        data[,outcome] <- factor(data[,outcome], levels = intersect(orders, data[,outcome]))
+
+        if(length(unique(data[,outcome])) == 2){
+          data[,outcome] <- factor(ifelse(data[,outcome]== levels(data[,outcome])[1], 0, 1), levels=c(0,1),
+                                   labels = levels(data[,outcome]))
+        }
+      } else if (class(data[,outcome])  == "numeric") {
+        data[,outcome] <- as.character(data[[outcome]])
+        data[,outcome][data[,outcome]==""] <- "NA"
+        data[,outcome] <- as.numeric(as.character(data[[outcome]]))
+      }
+
+      res <- {}
+
+      for (mvar in varis) {
+        if (outcome == mvar) next
+        if (length(unique(data[,mvar])) == 1) next
+
+        form <- as.formula(sprintf("%s ~ %s%s", outcome,
+                                   ifelse(is.null(randomEff), "", sprintf("(1 | %s) +", randomEff)),
+                                   mvar))
+        print("Univariate analysis")
+        type <- "uni"
+
+        print(form)
+
+        if(!is.null(randomEff)){
+          m <- "Regression (LMEM)"
+          mod <- lmerTest::lmer(form, data=data)
+        } else {
+          if (class(data[,outcome]) == "numeric"){
+            m <- "Regression (glm-poisson)"
+            mod <- glm(form, data=data,  family = poisson(link='log'))
+          } else if (length(unique(data[,outcome])) == 2){
+            m <- "Logistic regression (glm-binomial)"
+            mod <- glm(form, data=data,  family=binomial("logit"))
+          }
+        }
+
+        print(m)
+
+        # Extract results
+        coef <- as.data.frame(summary(mod)$coefficients)
+        coef <- coef[setdiff(rownames(coef), "(Intercept)"),,drop=F]
+
+        if(!is.null(randomEff)){
+          colnames(coef) <- c("Estimate", "SE", "df","t", "pval")
+        }else{
+          colnames(coef) <- c("Estimate", "SE", "t", "pval")
+        }
+
+        if (dim(coef)[
+
+          1] == 0){
+          next
+        }
+
+        conf <- data.frame(confint(mod))
+        conf <- conf[setdiff(rownames(conf), "(Intercept)"),,drop=F]
+        conf.na <- na.omit(conf)
+        if(dim(conf.na)[1] == 0){
+          conf.na <- conf
+        }
+
+        colnames(conf.na) <- c("2.5 %", "97.5 %")
+
+        if(!is.null(randomEff)){
+          coef <- coef
+        }else{
+          coef$`2.5 %` <- conf.na$`2.5 %`
+          coef$`97.5 %` <- conf.na$`97.5 %`
+        }
+
+        coef$outcome <- outcome
         coef$mvar <- mvar
+        coef$model <- m
+
+        if(!is.null(randomEff)){
+          coef <- coef
+        }else{
+          coef$deviance <- pchisq(q=mod$null.deviance-mod$deviance, df=mod$df.null-mod$df.residual, lower.tail = FALSE)
+        }
+
+        res <- rbind(res, coef)
+
+
       }
+      res$padj <- p.adjust(res$pval, method="fdr")
+      res$comp <- factor(rownames(res), levels=rownames(res))
+      res$dir <- ifelse(res$pval < pvalue, ifelse(sign(res$Estimate)==1, "up", "down"), "NS")
 
-
-
-      ifelse(!is.null(randomEff), "", sprintf("(1 | %s)", randomEff))
-
-      res <- rbind(res, coef)
-
-      # stop looing for multivariate analysis
-      if(isTRUE(mul.vars) | !is.null(interaction)){
-        break
-      }
-    }
-
-
-    res$padj <- p.adjust(res$pval, method="fdr")
-    #res <- res[order(res$time_point),]
-    res$comp <- factor(rownames(res), levels=rownames(res))
-    res$dir <- ifelse(res$pval < pvalue, ifelse(sign(res$Estimate)==1, "up", "down"), "NS")
-
-    print(res)
-
-    write.csv(res, quote = FALSE, col.names = NA,file=sprintf("%s/regression_%s.%s.%s.%s%s.csv",out_table,
-                                                              project,
-                                                              outcome,
-                                                              type,
-                                                              ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                                                              format(Sys.Date(), "%y%m%d"), sep="/"))
-    # return model
-    if(isTRUE(mul.vars) | !is.null(interaction)){
-      saveRDS(mod,sprintf("%s/regression_%s.%s.%s.%s%s.rds",out_table,
-                          project,
-                          outcome,
-                          type,
-                          ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                          format(Sys.Date(), "%y%m%d"), sep="/"))
-
-      isTRUE(mul.vars)
-
+      write.csv(res, quote = FALSE, col.names = NA, file=sprintf("%s/regression_%s.%s.%s.%s%s.csv",
+                                                                 out_table, project, outcome, type,
+                                                                 ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                                                                 format(Sys.Date(), "%y%m%d"), sep="/"))
     }
   }
 }
-
