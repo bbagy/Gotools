@@ -176,7 +176,7 @@ Go_regression <- function(data, project,
       res$comp <- factor(rownames(res), levels=rownames(res))
       res$dir <- ifelse(res$pval < pvalue, ifelse(sign(res$Estimate)==1, "up", "down"), "NS")
 
-      write.csv(res, quote = FALSE, col.names = NA, file=sprintf("%s/regression_%s.%s.%s.%s%s.csv",
+      write.csv(res, quote = FALSE, col.names = T, file=sprintf("%s/regression_%s.%s.%s.%s%s.csv",
                                                                  out_table, project, outcome, type,
                                                                  ifelse(is.null(name), "", paste(name, ".", sep = "")),
                                                                  format(Sys.Date(), "%y%m%d"), sep="/"))
@@ -284,7 +284,7 @@ Go_regression <- function(data, project,
       res$comp <- factor(rownames(res), levels=rownames(res))
       res$dir <- ifelse(res$pval < pvalue, ifelse(sign(res$Estimate)==1, "up", "down"), "NS")
 
-      write.csv(res, quote = FALSE, col.names = NA, file=sprintf("%s/regression_%s.%s.%s.%s%s.csv",
+      write.csv(res, quote = FALSE, col.names = T, file=sprintf("%s/regression_%s.%s.%s.%s%s.csv",
                                                                  out_table, project, outcome, type,
                                                                  ifelse(is.null(name), "", paste(name, ".", sep = "")),
                                                                  format(Sys.Date(), "%y%m%d"), sep="/"))
