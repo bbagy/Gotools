@@ -118,7 +118,7 @@ Go_regression <- function(data, project,
       # Fit model
       if(!is.null(randomEff)){
         m <- "Regression (LMEM)"
-        mod <- lmerTest::lmer(form, data=adiv)
+        mod <- lmerTest::lmer(form, data=data)
       } else {
         if (class(data[,outcome]) == "numeric"){
           m <- "Regression (glm-poisson)"
