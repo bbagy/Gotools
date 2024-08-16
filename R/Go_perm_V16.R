@@ -8,6 +8,7 @@
 #' @param project A string representing the project name, used for file naming and directory creation.
 #' @param distance_metrics A vector of distance metrics to be used in the analysis.
 #' @param mul.vars A boolean value indicating whether to use multiple variables in the PERMANOVA model.
+#' @param strata_var A variable used to define strata for the PERMANOVA analysis, ensuring that permutations are constrained within each stratum (e.g., patient ID).
 #' @param name An optional string for naming the output files.
 #'
 #' @details
@@ -23,11 +24,12 @@
 #'                              project = "MyMicrobiomeStudy",
 #'                              distance_metrics = c("bray", "unifrac"),
 #'                              multi = FALSE,
+#'                              strata_var=NULL,
 #'                              name = "MyAnalysis")
 #'
 #' @export
 
-Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NULL){
+Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NULL, strata_var=NULL){
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
@@ -77,7 +79,11 @@ Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NUL
 
       set.seed(123)
       print(paste("Running multivariate adonis2 with", dist, "distance"))
-      permanova_result <- adonis2(form, data = map_no_na, permutations = 999)
+      if (!is.null(strata_var)) {
+        permanova_result <- adonis2(form, data = map_no_na, permutations = 999, strata = map_no_na[[strata_var]])
+      } else {
+        permanova_result <- adonis2(form, data = map_no_na, permutations = 999)
+      }
 
       # PERMANOVA 결과를 데이터 프레임으로 변환하고 변수와 메소드 정보를 추가
       result_df <- as.data.frame(permanova_result)
@@ -94,7 +100,11 @@ Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NUL
 
         set.seed(123)
         print(paste("Running univariate adonis2 for", var, "with", dist, "distance"))
-        permanova_result <- adonis2(form, data = map_no_na, permutations = 999)
+        if (!is.null(strata_var)) {
+          permanova_result <- adonis2(form, data = map_no_na, permutations = 999, strata = map_no_na[[strata_var]])
+        } else {
+          permanova_result <- adonis2(form, data = map_no_na, permutations = 999)
+        }
 
         # PERMANOVA 결과를 데이터 프레임으로 변환하고 변수와 메소드 정보를 추가
         result_df <- as.data.frame(permanova_result)
@@ -108,12 +118,12 @@ Go_perm <- function(psIN, vars, project, distance_metrics, multi=FALSE, name=NUL
   }
 
   # 결과 출력
-
-  write.csv(results_df, sprintf("%s/permanova.%s.%s.%s%s.csv", out_dist,
+  write.csv(results_df, sprintf("%s/permanova.%s.%s.%s%s.csv",
+                                out_dist,
                                 project,
                                 ifelse(multi, "multivariate", "univariate"),
+                                ifelse(is.null(strata_var), "", paste("strata=", strata_var, ".", sep = "")),
                                 ifelse(is.null(name), "", paste(name, ".", sep = "")),
                                 format(Sys.Date(), "%y%m%d")))
-
-
 }
+
