@@ -32,6 +32,9 @@
 #' Go_expInfo() # prints available options
 #' exp_info <- Go_expInfo(kit_number = 6, prep_number = 1, spikein_number = 2)
 #' print(exp_info)
+#'
+#' @export
+
 
 Go_expInfo <- function(Project_name=NA,
                        Samples_info=NA,

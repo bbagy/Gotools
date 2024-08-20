@@ -12,7 +12,6 @@ Go_regression(
   cate.vars = NULL,
   con.vars = NULL,
   mul.vars = FALSE,
-  interaction = NULL,
   randomEff = NULL,
   orders,
   pvalue = 0.05,
@@ -34,8 +33,6 @@ Go_regression(
 
 \item{mul.vars}{Flag for multivariate analysis (TRUE/FALSE).}
 
-\item{interaction}{Interaction terms for the model (optional).}
-
 \item{randomEff}{Random effects for mixed models (optional).}
 
 \item{orders}{Order of factor levels for categorical variables.}
@@ -43,6 +40,8 @@ Go_regression(
 \item{pvalue}{P-value threshold for significance.}
 
 \item{name}{Additional name identifier for output files (optional).}
+
+\item{interaction}{Interaction terms for the model (optional).}
 }
 \value{
 The function generates a CSV file for each outcome variable containing the model coefficients, standard errors, p-values, adjusted p-values, and confidence intervals. It also saves RDS files for multivariate models.
@@ -60,8 +59,7 @@ Go_regression(data = my_data,
               con.outs = "Outcome3",
               cate.vars = c("Predictor1", "Predictor2"),
               con.vars = "Predictor3",
-              mul.vars = FALSE,
-              interaction = "Predictor1:Predictor2",
+              mul.vars = "Predictor1 + Predictor2 + (1 | Subject)",
               randomEff = "Subject",
               orders = c("Level1", "Level2"),
               pvalue = 0.05,

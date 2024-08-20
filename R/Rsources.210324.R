@@ -179,6 +179,24 @@ normalizeByRows <- function (df, rsum=1)
 }
 
 
+#' Normalize Data by Columns
+#'
+#' @description
+#' `normalizeByCols` normalizes the data by columns.
+#'
+#' @param df Data frame or matrix to be normalized.
+#' @param rsum Target sum for row normalization.
+#' @param csum Target sum for column normalization.
+#' @param level Taxonomic level for normalization (for `normalizeByCols`).
+#' @param delim Delimiter for splitting taxonomy strings (for `normalizeByCols`).
+#'
+#' @return Normalized data frame or matrix.
+#'
+#' @examples
+#' data <- matrix(rnorm(20), nrow = 4)
+#' normalizeByCols(data)
+#'
+#' @export
 
 normalizeByCols <- function (df, csum=1, level=NULL, delim="\\|")
 {
