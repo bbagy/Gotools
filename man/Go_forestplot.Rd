@@ -4,7 +4,16 @@
 \alias{Go_forestplot}
 \title{Go_forestplot}
 \usage{
-Go_forestplot(df, project, outcomes, formular, name = NULL, height, width)
+Go_forestplot(
+  df,
+  project,
+  outcomes,
+  formular,
+  tool,
+  name = NULL,
+  height,
+  width
+)
 }
 \arguments{
 \item{df}{A data frame containing the data to be used for the models.}

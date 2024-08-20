@@ -62,6 +62,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
                         cutoff=0.005,
                         name=NULL,
                         ncol=NULL,
+                        mark=NULL,
                         height, width){
 
   if(!is.null(dev.list())) dev.off()
@@ -123,10 +124,6 @@ if(relative == T){
 }
 
 
-
-
-
-
   # order by bdiv
   ordi.tt <- try(ordi <- ordinate(psIN , method = "PCoA", distance = "bray"),T)
 
@@ -158,8 +155,6 @@ if(relative == T){
       print("other table")
       otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i])
     }
-
-
 
 
     #if (dim(otu.filt)[2] == 2){
@@ -206,8 +201,6 @@ if(relative == T){
                                                                            format(Sys.Date(),"%y%m%d"))) #,sep="/"
       df <- melt(agg, variable="SampleID")
     }
-
-
 
 
     # add StduyID
@@ -263,10 +256,6 @@ if(relative == T){
     }else{
       p=p
     }
-
-
-
-
 
 
     # pdf size height = 5, width=9
@@ -339,9 +328,6 @@ if(relative == T){
          }
 
 
-
-
-
         if (!is.null(name)) {
           p = p+ ggtitle(sprintf("Taxa barplots overall of %s-%s (cut off < %s)",mvar,name, cutoff))
         }
@@ -349,6 +335,11 @@ if(relative == T){
           p= p+ ggtitle(sprintf("Taxa barplots overall of %s (cut off < %s)",mvar, cutoff))
         }
 
+        if (!is.null(name)) {
+          df2$label <- ifelse(df2[[mark]] == "Yes", "*", "")
+
+          p <- p + geom_text(aes_string(label = "label"), vjust = -0.5, size = 5)
+        }
         print(p)
       }
 
@@ -371,6 +362,11 @@ if(relative == T){
           p= p+ ggtitle(sprintf("%s barplots overall of %s (cut off < %s)",taxanames[i], mvar, cutoff))
         }
         #plotlist[[length(plotlist)+1]] <- p
+        if (!is.null(name)) {
+          df2$label <- ifelse(df2[[mark]] == "Yes", "*", "")
+
+          p <- p + geom_text(aes_string(label = "label"), vjust = -0.5, size = 5)
+        }
         print(p)
       }
     } else if (is.null(facet) & simple == TRUE) {
@@ -388,9 +384,17 @@ if(relative == T){
           p= p+ ggtitle(sprintf("%s barplots overall of %s (cut off < %s)",taxanames[i],mvar, cutoff))
         }
         #plotlist[[length(plotlist)+1]] <- p
+        if (!is.null(name)) {
+          df2$label <- ifelse(df2[[mark]] == "Yes", "*", "")
+
+          p <- p + geom_text(aes_string(label = "label"), vjust = -0.5, size = 5)
+        }
         print(p)
       }
     }
+
+
+
   }
   dev.off()
 }

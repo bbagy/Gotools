@@ -20,6 +20,7 @@ Go_barchart(
   cutoff = 0.005,
   name = NULL,
   ncol = NULL,
+  mark = NULL,
   height,
   width
 )
