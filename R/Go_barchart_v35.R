@@ -67,7 +67,6 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
 
   if(!is.null(dev.list())) dev.off()
 
-
   taxRanks <- taxanames
 
   # out dir
@@ -80,12 +79,12 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
   out_taxa <- file.path(sprintf("%s_%s/table/taxa",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_taxa)) dir.create(out_taxa)
 
-if(!is.null(x_label)){
-  x_label = x_label
-}else{
-  x_label="SampleIDfactor"
-}
 
+  if(!is.null(x_label)){
+    x_label = x_label
+  }else{
+    x_label="SampleIDfactor"
+  }
 
 
   # out file
@@ -107,21 +106,21 @@ if(!is.null(x_label)){
   }
 
 
-if(relative == T){
-  pdf(sprintf("%s/barchart.relative.%s.%s%s(%s).%s.pdf", out_path,
-              project,
-              ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-              ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              cutoff,
-              format(Sys.Date(), "%y%m%d")), height = height, width = width)
-}else{
-  pdf(sprintf("%s/barchart.absolute.%s.%s%s(%s).%s.pdf", out_path,
-              project,
-              ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-              ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              cutoff,
-              format(Sys.Date(), "%y%m%d")), height = height, width = width)
-}
+  if(relative == T){
+    pdf(sprintf("%s/barchart.relative.%s.%s%s(%s).%s.pdf", out_path,
+                project,
+                ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+                ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                cutoff,
+                format(Sys.Date(), "%y%m%d")), height = height, width = width)
+  }else{
+    pdf(sprintf("%s/barchart.absolute.%s.%s%s(%s).%s.pdf", out_path,
+                project,
+                ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+                ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                cutoff,
+                format(Sys.Date(), "%y%m%d")), height = height, width = width)
+  }
 
 
   # order by bdiv
@@ -178,10 +177,10 @@ if(relative == T){
       agg[,taxanames[i]] <- genera
       #saving table
       agg_other_out <- subset(agg, agg[,taxanames[i]] != "[1_#Other]")
-      write.csv(agg_other_out, quote = FALSE, col.names = NA, file=sprintf("%s/%s.taxa_relative_abundance.(%s).%s.%s%s.csv", out_taxa,
-                                                                           project,cutoff,taxanames[i],
-                                                                           ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                                                                           format(Sys.Date(),"%y%m%d"))) #,sep="/"
+      write.csv(agg_other_out, quote = FALSE,file=sprintf("%s/%s.taxa_relative_abundance.(%s).%s.%s%s.csv", out_taxa,
+                                                          project,cutoff,taxanames[i],
+                                                          ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                                                          format(Sys.Date(),"%y%m%d"))) #,sep="/"  col.names = TRUE,
 
 
       df <- melt(agg, variable="SampleID")
@@ -195,10 +194,10 @@ if(relative == T){
       agg[,taxanames[i]] <- genera
       #saving table
       agg_other_out <- subset(agg, agg[,taxanames[i]] != "[1_#Other]")
-      write.csv(agg_other_out, quote = FALSE, col.names = NA, file=sprintf("%s/%s.taxa_absolute_abundance.(%s).%s.%s%s.csv", out_taxa,
+      write.csv(agg_other_out, quote = FALSE, file=sprintf("%s/%s.taxa_absolute_abundance.(%s).%s.%s%s.csv", out_taxa,
                                                                            project,cutoff,taxanames[i],
                                                                            ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                                                                           format(Sys.Date(),"%y%m%d"))) #,sep="/"
+                                                                           format(Sys.Date(),"%y%m%d"))) #,sep="/"col.names = TRUE,
       df <- melt(agg, variable="SampleID")
     }
 
@@ -217,7 +216,6 @@ if(relative == T){
     for (mvar in cate.vars) {
       df.SampleIDstr$Group <- as.character(mapping.sel[df.SampleIDstr$SampleID, mvar])
       df2[,mvar] <- mapping.sel[df2$SampleID, mvar]
-
       # order
       if (length(orders) >= 1) {
         df2[,mvar] <- factor(df2[,mvar], levels = orders)
@@ -237,14 +235,23 @@ if(relative == T){
       }
     }
 
-
-    if (x_label == "SampleID"| x_label == "SampleIDfactor"){
+    # define x_label
+    if (x_label == "SampleID" | x_label == "SampleIDfactor") {
       df2 <- df2
-    } else if (length(x_label) >= 1){
-      df2[,x_label] <- mapping.sel[df2$SampleID, x_label]
-      df2[,x_label] <- factor(df2[,x_label], levels = orders)
-    }
+    } else if (length(x_label) >= 1) {
+      df2[, x_label] <- mapping.sel[df2$SampleID, x_label]
 
+      if (!is.null(mark)) {
+        df2[, mark] <- mapping.sel[df2$SampleID, mark]
+        df2$x_label_with_star <- ifelse(df2[[mark]] == "Yes", paste0(df2[[x_label]], " *"), as.character(df2[[x_label]]))
+
+        # Order "D0", "D0 *", "D3", "D3 *", etc.
+        new_orders <- unlist(lapply(orders, function(order) c(order, paste0(order, " *"))))
+        df2[, x_label] <- factor(df2$x_label_with_star, levels = new_orders)
+      } else {
+        df2[, x_label] <- factor(df2[, x_label], levels = orders)
+      }
+    }
 
 
     print(1)
@@ -280,14 +287,29 @@ if(relative == T){
     # df2 <- df2[order(df2$value, decreasing=T),]
     print(2)
 
-    p <- ggplot(df2, aes_string(x= x_label, y="value", fill=taxanames[i], order=taxanames[i])) +
-      geom_bar(stat="identity", position="stack") + theme_classic()  + labs(fill=NULL)+
-      theme(legend.position=legend, # legend.text=element_text(size=8),
-            legend.text = element_text(face = c(rep("italic", 5), rep("plain", 5))),
-            axis.title.x = element_blank(), axis.text.x = element_text(angle=90, vjust=0.5, hjust=1, size=8)) +
-      guides(fill=guide_legend(ncol= coln))   #guides(col = guide_legend(ncol = coln)) +
+    #p <- ggplot(df2, aes_string(x= x_label, y="value", fill=taxanames[i], order=taxanames[i])) +
+    #  geom_bar(stat="identity", position="stack") + theme_classic()  + labs(fill=NULL)+
+    #  theme(legend.position=legend, # legend.text=element_text(size=8),
+    #        legend.text = element_text(face = c(rep("italic", 5), rep("plain", 5))),
+    #        axis.title.x = element_blank(), axis.text.x = element_text(angle=90, vjust=0.5, hjust=1, size=8)) +
+    #  guides(fill=guide_legend(ncol= coln))   #guides(col = guide_legend(ncol = coln)) +
 
 
+
+    p <- ggplot(df2, aes(x = !!sym(x_label), y = value, fill = !!sym(taxanames[i]), order = !!sym(taxanames[i]))) +
+      geom_bar(stat = "identity", position = "stack") +
+      theme_classic() +
+      labs(fill = NULL) +
+      theme(
+        legend.position = legend,
+        legend.text = element_text(face = "italic"),  # 또는 "plain"
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8)
+      ) +
+      guides(fill = guide_legend(ncol = coln))
+
+
+    #===== y_axis
     if(!is.null(y_axis)){
       p <- p + labs(y = y_axis)
     }else{
@@ -298,11 +320,7 @@ if(relative == T){
       }
     }
 
-
-
-
-
-
+    #===== mycols
     if(!is.null(mycols)){
       p=p + scale_fill_manual(values = getPalette(colourCount))
     }else{
@@ -310,7 +328,7 @@ if(relative == T){
     }
 
 
-
+    #===== facet
     if (!is.null(facet)) {
       for (mvar in cate.vars) {
         if (facet == mvar) {
@@ -328,46 +346,38 @@ if(relative == T){
          }
 
 
-        if (!is.null(name)) {
-          p = p+ ggtitle(sprintf("Taxa barplots overall of %s-%s (cut off < %s)",mvar,name, cutoff))
-        }
-        else {
-          p= p+ ggtitle(sprintf("Taxa barplots overall of %s (cut off < %s)",mvar, cutoff))
-        }
+        p = p + ggtitle(sprintf("%s barplots overall of %s%s (cut off < %s) %s",
+                                taxanames[i],
+                                mvar,
+                                ifelse(is.null(name), "", paste0("-", name)),
+                                cutoff,
+                                ifelse(is.null(mark), "", paste0("mark by - ", mark))))
 
-        if (!is.null(name)) {
-          df2$label <- ifelse(df2[[mark]] == "Yes", "*", "")
-
-          p <- p + geom_text(aes_string(label = "label"), vjust = -0.5, size = 5)
-        }
         print(p)
       }
 
-    }     else if (is.null(facet) & simple == FALSE) {
+    }else if (is.null(facet) & simple == FALSE) {
       for (mvar in cate.vars) {
         print("B")
         print(sprintf("Facet by %s",mvar))
 
-         if (!is.null(ncol)) {
-         p <- p + facet_wrap(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", ncol = ncol)
-         }else{
-         p <- p + facet_grid(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", space = "free_x")
-         }
+        if (!is.null(ncol)) {
+          p <- p + facet_wrap(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", ncol = ncol)
+        }else{
+          p <- p + facet_grid(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", space = "free_x")
+        }
 
 
-        if (length(name) == 1) {
-          p= p+ ggtitle(sprintf("%s barplots overall of %s-%s (cut off < %s)",taxanames[i],mvar,name, cutoff))
-        }
-        else {
-          p= p+ ggtitle(sprintf("%s barplots overall of %s (cut off < %s)",taxanames[i], mvar, cutoff))
-        }
+        p = p + ggtitle(sprintf("%s barplots overall of %s%s (cut off < %s) %s",
+                                taxanames[i],
+                                mvar,
+                                ifelse(is.null(name), "", paste0("-", name)),
+                                cutoff,
+                                ifelse(is.null(mark), "", paste0("mark by - ", mark))))
+
         #plotlist[[length(plotlist)+1]] <- p
-        if (!is.null(name)) {
-          df2$label <- ifelse(df2[[mark]] == "Yes", "*", "")
-
-          p <- p + geom_text(aes_string(label = "label"), vjust = -0.5, size = 5)
-        }
         print(p)
+
       }
     } else if (is.null(facet) & simple == TRUE) {
       for (mvar in cate.vars) {
@@ -377,25 +387,21 @@ if(relative == T){
 
         p = p
 
-        if (!is.null(name)) {
-          p= p+ ggtitle(sprintf("%s barplots overall of %s-%s (cut off < %s)",taxanames[i],mvar,name, cutoff))
-        }
-        else {
-          p= p+ ggtitle(sprintf("%s barplots overall of %s (cut off < %s)",taxanames[i],mvar, cutoff))
-        }
-        #plotlist[[length(plotlist)+1]] <- p
-        if (!is.null(name)) {
-          df2$label <- ifelse(df2[[mark]] == "Yes", "*", "")
+        p = p + ggtitle(sprintf("%s barplots overall of %s%s (cut off < %s) %s",
+                                taxanames[i],
+                                mvar,
+                                ifelse(is.null(name), "", paste0("-", name)),
+                                cutoff,
+                                ifelse(is.null(mark), "", paste0("mark by - ", mark))))
 
-          p <- p + geom_text(aes_string(label = "label"), vjust = -0.5, size = 5)
-        }
+
+        #plotlist[[length(plotlist)+1]] <- p
+
         print(p)
       }
     }
-
-
-
   }
   dev.off()
 }
+
 
