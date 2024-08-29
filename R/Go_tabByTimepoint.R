@@ -25,17 +25,19 @@ Go_tabByTimepoint <- function(df, project, SubjectID, Timepoint, orders, filled_
   # out dir 설정
   out <- file.path("3_map")
   if(!file_test("-d", out)) dir.create(out)
-  
+
   # Timepoint 순서 지정
   df[[Timepoint]] <- factor(df[[Timepoint]], levels = orders)
-  
+
   if (is.null(filled_by)) {
     # filled_by가 NULL일 때 0과 1로 표시하고 Sum 열 추가
     df_wide <- df %>%
       group_by(across(all_of(c(SubjectID, Timepoint)))) %>%
       summarize(value = 1, .groups = "drop") %>%
       spread(key = Timepoint, value = value, fill = 0) %>%
-      mutate(Sum = rowSums(across(all_of(orders))))  # 모든 timepoint가 모였는지 확인하기 위한 Sum 열 추가
+      dplyr::mutate(across(all_of(orders), as.numeric)) %>%  # 열들을 숫자형으로 변환
+      dplyr::mutate(Sum = rowSums(across(-all_of(SubjectID)))) %>%  # SubjectID 제외하고 모든 timepoint를 합산
+      arrange(desc(Sum))  # Sum 열을 기준으로 내림차순 정렬
   } else {
     # filled_by가 지정된 경우 해당 열의 값으로 채움
     df_wide <- df %>%
@@ -43,7 +45,7 @@ Go_tabByTimepoint <- function(df, project, SubjectID, Timepoint, orders, filled_
       summarize(value = dplyr::first(.data[[filled_by]]), .groups = "drop") %>%
       spread(key = Timepoint, value = value, fill = 0)
   }
-  
+
   # 결과 CSV로 저장
   write.csv(df_wide, quote = FALSE, row.names = FALSE,
             file = sprintf("%s/%s.%s%s.table_by_timepoint.csv", out,
