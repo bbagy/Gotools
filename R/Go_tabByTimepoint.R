@@ -34,7 +34,7 @@ Go_tabByTimepoint <- function(df, project, SubjectID, Timepoint, orders, filled_
     df_wide <- df %>%
       group_by(across(all_of(c(SubjectID, Timepoint)))) %>%
       summarize(value = 1, .groups = "drop") %>%
-      spread(key = Timepoint, value = value, fill = 0) %>%
+      tidyr::spread(key = Timepoint, value = value, fill = 0) %>%
       dplyr::mutate(across(all_of(orders), as.numeric)) %>%  # 열들을 숫자형으로 변환
       dplyr::mutate(Sum = rowSums(across(-all_of(SubjectID)))) %>%  # SubjectID 제외하고 모든 timepoint를 합산
       arrange(desc(Sum))  # Sum 열을 기준으로 내림차순 정렬
@@ -43,7 +43,7 @@ Go_tabByTimepoint <- function(df, project, SubjectID, Timepoint, orders, filled_
     df_wide <- df %>%
       group_by(across(all_of(c(SubjectID, Timepoint)))) %>%
       summarize(value = dplyr::first(.data[[filled_by]]), .groups = "drop") %>%
-      spread(key = Timepoint, value = value, fill = 0)
+      tidyr::spread(key = Timepoint, value = value, fill = 0)
   }
 
   # 결과 CSV로 저장
