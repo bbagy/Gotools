@@ -34,19 +34,17 @@ Go_tabTops <- function(csv, project){
     tab.cleaned <- tab
   }
 
-
   # Check if a column is numeric
   is_numeric <- sapply(tab.cleaned, is.numeric)
 
   # Separate the data into two matrices based on the column type
   otu <- as.matrix(tab.cleaned[, is_numeric])
-  tax <- as.matrix(tab.cleaned[, !is_numeric])
+  tax <- tab.cleaned[, !is_numeric, drop = FALSE]  # drop = FALSE to preserve column names
 
-  ps <- phyloseq(otu_table(otu, taxa_are_rows=T),  tax_table(tax));ps
+  # Create the phyloseq object
+  ps <- phyloseq(otu_table(otu, taxa_are_rows=T), tax_table(as.matrix(tax)))
 
-  saveRDS(ps, sprintf("%s/ps.tabTops.%s.%s.rds", rds,
-                      project,format(Sys.Date(), "%y%m%d")))
-
+  # Save the phyloseq object
+  saveRDS(ps, sprintf("%s/ps.tabTops.%s.%s.rds", rds, project, format(Sys.Date(), "%y%m%d")))
   return(ps)
-
 }
