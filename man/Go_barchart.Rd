@@ -56,6 +56,8 @@ Go_barchart(
 
 \item{ncol}{Number of columns for facet wrapping in the plot.}
 
+\item{mark}{mark "*" for the X-axis.}
+
 \item{height}{Height of the output plot.}
 
 \item{width}{Width of the output plot.}
@@ -85,6 +87,7 @@ Go_barchart(psIN = psIN,
             relative = TRUE,
             y_axis = "Abundance",
             x_label = "SampleID",
+            mark = NULL,
             facet = "Treatment",
             legend = "bottom",
             cutoff = 0.005,

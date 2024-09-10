@@ -14,6 +14,7 @@
 #' @param relative Logical value to select between relative (TRUE) or absolute (FALSE) abundance.
 #' @param y_axis Label for the Y-axis.
 #' @param x_label Label for the X-axis.
+#' @param mark mark "*" for the X-axis.
 #' @param facet Faceting variable for the plot.
 #' @param legend Position of the legend ("bottom" or "right").
 #' @param cutoff Threshold for filtering low-abundance taxa.
@@ -41,6 +42,7 @@
 #'             relative = TRUE,
 #'             y_axis = "Abundance",
 #'             x_label = "SampleID",
+#'             mark = NULL,
 #'             facet = "Treatment",
 #'             legend = "bottom",
 #'             cutoff = 0.005,
