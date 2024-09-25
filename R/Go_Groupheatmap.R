@@ -41,11 +41,26 @@
 #' @export
 #'
 Go_Groupheatmap <- function(df, SampleData, project, Group,
-                            orders, title, name = NULL,
+                            orders,
+                            title=NULL,
+                            mycols=NULL,
+                            name = NULL,
                             top_n = 30, normalization = "log", width = 16, height = 8,
                             x_label = NULL) {
 
   if (!is.null(dev.list())) dev.off()
+
+  # out dir
+  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
+  if(!file_test("-d", out)) dir.create(out)
+  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
+  if(!file_test("-d", out_path)) dir.create(out_path)
+
+  tt <- try(mycols,T)
+  if(class(tt) == "try-error"){
+    print("mycols is not defined.")
+    mycols <- NULL
+  }
 
   # 상위 n개의 항목 선택
   if (!is.null(top_n)) {
@@ -101,13 +116,22 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
   }
 
   # 색상 팔레트 설정 (Set3)
-  palette <- brewer.pal(length(sorted_groups), "Set3")
+
+
+  if(!is.null(mycols)){
+    palette <- mycols
+  }else{
+    palette <- brewer.pal(length(sorted_groups), "Set3")
+  }
+
+
 
   # PDF 저장 경로 설정
-  dir <- Go_path(project, pdf = "yes", table = "no", path = NULL)
-  pdf(sprintf("%s/heatmap.%s.%s%s.%s.%s.pdf", dir$pdf, project,
+
+  pdf(sprintf("%s/heatmap.%s.%s%s%s.%s.pdf", out_path, project,
               ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              title, normalization, format(Sys.Date(), "%y%m%d")), width = width, height = height)
+              ifelse(is.null(title), "", paste(title, ".", sep = "")),
+              normalization, format(Sys.Date(), "%y%m%d")), width = width, height = height)
 
   # heatmap 생성
   if(!is.null(x_label)){

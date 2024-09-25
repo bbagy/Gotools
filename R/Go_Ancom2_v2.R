@@ -264,11 +264,11 @@ Go_Ancom2 <- function(psIN,  project,
     ancom_df = res.ancom %>%
       dplyr::select(taxon, contains(mvar))
 
-    View(res.ancom)
+    #View(res.ancom)
 
     rownames(ancom_df) <- ancom_df$taxon; ancom_df$taxon <- NULL
 
-    print(dim(ancom_df))
+    #print(dim(ancom_df))
 
     #rownames(df_mvar) <- df_mvar$taxon
     #names(df_mvar)[length(names(df_mvar))]<-"diff_abn"
