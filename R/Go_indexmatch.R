@@ -18,9 +18,9 @@
 #' df2 <- data.frame(id = 1:3, value = c("X", "Y", "Z"))
 #' # Update df1 based on matching column 'id'
 #' updated_df <- Go_indexmatch(project = "MyProject",
-#'                             to = df1, 
-#'                             from = df2, 
-#'                             matchByTo = "id", 
+#'                             to = df1,
+#'                             from = df2,
+#'                             matchByTo = "id",
 #'                             matchByFrom = "id",
 #'                             columns = c("value"),
 #'                             name = "UpdatedDF")
@@ -29,9 +29,9 @@
 #' rownames(df1) <- df1$id
 #' rownames(df2) <- df2$id
 #' updated_df <- Go_indexmatch(project = "MyProject",
-#'                             to = df1, 
-#'                             from = df2, 
-#'                             matchByTo = "rownames", 
+#'                             to = df1,
+#'                             from = df2,
+#'                             matchByTo = "rownames",
 #'                             matchByFrom = "rownames",
 #'                             columns = c("value"),
 #'                             name = "UpdatedDFUsingRowNames")
@@ -41,22 +41,26 @@
 #' @importFrom utils write.csv
 
 Go_indexmatch <- function(project,
-                          to, 
+                          to,
                           from,
                           matchByTo,    # Can be "rownames" or a column name in 'to'
                           matchByFrom,  # Can be "rownames" or a column name in 'from'
                           columns,
                           name=NULL){
-  
+
+
+  to <- as.data.frame(to)
+  from <- as.data.frame(from)
+
   # Determine the matching vector for 'to'
   matchVectorTo <- if(matchByTo == "rownames") rownames(to) else to[,matchByTo]
-  
+
   # Determine the matching vector for 'from'
   matchVectorFrom <- if(matchByFrom == "rownames") rownames(from) else from[,matchByFrom]
-  
+
   # Perform the index match based on the determined vectors
   matched_indices <- match(matchVectorTo, matchVectorFrom)
-  
+
   # Ensure 'columns' parameter is treated correctly, assuming it's always valid column names in 'to'
   if(!is.null(columns) && length(columns) > 0) {
     for(column in columns) {
@@ -68,7 +72,7 @@ Go_indexmatch <- function(project,
       }
     }
   }
-  
+
   # Write the updated 'to' dataframe to CSV
   write.csv(to, quote = FALSE, row.names = T,
             file=sprintf("%s.indexmatch.%s%s.csv",
