@@ -544,7 +544,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
         } else{
           # count or table for number of variable
-          if (max(table(df.na[,mvar])) > 100){
+          if (max(table(df.na[,mvar])) > 150){
 
             if(!is.null(mycols)){
               p1 <- p1 + scale_fill_manual(values = mycols)
