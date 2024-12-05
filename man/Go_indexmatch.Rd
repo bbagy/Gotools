@@ -33,9 +33,9 @@ df1 <- data.frame(id = 1:3, value = c("A", "B", "C"))
 df2 <- data.frame(id = 1:3, value = c("X", "Y", "Z"))
 # Update df1 based on matching column 'id'
 updated_df <- Go_indexmatch(project = "MyProject",
-                            to = df1, 
-                            from = df2, 
-                            matchByTo = "id", 
+                            to = df1,
+                            from = df2,
+                            matchByTo = "id",
                             matchByFrom = "id",
                             columns = c("value"),
                             name = "UpdatedDF")
@@ -44,9 +44,9 @@ updated_df <- Go_indexmatch(project = "MyProject",
 rownames(df1) <- df1$id
 rownames(df2) <- df2$id
 updated_df <- Go_indexmatch(project = "MyProject",
-                            to = df1, 
-                            from = df2, 
-                            matchByTo = "rownames", 
+                            to = df1,
+                            from = df2,
+                            matchByTo = "rownames",
                             matchByFrom = "rownames",
                             columns = c("value"),
                             name = "UpdatedDFUsingRowNames")
