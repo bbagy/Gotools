@@ -145,9 +145,6 @@ colnames(df)
     resSig.top$smvar <- factor(formatted_labels, levels = new.orders)
 
 
-
-
-
     if(tool == "deseq2"){
       p <- ggplot(resSig.top, aes(x=reorder(taxa, log2FoldChange), y=smvar, color=smvar))
     }else if(tool == "ancom2"){
@@ -155,9 +152,6 @@ colnames(df)
     }else if(tool == "aldex2"){
       p <- ggplot(resSig.top, aes(x=reorder(ASV, diff.btw), y=smvar, color=smvar))
     }
-
-
-
 
 
     p <- p + labs(y = "Comparison Group") + theme_classic() + coord_flip() +
