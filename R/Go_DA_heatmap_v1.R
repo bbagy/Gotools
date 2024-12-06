@@ -80,11 +80,13 @@ Go_DA_heat <- function(df, project, data_type, font,
     lfc <- "lfc_ancombc"
   }else if(tool == "aldex2"){
     asvs <- "ASV"
-    p.value <- "pvalue"
-    fdr <- "padj"
-    lfc <- "Est"
+    p.value <- "wi.ep"
+    fdr <- "wi.eBH"
+    lfc <- "diff.btw"
   }
 
+
+colnames(df)
 
 
 
@@ -151,7 +153,7 @@ Go_DA_heat <- function(df, project, data_type, font,
     }else if(tool == "ancom2"){
       p <- ggplot(resSig.top, aes(x=reorder(ASV, lfc_ancombc), y=smvar, color=smvar))
     }else if(tool == "aldex2"){
-      p <- ggplot(resSig.top, aes(x=reorder(ASV, Est), y=smvar, color=smvar))
+      p <- ggplot(resSig.top, aes(x=reorder(ASV, diff.btw), y=smvar, color=smvar))
     }
 
 
