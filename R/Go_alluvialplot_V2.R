@@ -45,8 +45,8 @@
 #' @export
 
 
-Go_alluvialplot <- function(project, 
-                            SigASVs, 
+Go_alluvialplot <- function(project,
+                            SigASVs,
                             map,
                             targets.bac,
                             Addcolumn,
@@ -57,13 +57,13 @@ Go_alluvialplot <- function(project,
                             name = NULL,
                             height = 2, width=3,
                             plotCols=2, plotRows=1){
-  
+
   if(!is.null(dev.list())) dev.off()
-  
+
   #===== out dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
+  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
-  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d"))) 
+  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_path)) dir.create(out_path)
 
 
@@ -73,97 +73,97 @@ Go_alluvialplot <- function(project,
   }else{
     tab <- SigASVs
   }
-  
-  
+
+
   if (class(map) == "character"){
     sampledata <- read.csv(map,row.names=1,check.names=FALSE)
   }else{
     sampledata <- map
   }
-  
 
-  
-  
+
+
+
   #===== check input
   if(!"names" %in% colnames(tab)) {
     stop(paste("Column", "name", "does not exist in the dataframe. (name_read counts)"))
   }
-  
+
   if(!outcome %in% Addcolumn) {
     stop(paste("outcome", outcome, "does not exist in the data. (name_read counts)"))
   }
-  
-  
-  
+
+
+
   rownames(tab) <- tab$names
   rownames(tab) <- gsub(" ","_", rownames(tab))
   tab$Species <- gsub(" ","_", tab$Species)
-  
 
-  
+
+
   plotlist <- list()
   for(target in targets.bac){
 
     print(target)
-    
+
     #===== Colors
     if (target == "Gardnerella_vaginalis" ){
       mycols <- c("#CBD588", "#5F7FC7", "orange",  "#DA5724", "#508578", "#CD9BCD", "#AD6F3B", "#673770", "#D14285", "#652926", "#C84248", "#8569D5", "#5E738F", "#D1A33D", "#8A7C64", "#599861")
     }else{
       mycols <- c("#EB5291FF", "#1794CEFF", "#972C8DFF", "#FBBB68FF", "#F5BACFFF", "#9DDAF5FF", "#6351A0FF", "#ECF1F4FF", "#FEF79EFF" )#pony
     }
-    
+
     #===== Merge tab + sampledata
     tab.sel <- subset(tab, Species == target)
-    
+
     taxaTab <- merge(sampledata, t(tab.sel), by="row.names");head(taxaTab)
-    
+
     rownames(taxaTab) <- taxaTab$Row.names
-    
-    
+
+
     #===== remove unused ranks
     for (rank in c("Kingdom","Phylum","Class","Order","Family","Genus","Species","Sum","names")){
       tab.sel[,rank] <- NULL
     }
-    
-  
-    
+
+
+
     taxaTab.log <- taxaTab
     for(species in rownames(tab.sel)){
       taxaTab[,species] <- as.numeric(taxaTab[,species])
       taxaTab.log[,species] <- log(taxaTab[,species])
     }
-    
-    
+
+
     # melting tab
     bacteria.taxa <- rownames(tab.sel)
-    
+
     taxaTab.melt <- melt(taxaTab.log, id.vars =  Addcolumn, measure.vars = bacteria.taxa)
-    
+
 
     # Check for missing values
-    
+
     if (any(is.na(taxaTab.melt))) {
       print("Data contains missing values.")
     } else {
       print("Data doesn't contain any missing values.")
     } #is_alluvia_form(as.data.frame(taxaTab.melt), axes = 1:3, silent = TRUE)
-    
-    
-    
-    
+
+
+
+
     taxaTab.melt <- arrange(taxaTab.melt, taxaTab.melt$variable)
-    
+
     # Simplify all names
     taxaTab.melt$variable <- gsub("(\\w)\\w+_(\\w+)", "\\1.\\2", taxaTab.melt$variable)
-    
-    
+
+
     for(vari in Addcolumn){
       taxaTab.melt[,vari] <- as.character(taxaTab.melt[,vari] )
     }
-    
 
-    
+
+
     #===== Define column1 and column2 variables
 
     if (!is.null(column1) && !is.null(column2)) {
@@ -178,26 +178,26 @@ Go_alluvialplot <- function(project,
     } else{
       print(paste("column1 is", ifelse(is.null(column1), "NULL.", paste("'", column1, "'", "and exists in the dataframe:", column1 %in% colnames(taxaTab.melt)))))
       print(paste("column2 is", ifelse(is.null(column2), "NULL.", paste("'", column2, "'", "and exists in the dataframe:", column2 %in% colnames(taxaTab.melt)))))
-      
-    }
-    
 
-    
+    }
+
+
+
     # conntol is.infinite
     df <- taxaTab.melt
     df$value[is.infinite(df$value)] <- NA
     df <- df[!is.na(df$value), ]
-  
 
-    df <- df %>% 
+
+    df <- df %>%
       group_by(variable) %>%
-      mutate(count = n())
-    
-    df <- df %>% 
-      mutate(label = ifelse(variable %in% unique(variable), paste(variable, " (n=", count, ")", sep=""), variable))
-    
-    
-    
+      dplyr::mutate(count = n())
+
+    df <- df %>%
+      dplyr::mutate(label = ifelse(variable %in% unique(variable), paste(variable, " (n=", count, ")", sep=""), variable))
+
+
+
     #===== Logic for the vatiation
     if (!is.null(column1) & !is.null(column2)){
       p <- ggplot(data = df, aes(y = value, axis1 = label, axis2 = !!sym(column1), axis3 = !!sym(column2), axis4 = !!sym(outcome)))
@@ -207,8 +207,8 @@ Go_alluvialplot <- function(project,
     } else {
       p <- ggplot(data = df, aes(y = value, axis1 = label, axis2 = !!sym(outcome)))
     }
-  
-    
+
+
     # Modify the geom_text call in the ggplot function to include the counts
     p1 <- p +
       theme_void() +
@@ -224,18 +224,53 @@ Go_alluvialplot <- function(project,
       scale_x_discrete(limits = c("CST", "Virus_CINB2"), expand = c(.2, .2)) +
       scale_fill_manual(values = mycols) +
       ggtitle(paste("Contribution of ",target))
-    
-    
-    plotlist[[length(plotlist)+1]] <- p1 
+
+
+    plotlist[[length(plotlist)+1]] <- p1
   }
-  pdf(sprintf("%s/%s.Alluvial.plots.%s.(%s%s)%s%s.pdf", out_path, 
+
+  pdf(sprintf("%s/%s.Alluvial.plots.%s.(%s%s)%s%s.pdf", out_path,
               project,
-              outcome, 
-              ifelse(is.null(column1), "", paste(column1, ".", sep = "")), 
-              ifelse(is.null(column2), "", paste(column2, ".", sep = "")), 
-              ifelse(is.null(name), "", paste(name, ".", sep = "")), 
+              outcome,
+              ifelse(is.null(column1), "", paste(column1, ".", sep = "")),
+              ifelse(is.null(column2), "", paste(column2, ".", sep = "")),
+              ifelse(is.null(name), "", paste(name, ".", sep = "")),
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
-  
+
+
+
+  multiplot <- function(..., plotlist=NULL, file, cols=1, rows=1) {
+    require(grid)
+    # Make a list from the ... arguments and plotlist
+    plots <- c(list(...), plotlist)
+    numPlots = length(plots)
+
+    i = 1
+    while (i < numPlots) {
+      numToPlot <- min(numPlots-i+1, cols*rows)
+      # Make the panel
+      # ncol: Number of columns of plots
+      # nrow: Number of rows needed, calculated from # of cols
+      layout <- matrix(seq(i, i+cols*rows-1), ncol = cols, nrow = rows, byrow=T)
+      if (numToPlot==1) {
+        print(plots[[i]])
+      } else {
+        # Set up the page
+        grid.newpage()
+        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+        # Make each plot, in the correct location
+        for (j in i:(i+numToPlot-1)) {
+          # Get the i,j matrix positions of the regions that contain this subplot
+          matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
+          print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
+                                          layout.pos.col = matchidx$col))
+        }
+      }
+      i <- i+numToPlot
+    }
+  }
+
+
   multiplot(plotlist=plotlist, cols=plotCols, rows=plotRows)
   dev.off()
 }
