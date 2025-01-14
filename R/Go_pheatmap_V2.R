@@ -164,6 +164,7 @@ print("Check the psIN")
                                        sep="/"), quote = FALSE, col.names = NA)
 
 
+  print("test1")
   # map 정리
   mapping <- data.frame(sample_data(ps.rel.sel));dim(mapping)
 
@@ -184,7 +185,7 @@ print("Check the psIN")
   mapping.sel <- mapping[sel,, drop=F];dim(mapping.sel)
 
 
-
+  print("test2")
   head(rownames(mapping))
   head(rownames(matrix))
 
@@ -219,7 +220,7 @@ print("Check the psIN")
     Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
   }
 
-
+  print("test3")
 
   tt <- try(rownames(annotation_row) <- rownames(matrix), T)
 
@@ -262,6 +263,8 @@ print("Check the psIN")
     color_set_3 = c("#2366C0FF", "#E9D738FF", "#B91226FF", "#A3DA4BFF", "#FF6435FF"),
     color_set_4 = c("#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02", "#A6761D", "#666666")
   )
+
+  print("test4")
 
   # Define groups based on the inputs
   groups <- c(group1, group2, group3, group4)  # Ensure these are the correct variable names for your groups
