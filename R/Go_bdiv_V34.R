@@ -326,7 +326,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           #===================================#
           if (statistics){
             set.seed(1)
-            distance <- Go_dist(psIN = psIN.cbn.na, project = project, cate.vars = mvar, distance_metrics = distance_metric)
+            distance <- Go_dist(psIN = psIN.cbn.na, project = project, cate.vars = mvar, name=name, distance_metrics = distance_metric)
 
             x <- as.dist(distance[[distance_metric]])
             factors <-  mapping.sel.na.rem[,mvar]
@@ -550,7 +550,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
         if (statistics){
           set.seed(1)
-          distance <- Go_dist(psIN = psIN.na, project = project, name = NULL, cate.vars = mvar,distance_metrics = distance_metric)
+          distance <- Go_dist(psIN = psIN.na, project = project, name=name, cate.vars = mvar,distance_metrics = distance_metric)
 
           x <- as.dist(distance[[distance_metric]])
           factors <-  mapping.sel.na.rem[,mvar]
