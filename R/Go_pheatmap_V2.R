@@ -143,6 +143,10 @@ print("Check the psIN")
     taxaTab <- data.frame(tax_table(ps.rel.sel)[,"pathway"])
     type <- "pathway"
     print(type)
+  }else if(any(grepl("BileAcid", taxtab.col))){
+    taxaTab <- data.frame(tax_table(ps.rel.sel)[,"BileAcid"])
+    type <- "BileAcid"
+    print(type)
   }else if(any(grepl("symbol", taxtab.col))){
     taxaTab <- data.frame(tax_table(ps.rel.sel)[,"symbol"])
     type <- "RNAseq"
@@ -217,6 +221,9 @@ print("Check the psIN")
     Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
   }else if(type %in% c("RNAseq")) {
     annotation_row <- data.frame(Path = as.factor(tax_table(ps.rel.sel)[, "symbol"]))
+    Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
+  }else if(type %in% c("BileAcid")) {
+    annotation_row <- data.frame(Path = as.factor(tax_table(ps.rel.sel)[, "BileAcid"]))
     Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
   }
 
