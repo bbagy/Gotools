@@ -93,7 +93,11 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
   if (!is.null(orders)) {
     sorted_groups <- orders
   }
+
+  sorted_groups <- intersect(orders, unique(group_info))
   group_info <- factor(group_info, levels = sorted_groups)
+
+
 
   # group_info에 맞는 SampleID 순서로 df2 재정렬
   df2_ordered <- df2_ordered[, match(rownames(ordered_SampleData), colnames(df2_ordered))]
