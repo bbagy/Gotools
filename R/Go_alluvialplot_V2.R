@@ -33,6 +33,7 @@
 #'                 SigASVs = "path_to_sig_ASVs.csv",
 #'                 map = "path_to_metadata.csv",
 #'                 targets.bac = c("Bacteroides_fragilis", "Escherichia_coli"),
+#'                 target.rank = "Genus" # or "Species
 #'                 Addcolumn = c("Age", "Gender"),
 #'                 outcome = "TreatmentResponse",
 #'                 column1 = "Diet",
@@ -49,6 +50,7 @@ Go_alluvialplot <- function(project,
                             SigASVs,
                             map,
                             targets.bac,
+                            target.rank,
                             Addcolumn,
                             outcome,
                             column1 = NULL,
@@ -85,9 +87,13 @@ Go_alluvialplot <- function(project,
 
 
   #===== check input
-  if(!"names" %in% colnames(tab)) {
-    stop(paste("Column", "name", "does not exist in the dataframe. (name_read counts)"))
-  }
+  tab$RowSum <- rowSums(tab[, sapply(tab, is.numeric)])
+
+  # RowSum과 Species 이름만 결합
+  tab$names <- paste(tab$Species, tab$RowSum, sep = "_")
+
+
+  Addcolumn <- c(outcome, column1, column2)
 
   if(!outcome %in% Addcolumn) {
     stop(paste("outcome", outcome, "does not exist in the data. (name_read counts)"))
@@ -114,7 +120,7 @@ Go_alluvialplot <- function(project,
     }
 
     #===== Merge tab + sampledata
-    tab.sel <- subset(tab, Species == target)
+    tab.sel <- subset(tab, tab[target.rank] == target)
 
     taxaTab <- merge(sampledata, t(tab.sel), by="row.names");head(taxaTab)
 
@@ -270,7 +276,12 @@ Go_alluvialplot <- function(project,
     }
   }
 
+  if (length(targets.bac) == 1){
+    print(p1)
+    dev.off()
+  }else{
+    multiplot(plotlist=plotlist, cols=plotCols, rows=plotRows)
+    dev.off()
+  }
 
-  multiplot(plotlist=plotlist, cols=plotCols, rows=plotRows)
-  dev.off()
 }

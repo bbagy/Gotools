@@ -84,5 +84,6 @@ Suggests:
     testthat,
     rmarkdown,
     ALDEx2,
+    GUniFrac,
     yarrr,
     picante
