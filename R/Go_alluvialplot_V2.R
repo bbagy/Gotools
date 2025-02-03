@@ -160,7 +160,8 @@ Go_alluvialplot <- function(project,
     taxaTab.melt <- arrange(taxaTab.melt, taxaTab.melt$variable)
 
     # Simplify all names
-    taxaTab.melt$variable <- gsub("(\\w)\\w+_(\\w+)", "\\1.\\2", taxaTab.melt$variable)
+    # taxaTab.melt$variable <- gsub("(\\w)\\w+_(\\w+)", "\\1.\\2", taxaTab.melt$variable)
+    taxaTab.melt$variable <- gsub("^(\\w)\\w+_(\\w+_\\d+)", "\\1.\\2", taxaTab.melt$variable)
 
 
     for(vari in Addcolumn){
