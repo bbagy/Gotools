@@ -85,5 +85,6 @@ Suggests:
     rmarkdown,
     ALDEx2,
     GUniFrac,
+    vegan,
     yarrr,
     picante
