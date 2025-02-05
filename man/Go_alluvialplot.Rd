@@ -9,7 +9,7 @@ Go_alluvialplot(
   SigASVs,
   map,
   targets.bac,
-  Addcolumn,
+  target.rank,
   outcome,
   column1 = NULL,
   column2 = NULL,
@@ -30,8 +30,6 @@ Go_alluvialplot(
 
 \item{targets.bac}{A vector of target bacterial species for the plot.}
 
-\item{Addcolumn}{A vector of additional columns from the metadata to be included in the plot.}
-
 \item{outcome}{The primary outcome or variable of interest.}
 
 \item{column1}{(Optional) An additional column for stratifying the data.}
@@ -49,6 +47,8 @@ Go_alluvialplot(
 \item{plotCols}{Number of columns in the plot layout.}
 
 \item{plotRows}{Number of rows in the plot layout.}
+
+\item{Addcolumn}{A vector of additional columns from the metadata to be included in the plot.}
 }
 \value{
 Saves alluvial plots as PDF files in the specified project directory.
@@ -68,6 +68,7 @@ Go_alluvialplot(project = "MyProject",
                 SigASVs = "path_to_sig_ASVs.csv",
                 map = "path_to_metadata.csv",
                 targets.bac = c("Bacteroides_fragilis", "Escherichia_coli"),
+                target.rank = "Genus" # or "Species
                 Addcolumn = c("Age", "Gender"),
                 outcome = "TreatmentResponse",
                 column1 = "Diet",
