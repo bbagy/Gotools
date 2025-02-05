@@ -25,8 +25,11 @@
 #' @export
 
 Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL) {
+  library(phyloseq)
+  library(stringr)
+
   # Read tab
-  func.tab <- try(read_tsv(tabPath, col_types = cols()), silent = TRUE)
+  func.tab <- try(read.delim(tabPath, header = TRUE, sep = "\t", row.names = 1, check.names = FALSE), silent = TRUE)
 
   if (inherits(func.tab, "try-error")) {
     print("Error reading the table. Check the file path and format.")
@@ -34,33 +37,41 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL) {
   }
 
   # Identify data type and perform necessary preprocessing
-  if (any(grepl(func.type, c("picrust", "Picrust", "Picrust2", "PICRUSt", "PICRUSTt2")))) {
-    func.type <- "PICRUSTt2"
-  } else if (any(grepl(func.type, c("Human", "Humann", "humann", "human", "Human2", "Humann2", "humann2", "human2")))) {
-    func.type <- "Humann2"
-    # Additional preprocessing specific to Humann2
+  if (tolower(func.type) %in% c("picrust", "picrust2", "picrustt2")) {
+    func.type <- "PICRUSt2"
+  } else if (tolower(func.type) %in% c("humann", "humann2", "humann3")) {
+    func.type <- "Humann3"
+
+    # HUMAnN 데이터 전처리: 특정 단어 포함된 행 제거
     func.tab <- func.tab[!grepl("ribosomal protein|UNGROUPED|unclassified|UNMAPPED|UNINTEGRATED", rownames(func.tab)), ]
-    rownames(func.tab) <- gsub(",", ".", rownames(func.tab))
-    func.tab1 <- data.frame(str_split(rownames(func.tab), ": ", simplify = T))
-    func.tab <- cbind(description = func.tab1$X2, func.tab)
-    rownames(func.tab) <- func.tab1$X1
+
+    # KO ID와 설명을 분리
+    func.tab1 <- data.frame(do.call(rbind, str_split(rownames(func.tab), ": ", n = 2)))
+    colnames(func.tab1) <- c("ID", "Description")
+
+    # Description이 없는 경우 처리
+    func.tab1$Description[is.na(func.tab1$Description)] <- "Unknown"
+
+    # 원본 데이터에 병합
+    func.tab <- cbind(func.tab1, func.tab)
+    rownames(func.tab) <- func.tab$ID
   } else {
-    print("Please define the data type: PICRUSt or Humann")
+    print("Please define the data type: PICRUSt2 or Humann3")
     return(NULL)
   }
 
   # Define number of samples and split data frame
-  NumOfSample <- dim(func.tab)[2]
+  NumOfSample <- ncol(func.tab)
   otu <- as.matrix(func.tab[, 3:NumOfSample])
   tax <- as.matrix(func.tab[, 1:2])
   rownames(otu) <- tax[, 1]
   rownames(tax) <- tax[, 1]
 
   # Define KEGG or pathway
-  if (any(grepl("K0", rownames(tax)))) {
+  if (any(grepl("^K\\d{5}", tax[, 1]))) {
     colnames(tax) <- c("KO", "KO.des")
     func <- "KEGG"
-  } else if (any(grepl("PWY", rownames(tax)))) {
+  } else if (any(grepl("^PWY", tax[, 1]))) {
     colnames(tax) <- c("pathway", "path.des")
     func <- "pathway"
   } else {
@@ -74,12 +85,12 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL) {
 
   # Saving file
   rds <- file.path("2_rds")
-  if (!file_test("-d", rds)) dir.create(rds)
-  saveRDS(ps, sprintf("%s/ps.%s.%s.%s%s%s.rds", rds,
-                      func.type,
-                      ifelse(is.null(func), "", paste(func, ".", sep = "")),
-                      ifelse(is.null(project), "", paste(project, ".", sep = "")),
-                      ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                      format(Sys.Date(), "%y%m%d")))
-}
+  if (!dir.exists(rds)) dir.create(rds, recursive = TRUE)
 
+  saveRDS(ps, file.path(rds, sprintf("ps.%s.%s.%s%s%s.rds",
+                                     func.type,
+                                     ifelse(is.null(func), "", paste0(func, ".")),
+                                     ifelse(is.null(project), "", paste0(project, ".")),
+                                     ifelse(is.null(name), "", paste0(name, ".")),
+                                     format(Sys.Date(), "%y%m%d"))))
+}
