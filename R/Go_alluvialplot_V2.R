@@ -120,6 +120,7 @@ Go_alluvialplot <- function(project,
 
     #===== Merge tab + sampledata
     tab.sel <- subset(tab, tab[target.rank] == target)
+    print(dim(tab.sel))
 
     taxaTab <- merge(sampledata, t(tab.sel), by="row.names");head(taxaTab)
 
