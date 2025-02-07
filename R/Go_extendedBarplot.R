@@ -119,12 +119,13 @@ Go_extendedBarplot <- function(psIN,
   if(func == "pathway" | func == "path.des"){
     func1 <- "pathway"
     func2 <- "path.des"
-  }else if(func == "KO" | func == "KO.des"){
+  } else if(func == "KO" | func == "KO.des"){
     func1 <- "KO"
     func2 <- "KO.des"
-
+  } else if(func == "EC"){
+    func1 <- "KO"
+    func2 <- "EC"
   }
-
 
   # Function to perform Wilcoxon tests with dynamic group names
   perform_wilcox_test <- function(data, group1, group2, func1, func2, mvar) {
