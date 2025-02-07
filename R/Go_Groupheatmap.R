@@ -74,6 +74,8 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
   }
 
   # 공통된 SampleID 찾기
+  SampleData <- subset(SampleData, SampleData[,Group] %in% orders)
+
   common_samples <- intersect(rownames(SampleData), colnames(df2_top))
 
   # df2의 열을 공통된 SampleID 순서에 따라 재정렬
