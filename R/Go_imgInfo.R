@@ -31,12 +31,13 @@ Go_imgInfo <- function(Overview=NA,
                        Barchart=NA,
                        Bac.heatmap=NA,
                        RNAseq.heatmap=NA,
+                       HumannHeatmap=NA,
                        Adivplot=NA,
                        Foreplot=NA,
                        Bdivplot=NA,
                        DAplot=NA) {
   # Check if all arguments are missing and print options if they are
-  if (all(is.na(Overview)) && all(is.na(Rarefaction)) && all(is.na(Barchart)) && all(is.na(Bac.heatmap)) &&
+  if (all(is.na(Overview)) && all(is.na(Rarefaction)) && all(is.na(Barchart)) && all(is.na(Bac.heatmap)) && all(is.na(HumannHeatmap)) &&
       all(is.na(RNAseq.heatmap)) && all(is.na(Adivplot)) && all(is.na(Foreplot)) &&
       all(is.na(Bdivplot)) && all(is.na(DAplot))) {
     cat(
@@ -54,6 +55,7 @@ Go_imgInfo <- function(Overview=NA,
     barchart = Barchart,
     bac.heatmap = Bac.heatmap,
     rnaseq.heatmap = RNAseq.heatmap,
+    humannheatmap = HumannHeatmap,
     adivplot = Adivplot,
     foreplot = Foreplot,
     bdivplot = Bdivplot,

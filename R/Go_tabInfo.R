@@ -41,7 +41,9 @@ Go_tabInfo <- function(ASVs_Tab=NA,
                        Alpha_divTab=NA,
                        Alpha_div_LmerTab=NA,
                        RNAseq=NA,
+                       HumannTab=NA,
                        Tab1=NA,
+                       Tab2=NA,
                        PermanovaTab=NA) {
   # Helper function to check if all elements are NA
   all_na <- function(x) {
@@ -49,7 +51,7 @@ Go_tabInfo <- function(ASVs_Tab=NA,
   }
 
   # Check if all arguments are missing and print options if they are
-  if (all_na(ASVs_Tab) && all_na(Tract_Tab) && all_na(Alpha_divTab) && all_na(Alpha_div_LmerTab) &&
+  if (all_na(ASVs_Tab) && all_na(Tract_Tab) && all_na(Alpha_divTab) && all_na(Alpha_div_LmerTab) &&  all_na(HumannTab) &&
       all_na(PermanovaTab) && all_na(RNAseq) && all_na(Tab1)) {
     cat(
       "ASVs_Tab: Add the location of the ASVs table. \n",
@@ -61,25 +63,40 @@ Go_tabInfo <- function(ASVs_Tab=NA,
   }
 
   # Using safely read.csv to handle potential read errors or empty paths
-  safely_read_csv <- function(path) {
-    if (!is.null(path) && !all(is.na(path))) {
-      tryCatch({
-        read.csv(path, row.names=1, check.names=FALSE)
+  safely_read_table <- function(path) {
+    if (!is.null(path) && !all(is.na(path)) && nzchar(path)) {
+      ext <- tolower(tools::file_ext(path))
+      cat("[DEBUG] ext = ", ext, "\n")
+
+      result <- tryCatch({
+        if (ext %in% c("txt", "tsv", "tab")) {
+          cat("[DEBUG] -> read.delim() branch\n")
+          read.delim(path, header = TRUE, sep = "\t", row.names = 1, check.names = FALSE)
+        } else {
+          cat("[DEBUG] -> read.csv() branch\n")
+          read.csv(path, header = TRUE, row.names = 1, check.names = FALSE)
+        }
       }, error = function(e) {
-        NULL  # return NULL if there's an error reading the file
+        cat("[ERROR]", e$message, "\n")
+        NULL
       })
+      return(result)
     } else {
-      NULL  # return NULL if path is NA or an empty string
+      cat("[DEBUG] path is invalid\n")
+      return(NULL)
     }
   }
 
+
   return(list(
-    asvs = lapply(ASVs_Tab, safely_read_csv),
-    otherTab = lapply(Other_Tab, safely_read_csv),
-    track = safely_read_csv(Tract_Tab),
-    rnaseq = safely_read_csv(RNAseq),
-    tab1 = safely_read_csv(Tab1),
-    adiv = lapply(Alpha_divTab, safely_read_csv),
+    asvs = lapply(ASVs_Tab, safely_read_table),
+    otherTab = lapply(Other_Tab, safely_read_table),
+    track = safely_read_table(Tract_Tab),
+    rnaseq = safely_read_table(RNAseq),
+    humanntab = safely_read_table(HumannTab),
+    tab1 = safely_read_table(Tab1),
+    tab2 = safely_read_table(Tab2),
+    adiv = lapply(Alpha_divTab, safely_read_table),
     lmer.tab = Alpha_div_LmerTab,
     Permanova = PermanovaTab
   ))
