@@ -288,7 +288,7 @@ Go_extendedBarplot <- function(psIN,
 
 
 
-  pdf(sprintf("%s/extended_error_barplot.(%s.%s).%s.%s%s.pdf", out_path,
+  pdf(sprintf("%s/extended_error_barplot.(%s.vs.%s).%s.%s%s.pdf", out_path,
               group1,
               group2,
               project,
