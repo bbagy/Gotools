@@ -11,7 +11,9 @@ Go_tabInfo(
   Alpha_divTab = NA,
   Alpha_div_LmerTab = NA,
   RNAseq = NA,
+  HumannTab = NA,
   Tab1 = NA,
+  Tab2 = NA,
   PermanovaTab = NA
 )
 }
