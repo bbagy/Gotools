@@ -10,6 +10,7 @@ Go_imgInfo(
   Barchart = NA,
   Bac.heatmap = NA,
   RNAseq.heatmap = NA,
+  HumannHeatmap = NA,
   Adivplot = NA,
   Foreplot = NA,
   Bdivplot = NA,
