@@ -82,11 +82,14 @@ Go_network <- function(
   # 패키지 설치 (설치되어 있지 않은 경우)
   if (!requireNamespace("purrr", quietly = TRUE)) install.packages("purrr")
   if (!requireNamespace("igraph", quietly = TRUE)) install.packages("igraph")
-  library(igraph)
+  if (!requireNamespace("RColorBrewer", quietly = TRUE)) install.packages("RColorBrewer")  ### [추가]
 
+  library(igraph)
   library(purrr)
   library(dplyr)
   library(reshape2)
+  library(RColorBrewer)  ### [추가]
+
 
   # 데이터 처리 및 전치(transpose) 함수 정의
   process_table <- function(tab) {
@@ -363,16 +366,59 @@ Go_network <- function(
     print("No loops found in the network.")
   }
 
-  # 노드 타입별 색상 매핑 (유연하게 변경 가능)
-  color_mapping <- setNames(
-    c("deepskyblue", "yellow", "green", "gray"),  # 색상 목록
-    c(tab1_name, tab2_name, tab3_name, "Unknown") # 실제 타입명
-  )
+  #------------------------------------------------------------------------------------#
+  # [추가] tab1만 존재할 때 => Genus별 색상 적용 (sub("[_\\.].*", "", ...) 사용)
+  #------------------------------------------------------------------------------------#
+  if (!is.null(tab1) && is.null(tab2) && is.null(tab3)) {
+    # 1) Genus 이름 추출: 첫 번째 '_' 또는 '.' 전까지를 Genus로 인식
+    all_bacteria_tab1 <- colnames(tab1)
+    genus_names <- sub("[_\\.].*", "", all_bacteria_tab1)  ### [중요 수정]
+    genus_names <- sub("[ _.].*", "", all_bacteria_tab1)
+    unique_genera <- unique(genus_names)
+    num_genera <- length(unique_genera)
 
-  # 노드 색상 할당 (유연한 설정)
-  node_colors <- sapply(V(network)$Type, function(type) {
-    color_mapping[[type]] %||% "gray"  # 해당 타입이 없으면 기본값(gray) 사용
-  })
+    # 2) Genus별로 색상 생성 (최대 9개 이상이면 colorRampPalette로 확장)
+    if (num_genera > 9) {
+      genus_colors <- setNames(colorRampPalette(brewer.pal(9, "Set1"))(num_genera),
+                               unique_genera)
+    } else {
+      genus_colors <- setNames(brewer.pal(num_genera, "Set1"), unique_genera)
+    }
+
+    # 3) 네트워크 노드별 Genus 매핑
+    #    (V(network)$name과 tab1의 colnames를 match)
+    V(network)$Genus <- genus_names[match(V(network)$name, all_bacteria_tab1)]
+    node_colors <- sapply(V(network)$Genus, function(genus) genus_colors[[genus]] %||% "gray")
+
+    # 4) 범례 설정 (Genus Groups)
+    legend_labels <- unique_genera
+    legend_colors <- genus_colors[legend_labels]
+    legend_title <- "Genus Groups"
+
+  } else {
+    #----------------------------------------------------------------------------------#
+    # [기존 코드] 노드 타입별 색상 매핑 (유연하게 변경 가능)
+    #----------------------------------------------------------------------------------#
+    color_mapping <- setNames(
+      c("deepskyblue", "yellow", "green", "gray"),  # 색상 목록
+      c(tab1_name, tab2_name, tab3_name, "Unknown") # 실제 타입명
+    )
+
+    # 노드 색상 할당 (유연한 설정)
+    node_colors <- sapply(V(network)$Type, function(type) {
+      color_mapping[[type]] %||% "gray"  # 해당 타입이 없으면 기본값(gray) 사용
+    })
+
+    # legend 설정 (기존 Node Types)
+    used_types <- unique(V(network)$Type)
+    legend_labels <- used_types[used_types %in% names(color_mapping)]
+    if (length(legend_labels) == 0) legend_labels <- "Unknown"
+    legend_colors <- sapply(legend_labels, function(type) color_mapping[[type]] %||% "gray")
+    legend_title <- "Node Types"
+  }
+  #------------------------------------------------------------------------------------#
+  # [추가/수정 끝]
+  #------------------------------------------------------------------------------------#
 
 
   # out dir
@@ -423,11 +469,6 @@ Go_network <- function(
        main = sprintf("%s-%s Group Network (%s)", mainGroup, subgroup,sigval))
 
 
-  used_types <- unique(V(network)$Type)
-  legend_labels <- used_types[used_types %in% names(color_mapping)]
-  legend_colors <- sapply(legend_labels, function(type) color_mapping[[type]] %||% "gray")
-
-
   # 범례 (legend) 동적 생성
   legend("bottomright",
          legend = legend_labels,
@@ -435,7 +476,7 @@ Go_network <- function(
          pch = 19,
          pt.cex = 1.5,
          bty = "n",
-         title = "Node Types")
+         title = legend_title)
 
   legend("bottomleft",
          legend = c("Positive Correlation", "Negative Correlation"),
@@ -461,10 +502,6 @@ Go_network <- function(
            title = sprintf("%s Significance",signame))
   }
 
-
-
-
-
   dev.off()
   #=== Centrality (중심성) 노드 찾기
   degree_values <- degree(network)
@@ -489,5 +526,3 @@ Go_network <- function(
   write.csv(sorted_centrality,sprintf("%s/%s.%s.sorted_centrality.csv",out_network,mainGroup,sig))
 
 }
-
-
