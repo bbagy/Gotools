@@ -77,7 +77,6 @@ Go_network <- function(
 ) {
 
   library(dplyr)
-
   library(ggplot2)
   # 패키지 설치 (설치되어 있지 않은 경우)
   if (!requireNamespace("purrr", quietly = TRUE)) install.packages("purrr")
@@ -100,7 +99,7 @@ Go_network <- function(
     if ("Species" %in% colnames(tab)) {
       tab$names <- paste(tab$Species, tab$RowSum, sep = "_")
     } else {
-      tab$names <- paste("Unknown", tab$RowSum, sep = "_")  # Species가 없을 경우 대비
+      tab$names <- rownames(tab) # Species가 없을 경우 대비
     }
 
     # rownames을 위에서 생성한 새로운 이름으로 설정
@@ -123,8 +122,22 @@ Go_network <- function(
   # 데이터 로드 함수
   read_and_process <- function(file_path) {
     if (!is.null(file_path) && file.exists(file_path)) {
-      tab <- read.csv(file_path, row.names = 1, check.names = FALSE)
-      return(process_table(tab))  # 전처리 및 전치 포함
+      # (1) 불완전한 CSV 파일 대응 + 경고 방지
+      tab <- suppressWarnings(
+        read.csv(file_path, row.names = 1, check.names = FALSE, fill = TRUE, strip.white = TRUE)
+      )
+
+      # (2) 파일이 비어 있는 경우 NULL 반환
+      if (nrow(tab) == 0 || ncol(tab) == 0) {
+        warning(sprintf("⚠️ Warning: %s is empty or malformed. Returning NULL.", file_path))
+        return(NULL)
+      }
+
+      # (3) 컬럼명에서 "A" 제거
+      colnames(tab) <- gsub("A", "", colnames(tab))
+
+      # (4) 데이터 전처리 및 전치
+      return(process_table(tab))
     } else {
       return(NULL)
     }
@@ -160,8 +173,16 @@ Go_network <- function(
 
   # 병합 수행 (tab1은 필수, tab2, tab3는 있는 경우만 추가)
   merged_table.1 <- tab1
-  if (!is.null(tab2)) merged_table.1 <- merge(merged_table.1, tab2, by = "row.names", all = TRUE)
-  if (!is.null(tab3)) merged_table.1 <- merge(merged_table.1, tab3, by = "Row.names", all = TRUE)
+
+  if (!is.null(tab2)) {
+    merged_table.1 <- merge(merged_table.1, tab2, by = "row.names", all = TRUE)
+  }
+
+  if (!is.null(tab3)) {
+    tab3 <- as.data.frame(tab3)
+    tab3$Row.names <- rownames(tab3)
+    merged_table.1 <- merge(merged_table.1, tab3, by = "Row.names", all = TRUE)
+  }
 
   # sampledata 병합
   sampledata$Row.names <- rownames(sampledata)
