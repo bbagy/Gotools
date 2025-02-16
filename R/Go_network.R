@@ -238,16 +238,16 @@ Go_network <- function(
 
   # 데이터 필터링
   data <- final_merged_table %>%
-    filter(!!sym(mainGroup) == subgroup) %>%  # mainGroup 변수 사용하여 동적으로 필터링
-    select(-all_of(mainGroup), -Row.names)
+    dplyr::filter(!!sym(mainGroup) == subgroup) %>%  # mainGroup 변수 사용하여 동적으로 필터링
+    dplyr::select(-all_of(mainGroup), -Row.names)
 
   # 문자열을 숫자로 변환
   data <- data %>%
-    mutate(across(everything(), ~ as.numeric(trimws(.))))
+    dplyr::mutate(across(everything(), ~ as.numeric(trimws(.))))
 
   # (2) 중복된 `.x`, `.y` 컬럼 정리
   data_clean <- data %>%
-    select(-matches("\\.y$"))  # ".y"로 끝나는 중복 컬럼 제거
+    dplyr::select(-matches("\\.y$"))  # ".y"로 끝나는 중복 컬럼 제거
   colnames(data_clean) <- gsub("\\.x$", "", colnames(data_clean))  # ".x" 삭제하여 컬럼명 정리
 
 
@@ -257,24 +257,24 @@ Go_network <- function(
   #===== Run
   #=== Step 2: 상관관계 및 p-value 계산 ===#
   cor_results <- expand.grid(Source = colnames(data), Target = colnames(data)) %>%
-    filter(Source != Target) %>%
+    dplyr::filter(Source != Target) %>%
     rowwise() %>%
-    mutate(
+    dplyr::mutate(
       test_result = list(cor.test(data[[Source]], data[[Target]], method = "kendall", use = "pairwise.complete.obs")),
       Correlation = test_result$estimate,
       p_value = test_result$p.value
     ) %>%
     ungroup() %>%
-    mutate(q_value = p.adjust(p_value, method = "fdr")) %>%  # FDR 보정
-    select(Source, Target, Correlation, p_value, q_value)
+    dplyr::mutate(q_value = p.adjust(p_value, method = "fdr")) %>%  # FDR 보정
+    dplyr::select(Source, Target, Correlation, p_value, q_value)
 
   #=== Step 3: edge 데이터 생성 (p-value 적용) ===#
 
   if (!is.null(qval_threshold)) {
     # FDR (q-value) 기준 필터링
     edges <- cor_results %>%
-      filter(abs(Correlation) > cutoff & q_value < qval_threshold) %>%
-      select(Source, Target, Correlation, p_value, q_value)
+      dplyr::filter(abs(Correlation) > cutoff & q_value < qval_threshold) %>%
+      dplyr::select(Source, Target, Correlation, p_value, q_value)
     sig <- "FDR"
     sigval <- "FDR < 0.05"
     print(sig)
@@ -282,8 +282,8 @@ Go_network <- function(
   } else if (!is.null(pval_threshold)) {
     # p-value 기준 필터링
     edges <- cor_results %>%
-      filter(abs(Correlation) > cutoff & p_value < pval_threshold) %>%
-      select(Source, Target, Correlation, p_value, q_value)
+      dplyr::filter(abs(Correlation) > cutoff & p_value < pval_threshold) %>%
+      dplyr::select(Source, Target, Correlation, p_value, q_value)
     sig <- "p"
     sigval <- "p < 0.05"
     print(sig)
@@ -291,7 +291,7 @@ Go_network <- function(
   } else {
     # 필터링 없이 모든 관계 포함
     edges <- cor_results %>%
-      filter(abs(Correlation) > cutoff)
+      dplyr::filter(abs(Correlation) > cutoff)
     sig <- "p_FDR"
     signame <-"FDR"
     sigval <- "FDR Highlighted"
@@ -300,11 +300,11 @@ Go_network <- function(
 
   # 중복 엣지 제거
   edges_unique <- edges %>%
-    mutate(pair = pmap_chr(list(Source, Target), ~ paste(sort(c(.x, .y)), collapse = "-"))) %>%
-    group_by(pair) %>%
+    dplyr::mutate(pair = pmap_chr(list(Source, Target), ~ paste(sort(c(.x, .y)), collapse = "-"))) %>%
+    dplyr::group_by(pair) %>%
     #slice(1) %>%
-    ungroup() %>%
-    select(Source, Target, Correlation, p_value, q_value)  # p_value 포함
+    dplyr::ungroup() %>%
+    dplyr::select(Source, Target, Correlation, p_value, q_value)  # p_value 포함
 
   #=== Step 4: node 데이터 생성 ===#
   all_nodes <- unique(c(edges_unique$Source, edges_unique$Target))
@@ -334,7 +334,7 @@ Go_network <- function(
   #=== Replacing Node names ad number
   # (1) edges_unique에 등장하는 세균만 선택하여 bacteria_map 생성
   bacteria_map_filtered <- bacteria_map %>%
-    filter(Bacteria %in% unique(c(edges_unique$Source, edges_unique$Target)))
+    dplyr::filter(Bacteria %in% unique(c(edges_unique$Source, edges_unique$Target)))
 
 
   # (2) Source & Target을 ID로 변환
