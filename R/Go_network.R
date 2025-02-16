@@ -218,12 +218,6 @@ Go_network <- function(
 
 
 
-
-
-
-
-
-
   # (3) 유일한 세균 리스트 생성
   all_bacteria <- colnames(tab1)  # tab1은 항상 존재
 
@@ -456,7 +450,7 @@ Go_network <- function(
   # 네트워크 시각화
   if (!is.null(dev.list())) dev.off()
 
-  pdf(sprintf("%s/network.%s.%s.(%s).%s.%s.%s%s.pdf",  out_pdf, mainGroup,subgroup, cutoff,sig,
+  pdf(sprintf("%s/network.%s.%s.(%s).%s.%s.%s%s%s%s%s.pdf",  out_pdf, mainGroup,subgroup, cutoff,sig,
               ifelse(node_names, "IDs", "Names"),
               ifelse(is.null(tab1_name), "", paste(tab1_name, ".", sep = "")),
               ifelse(is.null(tab2_name), "", paste(tab2_name, ".", sep = "")),
