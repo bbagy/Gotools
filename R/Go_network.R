@@ -437,6 +437,9 @@ Go_network <- function(
 
   pdf(sprintf("%s/network.%s.%s.(%s).%s.%s.%s%s.pdf",  out_pdf, mainGroup,subgroup, cutoff,sig,
               ifelse(node_names, "IDs", "Names"),
+              ifelse(is.null(tab1_name), "", paste(tab1_name, ".", sep = "")),
+              ifelse(is.null(tab2_name), "", paste(tab2_name, ".", sep = "")),
+              ifelse(is.null(tab3_name), "", paste(tab3_name, ".", sep = "")),
               ifelse(is.null(name), "", paste(name, ".", sep = "")),
               format(Sys.Date(), "%y%m%d")), width = width, height = height)
 
