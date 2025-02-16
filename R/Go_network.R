@@ -98,6 +98,7 @@ Go_network <- function(
     # Species와 RowSum을 조합하여 새로운 이름 생성
     if ("Species" %in% colnames(tab)) {
       tab$names <- paste(tab$Species, tab$RowSum, sep = "_")
+      tab$names <- make.unique(tab$names)
     } else {
       tab$names <- rownames(tab) # Species가 없을 경우 대비
     }
