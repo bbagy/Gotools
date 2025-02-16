@@ -98,81 +98,68 @@ Go_network <- function(
     # Species와 RowSum을 조합하여 새로운 이름 생성
     if ("Species" %in% colnames(tab)) {
       tab$names <- paste(tab$Species, tab$RowSum, sep = "_")
-      tab$names <- make.unique(tab$names)
+      tab$names <- make.unique(tab$names)  # 중복 방지
     } else {
-      tab$names <- rownames(tab) # Species가 없을 경우 대비
+      tab$names <- rownames(tab)  # Species가 없을 경우 기존 rownames 유지
     }
 
-    # rownames을 위에서 생성한 새로운 이름으로 설정
-    rownames(tab) <- tab$names
+    # rownames 설정 및 특수문자 제거
+    rownames(tab) <- gsub("\\[|\\]", "", tab$names)
 
-    # rownames에서 '['와 ']' 제거
-    rownames(tab) <- gsub("\\[", "", gsub("\\]", "", rownames(tab)))
-
-    # 특정 taxonomic rank 컬럼 제거 (존재하는 경우에만 삭제)
+    # 특정 taxonomic rank 컬럼 제거 (존재하는 경우만 삭제)
     for (rank in c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "RowSum", "names")) {
       if (rank %in% colnames(tab)) {
         tab[, rank] <- NULL
       }
     }
 
-    # 데이터 전치 (transpose) 후 반환
-    return(t(tab))
+    # 데이터 전치 후 데이터프레임으로 반환
+    return(as.data.frame(t(tab), stringsAsFactors = FALSE))
   }
 
-  # 데이터 로드 함수
+  # 📌 데이터 로드 함수 (파일 존재 여부 및 공백 처리)
   read_and_process <- function(file_path) {
     if (!is.null(file_path) && file.exists(file_path)) {
-      # (1) 불완전한 CSV 파일 대응 + 경고 방지
       tab <- suppressWarnings(
         read.csv(file_path, row.names = 1, check.names = FALSE, fill = TRUE, strip.white = TRUE)
       )
 
-      # (2) 파일이 비어 있는 경우 NULL 반환
+      # 비어있는 경우 NULL 반환
       if (nrow(tab) == 0 || ncol(tab) == 0) {
         warning(sprintf("⚠️ Warning: %s is empty or malformed. Returning NULL.", file_path))
         return(NULL)
       }
 
-      # (3) 컬럼명에서 "A" 제거
-      colnames(tab) <- gsub("A", "", colnames(tab))
-
-      # (4) 데이터 전처리 및 전치
+      # 데이터 처리 및 전치
       return(process_table(tab))
     } else {
       return(NULL)
     }
   }
 
-  # tab1은 반드시 존재해야 함
+  # 📌 tab1 (필수), tab2, tab3 로드
   tab1 <- read_and_process(tab1_path)
-  sampledata <- read.csv(Sampledata, row.names = 1, check.names = FALSE)
+  if (is.null(tab1)) stop("❌ tab1 파일이 존재하지 않습니다.")
 
-  if (is.null(tab1)) stop("tab1 파일이 존재하지 않습니다.")
-
-  # tab2와 tab3는 선택적으로 로드
   tab2 <- read_and_process(tab2_path)
   tab3 <- read_and_process(tab3_path)
 
-  # 공통 샘플 찾기
+  # 📌 sampledata 로드
+  sampledata <- read.csv(Sampledata, row.names = 1, check.names = FALSE)
+
+  # 📌 공통 샘플 찾기 (sampledata까지 포함)
   common_samples <- rownames(tab1)
   if (!is.null(tab2)) common_samples <- intersect(common_samples, rownames(tab2))
   if (!is.null(tab3)) common_samples <- intersect(common_samples, rownames(tab3))
+  common_samples <- intersect(common_samples, rownames(sampledata))  # sampledata 포함
 
-  # sampledata 존재 여부 확인
-  if (exists("sampledata") && !is.null(sampledata)) {
-    common_samples <- intersect(common_samples, rownames(sampledata))
-    sampledata <- sampledata[common_samples, , drop = FALSE]
-  } else {
-    stop("sampledata가 존재하지 않습니다.")
-  }
-
-  # 공통 샘플 유지
+  # 📌 공통 샘플 유지
   tab1 <- tab1[common_samples, , drop = FALSE]
   if (!is.null(tab2)) tab2 <- tab2[common_samples, , drop = FALSE]
   if (!is.null(tab3)) tab3 <- tab3[common_samples, , drop = FALSE]
+  sampledata <- sampledata[common_samples, , drop = FALSE]  # sampledata도 동일 적용
 
-  # 병합 수행 (tab1은 필수, tab2, tab3는 있는 경우만 추가)
+  # 📌 병합 수행 (tab1은 필수, tab2, tab3는 있는 경우만 추가)
   merged_table.1 <- tab1
 
   if (!is.null(tab2)) {
@@ -185,38 +172,22 @@ Go_network <- function(
     merged_table.1 <- merge(merged_table.1, tab3, by = "Row.names", all = TRUE)
   }
 
-  # sampledata 병합
+  # 📌 sampledata 병합
   sampledata$Row.names <- rownames(sampledata)
-  #final_merged_table <- merge(merged_table.1, sampledata[, c("Row.names", mainGroup)], by = "Row.names", all = TRUE)
-
-
 
   # `merged_table.1`의 rownames를 "Row.names" 컬럼으로 변환 (병합을 위해 필요)
   if (!"Row.names" %in% colnames(merged_table.1)) {
     merged_table.1 <- data.frame(Row.names = rownames(merged_table.1), merged_table.1, check.names = FALSE)
   }
 
-  # `sampledata`가 존재하는 경우에만 병합 진행
-  if (exists("sampledata") && !is.null(sampledata)) {
+  # 📌 최종 병합 (sampledata는 필수)
+  final_merged_table <- merge(merged_table.1, sampledata[, c("Row.names", mainGroup)], by = "Row.names", all = TRUE)
 
-    # `sampledata`에 "Row.names" 컬럼이 없으면 rownames로 생성
-    if (!"Row.names" %in% colnames(sampledata)) {
-      sampledata <- data.frame(Row.names = rownames(sampledata), sampledata, check.names = FALSE)
-    }
+  # 📌 최종 공통 샘플 유지
+  final_merged_table <- final_merged_table[final_merged_table$Row.names %in% common_samples, , drop = FALSE]
 
-    # 병합 수행 (두 데이터프레임 모두 "Row.names"이 존재함)
-    final_merged_table <- merge(merged_table.1, sampledata[, c("Row.names", mainGroup)],
-                                by = "Row.names", all = TRUE)
 
-  } else {
-    warning("⚠️ sampledata가 존재하지 않거나 'Row.names' 컬럼이 없습니다. 병합을 건너뜁니다.")
-    final_merged_table <- merged_table.1  # 병합하지 않고 원본 유지
-  }
-
-  # 병합 후 rownames 복원
   rownames(final_merged_table) <- final_merged_table$Row.names
-  final_merged_table$Row.names <- NULL  # 불필요한 컬럼 제거
-
 
 
   # (3) 유일한 세균 리스트 생성
@@ -240,19 +211,12 @@ Go_network <- function(
   }
 
 
-
-
   # (6) 최종 결과 확인
   # cat("\n✅ Global Map 생성 완료: 총", nrow(global_bacteria_map), "개의 세균이 포함됨 ✅\n")
   # print(global_bacteria_map)
   global_bacteria_map
 
   bacteria_map <- global_bacteria_map
-
-  final_merged_table <- merge(merged_table.1, sampledata[, c("Row.names", mainGroup)], by = "Row.names", all = TRUE)
-
-
-
 
 
   # 데이터 필터링
@@ -512,7 +476,7 @@ Go_network <- function(
     print("replacing node names as number")
   }
 
-  if (sig == "All"){
+  if (sig == "p_FDR"){
     legend("topright",
            legend = c(sprintf("%s < 0.05",signame), sprintf("%s ≥ 0.05",signame)),
            lty = c(1, 2),
