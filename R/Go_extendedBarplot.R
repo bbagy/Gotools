@@ -125,6 +125,9 @@ Go_extendedBarplot <- function(psIN,
   } else if(func == "EC"){
     func1 <- "KO"
     func2 <- "EC"
+  }else if(func == "ec_number"){
+    func1 <- "KO"
+    func2 <- "ec_number"
   }
 
   # Function to perform Wilcoxon tests with dynamic group names
