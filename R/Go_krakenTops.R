@@ -47,19 +47,39 @@ Go_krakenTops <- function(project,
 
   data <- L7[, setdiff(1:ncol(L7), grep(".Bacterial.kraken.1", colnames(L7)))]
 
-  tt <- try(colnames(data) <- gsub("_mpa", "", gsub("_out.txt", "", colnames(data))),T)
+  # 데이터 정리 시도
+  tt <- try({
+    if (any(grepl("_mpa|_out.txt|_metaphlan_bugs_list", colnames(data)))) {
+      colnames(data) <- gsub("_mpa", "", colnames(data))
+      colnames(data) <- gsub("_out.txt", "", colnames(data))
+      colnames(data) <- gsub("_metaphlan_bugs_list", "", colnames(data))
+    }
 
-  if(class(tt) =="try-error"){
-    colnames(L7) <- gsub("_mpa", "", gsub("_out.txt", "", colnames(L7)));colnames(L7)
+    if (any(grepl("^X", colnames(data)))) {
+      colnames(data) <- gsub("^X", "", colnames(data))
+    }
+  }, silent = TRUE)
+
+  # 오류 발생 시 대체 데이터(L7) 활용
+  if (inherits(tt, "try-error")) {
+    if (any(grepl("_mpa|_out.txt|_metaphlan_bugs_list", colnames(L7)))) {
+      colnames(L7) <- gsub("_mpa", "", colnames(L7))
+      colnames(L7) <- gsub("_out.txt", "", colnames(L7))
+      colnames(L7) <- gsub("_metaphlan_bugs_list", "", colnames(L7))
+    }
+
+    if (any(grepl("^X", colnames(L7)))) {
+      colnames(L7) <- gsub("^X", "", colnames(L7))
+    }
+
     rownames(L7) <- gsub("\\|", ";", rownames(L7))
-    colnames(L7) <-  gsub("X", "", colnames(L7));head(colnames(L7))
     data <- L7
-  }else{
-    colnames(data) <- gsub("_mpa", "", gsub("_out.txt", "", colnames(data)));colnames(data)
+  } else {
     rownames(data) <- gsub("\\|", ";", rownames(data))
-    colnames(data) <-  gsub("X", "", colnames(data));head(colnames(data))
   }
 
+  # 최종 컬럼명 확인
+  head(colnames(data))
 
 
 
