@@ -67,6 +67,30 @@ Go_Ancom2 <- function(psIN,  project,
 
   mapping <- data.frame(sample_data(psIN))
 
+  # recognizing reltive and absolute
+  detect_abundance_type <- function(physeq) {
+    lib_sizes <- sample_sums(physeq)  # 각 샘플별 총 read 수 계산
+    mean_lib <- mean(lib_sizes)  # 평균 read 수 계산
+
+    if (abs(mean_lib - 100) < 0.1) {  # 평균 값이 100에 가까우면 relative abundance로 판단
+      return("relative")
+    } else if (mean_lib > 1000) {
+      return("absolute")  # 평균 reads가 1000 이상이면 absolute count
+    } else {
+      return("unknown")  # 불확실한 경우
+    }
+  }
+
+  # 사용
+  abundance_type <- detect_abundance_type(psIN)
+
+
+  if (abundance_type == "relative"){
+    total_reads <- median(sample_sums(psIN))  # 샘플당 median read count 추정
+    otu_table(psIN) <- otu_table(psIN) * total_reads  # relative abundance → count 변환
+    print("The table is based on relative abundant.")
+  }
+
 
   # get data tyep
   print("Check the data type")
@@ -205,29 +229,6 @@ Go_Ancom2 <- function(psIN,  project,
     taxanames <- NULL
 
 
-    # recognizing reltive and absolute
-    detect_abundance_type <- function(physeq) {
-      lib_sizes <- sample_sums(physeq)  # 각 샘플별 총 read 수 계산
-      mean_lib <- mean(lib_sizes)  # 평균 read 수 계산
-
-      if (abs(mean_lib - 100) < 0.1) {  # 평균 값이 100에 가까우면 relative abundance로 판단
-        return("relative")
-      } else if (mean_lib > 1000) {
-        return("absolute")  # 평균 reads가 1000 이상이면 absolute count
-      } else {
-        return("unknown")  # 불확실한 경우
-      }
-    }
-
-    # 사용
-    abundance_type <- detect_abundance_type(psIN)
-
-
-    if (abundance_type == "relative"){
-      total_reads <- median(sample_sums(psIN.cb))  # 샘플당 median read count 추정
-      otu_table(psIN.cb) <- otu_table(psIN.cb) * total_reads  # relative abundance → count 변환
-      print("The table is based on relative abundant.")
-    }
 
 
     # ancombc2 실행 함수
@@ -250,6 +251,7 @@ Go_Ancom2 <- function(psIN,  project,
 
     # ancombc2 실행 및 에러 처리
     tt <- try(ancom.out <- run_ancombc2(psIN.cb, fixed_formula, mvar, rand_formula, taxanames), TRUE)
+
 
     if (class(tt) == "try-error") {
       # 샘플 0인 ASV 제거
