@@ -256,6 +256,12 @@ Go_extendedBarplot <- function(psIN,
 
   merged_data.sig <- subset(merged_data, p_value < wilcox.p);dim(merged_data.sig)
 
+
+
+  merged_data.sig[mvar] <- factor(merged_data.sig[[mvar]] , levels = c(group1, group2))
+
+
+
   # Plotting
   p <- ggplot(merged_data.sig, aes_string(x = "Reordered_Category", y = "Mean_Abundance", fill = mvar))
 
