@@ -204,6 +204,31 @@ Go_Ancom2 <- function(psIN,  project,
     # tax_level 변수 설정
     taxanames <- NULL
 
+
+    # recognizing reltive and absolute
+    detect_abundance_type <- function(physeq) {
+      lib_sizes <- sample_sums(physeq)  # 각 샘플별 총 read 수 계산
+      mean_lib <- mean(lib_sizes)  # 평균 read 수 계산
+
+      if (all(lib_sizes < 2 & lib_sizes > 0)) {
+        return("relative")  # 샘플별 총합이 1 근처이면 relative abundance
+      } else if (mean_lib > 1000) {
+        return("absolute")  # 평균 reads가 1000 이상이면 absolute count
+      } else {
+        return("unknown")  # 불확실한 경우
+      }
+    }
+
+    # 사용 예제
+    abundance_type <- detect_abundance_type(psIN)
+
+
+    if (abundance_type == "relative"){
+      total_reads <- median(sample_sums(psIN.cb))  # 샘플당 median read count 추정
+      otu_table(psIN.cb) <- otu_table(psIN.cb) * total_reads  # relative abundance → count 변환
+    }
+
+
     # ancombc2 실행 함수
     run_ancombc2 <- function(data, fixed_formula, mvar, rand_formula, taxanames) {
       ancombc2(
