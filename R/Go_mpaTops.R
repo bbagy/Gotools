@@ -22,7 +22,7 @@
 #' @export
 
 
-Go_krakenTops <- function(project,
+Go_mpaTops <- function(project,
                           mpa,
                           kingdom = "d__Bacteria"){
 

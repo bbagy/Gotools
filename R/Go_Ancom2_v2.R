@@ -219,7 +219,7 @@ Go_Ancom2 <- function(psIN,  project,
       }
     }
 
-    # 사용 예제
+    # 사용
     abundance_type <- detect_abundance_type(psIN)
 
 
