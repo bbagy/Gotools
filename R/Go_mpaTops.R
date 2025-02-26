@@ -23,8 +23,8 @@
 
 
 Go_mpaTops <- function(project,
-                          mpa,
-                          kingdom = "d__Bacteria"){
+                       mpa,
+                       kingdom = "d__Bacteria") {
 
   print(sprintf("Currently kingdom is %s", kingdom))
   rds <- file.path(sprintf("%s", "2_rds"))
@@ -89,8 +89,17 @@ Go_mpaTops <- function(project,
   }
 
   # Taxonomic Rank 정리
-  ranklist <- c("Rank1", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Strain")
-  taxlist <- lapply(rownames(data), function(x) parse_taxonomy_qiime(x))
+  ranklist <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Strain")
+  taxlist <- lapply(rownames(data), function(x) {
+    parsed <- parse_taxonomy_qiime(x)
+
+    # ✅ `t__`가 존재하면 Species 다음에 Strain으로 저장
+    if ("Rank8" %in% names(parsed)) {
+      names(parsed)[which(names(parsed) == "Rank8")] <- "Strain"
+    }
+
+    return(parsed)
+  })
 
   # 데이터 프레임 변환
   taxa <- as.data.frame(matrix(NA, nrow=nrow(data), ncol=length(ranklist)))
@@ -102,6 +111,21 @@ Go_mpaTops <- function(project,
       if (length(valid_names) > 0) {
         taxa[i, valid_names] <- taxlist[[i]][valid_names]
       }
+    }
+  }
+
+  # ✅ Rank1을 항상 "Bacteria"로 설정
+  taxa$Kingdom <- "Bacteria"
+
+  # ✅ Strain 설정 (올바른 형식 유지)
+  for (i in seq_len(nrow(taxa))) {
+    # `t__`가 존재하는 경우 → "Species t__"
+    if (!is.na(taxa[i, "Strain"])) {
+      taxa[i, "Strain"] <- paste(taxa[i, "Species"], taxa[i, "Strain"])
+    }
+    # `t__`가 없는 경우 → "Species t__na"
+    else {
+      taxa[i, "Strain"] <- paste(taxa[i, "Species"], "t__na")
     }
   }
 

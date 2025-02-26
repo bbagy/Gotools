@@ -210,8 +210,8 @@ Go_Ancom2 <- function(psIN,  project,
       lib_sizes <- sample_sums(physeq)  # 각 샘플별 총 read 수 계산
       mean_lib <- mean(lib_sizes)  # 평균 read 수 계산
 
-      if (all(lib_sizes < 2 & lib_sizes > 0)) {
-        return("relative")  # 샘플별 총합이 1 근처이면 relative abundance
+      if (abs(mean_lib - 100) < 0.1) {  # 평균 값이 100에 가까우면 relative abundance로 판단
+        return("relative")
       } else if (mean_lib > 1000) {
         return("absolute")  # 평균 reads가 1000 이상이면 absolute count
       } else {
@@ -226,6 +226,7 @@ Go_Ancom2 <- function(psIN,  project,
     if (abundance_type == "relative"){
       total_reads <- median(sample_sums(psIN.cb))  # 샘플당 median read count 추정
       otu_table(psIN.cb) <- otu_table(psIN.cb) * total_reads  # relative abundance → count 변환
+      print("The table is based on relative abundant.")
     }
 
 
