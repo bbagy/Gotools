@@ -145,7 +145,14 @@ Go_network <- function(
   tab3 <- read_and_process(tab3_path)
 
   # 📌 sampledata 로드
-  sampledata <- read.csv(Sampledata, row.names = 1, check.names = FALSE)
+
+  if (class(Sampledata) == "character"){
+    sampledata <- read.csv(Sampledata, row.names = 1, check.names = FALSE)
+  }else{
+    sampledata = Sampledata
+  }
+
+
 
   # 📌 공통 샘플 찾기 (sampledata까지 포함)
   common_samples <- rownames(tab1)
