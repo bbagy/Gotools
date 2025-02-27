@@ -45,7 +45,9 @@ Go_Deseq2 <- function(psIN,  project,
                       orders=NULL,
                       name=NULL){
 
-  # out dir
+  ########################################################
+  # 1. 출력 디렉토리 생성
+  ########################################################
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
@@ -53,6 +55,33 @@ Go_Deseq2 <- function(psIN,  project,
   out_DA <- file.path(sprintf("%s_%s/table/Deseq2",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_DA)) dir.create(out_DA)
 
+
+  ########################################################
+  # 2. relative vs. absolute 자동 판단 후 변환
+  ########################################################
+  detect_abundance_type <- function(physeq) {
+    lib_sizes <- sample_sums(physeq)
+    mean_lib <- mean(lib_sizes)
+    # 100 ± 0.1 → relative, 1000 초과 → absolute, 그 외 unknown
+    if (abs(mean_lib - 100) < 0.1) {
+      return("relative")
+    } else if (mean_lib > 1000) {
+      return("absolute")
+    } else {
+      return("unknown")
+    }
+  }
+
+  abundance_type <- detect_abundance_type(psIN)
+  if (abundance_type == "relative") {
+    total_reads <- median(sample_sums(psIN))
+    otu_table(psIN) <- otu_table(psIN) * total_reads
+    message(" [INFO] The table was relative. Converted to count by median read (QMP (Quantitative Microbial Profiling).")
+  } else if (abundance_type == "unknown") {
+    message(" [WARN] Abundance type unknown. Proceeding as is.")
+  } else {
+    message(" [INFO] The table is recognized as absolute count.")
+  }
 
 
   # taxa aggregate

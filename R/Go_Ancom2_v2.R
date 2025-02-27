@@ -43,316 +43,323 @@
 #'
 #' @export
 
-Go_Ancom2 <- function(psIN,  project,
+Go_Ancom2 <- function(psIN, project,
                       data_type = "other",
                       taxanames = NULL,
                       cate.outs,
-                      cate.conf=NULL,
-                      cont.conf=NULL,
-                      rand.eff=NULL,
-                      orders=NULL,
-                      name=NULL){
+                      cate.conf = NULL,
+                      cont.conf = NULL,
+                      rand.eff = NULL,
+                      orders = NULL,
+                      name = NULL){
 
-  # out dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
+  ########################################################
+  # 0. 사전 설정: 출력 제한 해제 + 병렬 비활성(필요시)
+  ########################################################
+  options(max.print = 100000, width = 10000)
+
+  # 필요하다면 병렬 비활성 (BiocParallel)
+  # library(BiocParallel)
+  # register(SerialParam())
+
+  ########################################################
+  # 1. 출력 디렉토리 생성
+  ########################################################
+  out <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
-  out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
+
+  out_path <- file.path(sprintf("%s_%s/table", project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_path)) dir.create(out_path)
-  out_DA <- file.path(sprintf("%s_%s/table/Ancom2",project, format(Sys.Date(), "%y%m%d")))
+
+  out_DA <- file.path(sprintf("%s_%s/table/Ancom2", project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_DA)) dir.create(out_DA)
-
-  #out_DA.Tab <- file.path(sprintf("%s_%s/table/Ancom2/tab",project, format(Sys.Date(), "%y%m%d")))
-  #if(!file_test("-d", out_DA.Tab)) dir.create(out_DA.Tab)
-
 
   mapping <- data.frame(sample_data(psIN))
 
-  # recognizing reltive and absolute
+  ########################################################
+  # 2. relative vs. absolute 자동 판단 후 변환
+  ########################################################
   detect_abundance_type <- function(physeq) {
-    lib_sizes <- sample_sums(physeq)  # 각 샘플별 총 read 수 계산
-    mean_lib <- mean(lib_sizes)  # 평균 read 수 계산
-
-    if (abs(mean_lib - 100) < 0.1) {  # 평균 값이 100에 가까우면 relative abundance로 판단
+    lib_sizes <- sample_sums(physeq)
+    mean_lib <- mean(lib_sizes)
+    # 100 ± 0.1 → relative, 1000 초과 → absolute, 그 외 unknown
+    if (abs(mean_lib - 100) < 0.1) {
       return("relative")
     } else if (mean_lib > 1000) {
-      return("absolute")  # 평균 reads가 1000 이상이면 absolute count
+      return("absolute")
     } else {
-      return("unknown")  # 불확실한 경우
+      return("unknown")
     }
   }
 
-  # 사용
   abundance_type <- detect_abundance_type(psIN)
-
-
-  if (abundance_type == "relative"){
-    total_reads <- median(sample_sums(psIN))  # 샘플당 median read count 추정
-    otu_table(psIN) <- otu_table(psIN) * total_reads  # relative abundance → count 변환
-    print("The table is based on relative abundant.")
+  if (abundance_type == "relative") {
+    total_reads <- median(sample_sums(psIN))
+    otu_table(psIN) <- otu_table(psIN) * total_reads
+    message(" [INFO] The table was relative. Converted to count by median read (QMP (Quantitative Microbial Profiling).")
+  } else if (abundance_type == "unknown") {
+    message(" [WARN] Abundance type unknown. Proceeding as is.")
+  } else {
+    message(" [INFO] The table is recognized as absolute count.")
   }
 
+  ########################################################
+  # 3. 너무 긴 taxa 이름 및 중복 처리
+  ########################################################
+  # (1) taxa_names(psIN) 잘라내기
+  short_names <- substr(taxa_names(psIN), 1, 100)
+  # (2) 중복 해결
+  if (any(duplicated(short_names))) {
+    short_names <- make.unique(short_names)
+  }
+  taxa_names(psIN) <- short_names
 
-  # get data tyep
-  print("Check the data type")
-  taxtab.col <- colnames(data.frame((tax_table(psIN))))
+  # tax_table() 내용도 너무 길면 잘라내기
+  tax_table(psIN) <- apply(tax_table(psIN), 2, function(x) substr(x, 1, 50))
+
+  ########################################################
+  # 4. 데이터 타입 인식 (taxonomy, KEGG, RNA 등)
+  ########################################################
+  taxtab.col <- colnames(data.frame(tax_table(psIN)))
 
   if (any(grepl("Species", taxtab.col))){
-    taxaTab <- data.frame(tax_table(psIN)[,"Species"])
     type <- "taxonomy"
-    print(type)
-  }else if(any(grepl("KO", taxtab.col))){
-    taxaTab <- data.frame(tax_table(psIN)[,"KO"])
+    message(" [INFO] Data type = taxonomy")
+  } else if (any(grepl("KO", taxtab.col))){
     type <- "kegg"
-    print(type)
-  }else if(any(grepl("pathway", taxtab.col))){
-    taxaTab <- data.frame(tax_table(psIN)[,"pathway"])
+    message(" [INFO] Data type = KEGG")
+  } else if (any(grepl("pathway", taxtab.col))){
     type <- "pathway"
-    print(type)
-  }else if(any(grepl("symbol", taxtab.col))){
-    taxaTab <- data.frame(tax_table(psIN)[,"symbol"])
+    message(" [INFO] Data type = Pathway")
+  } else if (any(grepl("symbol", taxtab.col))){
     type <- "RNAseq"
-    print(type)
+    message(" [INFO] Data type = RNAseq")
+  } else {
+    type <- "other"
+    message(" [INFO] Data type = other (default)")
   }
 
+  ########################################################
+  # 5. Zero variance ASV 제거
+  ########################################################
+  detect_zero_variance <- function(physeq) {
+    otu_mat <- as.matrix(otu_table(physeq))
+    zero_var_taxa <- apply(otu_mat, 1, function(x) var(x) == 0)
+    return(names(zero_var_taxa[zero_var_taxa]))
+  }
 
+  remove_zero_variance <- function(physeq) {
+    zero_var_taxa <- detect_zero_variance(physeq)
+    if (length(zero_var_taxa) > 0) {
+      cat("Removing zero-variance taxa:\n", paste(zero_var_taxa, collapse="\n"), "\n")
+      physeq <- prune_taxa(!(taxa_names(physeq) %in% zero_var_taxa), physeq)
+    }
+    return(physeq)
+  }
 
-  # start
-  res <- {}
+  psIN <- remove_zero_variance(psIN)
+
+  ########################################################
+  # 6. Go_filter : 저빈도 ASV 필터(함수 미정 - 기존 코드에 있다고 가정)
+  ########################################################
+  # Go_filter 함수가 이미 존재한다고 가정.
+  # 이 함수는 cutoff에 따라 저빈도 ASV를 제거하는 것으로 추정.
+
+  ########################################################
+  # 7. ANCOM-BC2 실행 함수 정의
+  ########################################################
+  run_ancombc2 <- function(data, fixed_formula, mvar, rand_formula, taxanames) {
+    ancombc2(
+      data = data,
+      p_adj_method = "BH",
+      lib_cut = 1000,  # 필요시 500 등으로 조정 가능
+      fix_formula = fixed_formula,
+      rand_formula = rand_formula,
+      group = mvar,
+      tax_level = taxanames,
+      struc_zero = TRUE,
+      neg_lb = TRUE,
+      alpha = 0.05,
+      global = TRUE,
+      em_control = list(tol = 1e-5, max_iter = 100),
+      verbose = FALSE  # 불필요한 출력 줄이기
+    )
+  }
+
+  ########################################################
+  # 8. ANCOM-BC2 분석 루프 시작
+  ########################################################
+  # cate.outs: 분석할 주요 범주형 변수 리스트
   for (mvar in cate.outs) {
     if (length(unique(mapping[, mvar])) == 1) {
       next
     }
 
-    #na remove
+    # NA 제거
     mapping.sel <- data.frame(sample_data(psIN))
-    mapping.sel[mapping.sel==""] <- "NA"
-    mapping.sel.na <- mapping.sel[!is.na(mapping.sel[,mvar]), ]
-    na.count <- length(mapping.sel.na)
-    psIN.na <- prune_samples(rownames(mapping.sel[!is.na(mapping.sel[,mvar]), ]), psIN)
-    mapping.sel.na.rem <- data.frame(sample_data(psIN.na ))
+    mapping.sel[mapping.sel == ""] <- "NA"
+    mapping.sel.na <- mapping.sel[!is.na(mapping.sel[, mvar]), ]
+    psIN.na <- prune_samples(rownames(mapping.sel[!is.na(mapping.sel[, mvar]), ]), psIN)
+    mapping.sel.na.rem <- data.frame(sample_data(psIN.na))
 
-    if (length(unique(mapping.sel.na.rem[,mvar])) == 1 )
-      next
+    if (length(unique(mapping.sel.na.rem[, mvar])) == 1) next
 
-   print(sprintf("##-- %s (total without NA: %s/%s) --##",
+    message(sprintf("##-- %s (total without NA: %s/%s) --##",
                     mvar, dim(mapping.sel.na.rem)[1], dim(mapping.sel)[1]))
 
-    if (length(mapping.sel.na.rem[,mvar]) < 4){
+    if (length(mapping.sel.na.rem[, mvar]) < 4) {
+      message(sprintf(" [WARN] %s is removed because length(%s) < 4", mvar, length(mapping.sel.na.rem[,mvar])))
       next
-      print(sprintf("%s is removed because length(%s) less than 4", mvar, length(mapping.sel.na.rem[,mvar])))
     }
 
-
-
-
-    # integer control
-    if (class(mapping.sel.na.rem[,mvar]) == "character"){
-      mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
-      sample_data(psIN.na) <- mapping.sel.na.rem
-    }
-    if (class(mapping.sel.na.rem[,mvar]) == "integer" | class(mapping.sel.na.rem[,mvar]) == "numeric"){
-      mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
+    # factor 변환
+    if (class(mapping.sel.na.rem[, mvar]) == "character" ||
+        class(mapping.sel.na.rem[, mvar]) == "integer" ||
+        class(mapping.sel.na.rem[, mvar]) == "numeric") {
+      mapping.sel.na.rem[, mvar] <- factor(mapping.sel.na.rem[, mvar])
       sample_data(psIN.na) <- mapping.sel.na.rem
     }
 
-
-
-    # for changing "-" to character
-    mapping.sel[,mvar] <- gsub("V-","Vn",mapping.sel[,mvar])
-
-    # combination
-    if(!is.null(orders)){
-     mapping.sel[,mvar] <- factor(mapping.sel[,mvar], levels = intersect(orders, mapping.sel[,mvar]))
-    }else{
-     mapping.sel[,mvar] <- factor(mapping.sel[,mvar])
+    # orders 적용
+    if(!is.null(orders)) {
+      mapping.sel[, mvar] <- factor(mapping.sel[, mvar], levels = intersect(orders, mapping.sel[, mvar]))
+    } else {
+      mapping.sel[, mvar] <- factor(mapping.sel[, mvar])
     }
 
-    # mapping.sel[,mvar] <- factor(mapping.sel[,mvar])
+    # 2개씩 비교 (combn)
     cbn <- combn(x = levels(mapping.sel[,mvar]), m = 2)
+    my_comparisons <- lapply(seq_len(ncol(cbn)), function(i) cbn[, i])
 
-    my_comparisons <- {}
-    for(i in 1:ncol(cbn)){
-      x <- cbn[,i]
-      my_comparisons[[i]] <- x
-    };my_comparisons
+    # 각 쌍별 분석
+    for(i in seq_along(my_comparisons)) {
+      print(my_comparisons[i])
+      combination <- unlist(my_comparisons[i])
+      basline <- combination[1]
+      smvar <- combination[2]
 
-    # subset sample by combination
-    for(i in 1:length(my_comparisons)){
-    print(my_comparisons[i])
-    combination <- unlist(my_comparisons[i]);combination
-    basline <- combination[1]
-    smvar <- combination[2]
-
-    mapping.sel.cb <- subset(mapping.sel, mapping.sel[[mvar]] %in% c(basline, smvar)) # phyloseq subset은 작동을 안한다.
-
-    psIN.cb <- psIN.na
-
-    sample_data(psIN.cb) <- mapping.sel.cb
+      mapping.sel.cb <- subset(mapping.sel, mapping.sel[[mvar]] %in% c(basline, smvar))
+      psIN.cb <- psIN.na
+      sample_data(psIN.cb) <- mapping.sel.cb
 
 
-    ### categorical and continuous confounder control
-    if (length(cate.conf) >= 1) {
-      for(cate in cate.conf){
-        mapping.sel.cb[,cate] <- as.factor(mapping.sel.cb[,cate])
-        sample_data(psIN.cb) <- mapping.sel.cb
+      # 5 이하라면 스킵
+      # 그룹별 샘플 수 계산
+      bas.count <- sum(mapping.sel.cb[, mvar] == basline)
+      smvar.count <- sum(mapping.sel.cb[, mvar] == smvar)
+
+      if (bas.count <= 5 || smvar.count <= 5) {
+        message(sprintf("[WARN] The sample size is unbalanced: '%s' (n=%d) vs '%s' (n=%d). Analysis may fail or be unreliable. Skipping...",
+                        basline, bas.count, smvar, smvar.count))
+        next
       }
-    }
 
-    if (length(cont.conf) >= 1) {
-      for(cont in cont.conf){
-        mapping.sel.cb[,cont] <- as.numeric(mapping.sel.cb[,cont])
-        sample_data(psIN.cb) <- mapping.sel.cb
+      ### categorical/continuous confounder
+      if (length(cate.conf) >= 1) {
+        for(cate in cate.conf){
+          mapping.sel.cb[, cate] <- as.factor(mapping.sel.cb[, cate])
+          sample_data(psIN.cb) <- mapping.sel.cb
+        }
       }
-    }
-
-    #-- ANCOM-bc for phyloseq --#
-
-    # confounder 설정 및 fixed_formula 생성
-    if (!is.null(cate.conf) | !is.null(cont.conf)) {
-      confounder <- c(cate.conf, cont.conf)
-      fixed_formula <- sprintf("%s + %s", mvar, paste(setdiff(confounder, "SampleType"), collapse = " + "))
-      print(fixed_formula)
-    } else {
-      confounder <- NULL
-      fixed_formula <- mvar
-    }
-
-    # rand_formula 설정
-    if (!is.null(rand.eff)) {
-      rand_formula <- formula(sprintf("~ (1 | %s)", rand.eff))
-      print(rand_formula)
-    } else {
-      rand_formula <- NULL
-    }
-
-    # tax_level 변수 설정
-    taxanames <- NULL
-
-
-
-
-    # ancombc2 실행 함수
-    run_ancombc2 <- function(data, fixed_formula, mvar, rand_formula, taxanames) {
-      ancombc2(
-        data = data,
-        p_adj_method = "BH", # "holm"
-        lib_cut = 1000,
-        fix_formula = fixed_formula,
-        rand_formula = rand_formula,
-        group = mvar,
-        tax_level = taxanames,
-        struc_zero = TRUE,
-        neg_lb = TRUE,
-        alpha = 0.05,
-        global = TRUE,
-        em_control = list(tol = 1e-5, max_iter = 100)
-      )
-    }
-
-    # ancombc2 실행 및 에러 처리
-    tt <- try(ancom.out <- run_ancombc2(psIN.cb, fixed_formula, mvar, rand_formula, taxanames), TRUE)
-
-
-    if (class(tt) == "try-error") {
-      # 샘플 0인 ASV 제거
-      psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 0, psIN.cb)
-
-      # 초기 cutoff 설정
-      cutoff <- 0.001
-      increment <- 0.0005
-      final_cutoff <- 0.01
-
-      # cutoff를 점진적으로 증가시키면서 ancombc2 실행
-      while (cutoff <= final_cutoff) {
-        cat("Trying cutoff value:", cutoff, "\n")
-        psIN.cb2 <- Go_filter(psIN.cb1, cutoff = cutoff)
-
-        ancom.out <- try(run_ancombc2(psIN.cb2, fixed_formula, mvar, rand_formula, taxanames), silent = TRUE)
-
-        if (!inherits(ancom.out, "try-error")) {
-          cat("Analysis succeeded with cutoff:", cutoff, "\n")
-          break
-        } else {
-          cat("Analysis failed with cutoff:", cutoff, " - Increasing cutoff\n")
-          cutoff <- cutoff + increment
+      if (length(cont.conf) >= 1) {
+        for(cont in cont.conf){
+          mapping.sel.cb[, cont] <- as.numeric(mapping.sel.cb[, cont])
+          sample_data(psIN.cb) <- mapping.sel.cb
         }
       }
 
-      if (cutoff > final_cutoff) {
-        cat("Analysis failed with all attempted cutoff values up to", final_cutoff, "\n")
+      # fixed_formula
+      if (!is.null(cate.conf) | !is.null(cont.conf)) {
+        confounder <- c(cate.conf, cont.conf)
+        fixed_formula <- sprintf("%s + %s", mvar, paste(setdiff(confounder, "SampleType"), collapse = " + "))
       } else {
-        cat("Final successful cutoff:", cutoff, "\n")
-        # 추가 분석 진행
+        confounder <- NULL
+        fixed_formula <- mvar
       }
-    }
 
+      # rand_formula
+      if (!is.null(rand.eff)) {
+        rand_formula <- formula(sprintf("~ (1 | %s)", rand.eff))
+      } else {
+        rand_formula <- NULL
+      }
 
+      # ancom 실행
+      tt <- try(ancom.out <- run_ancombc2(psIN.cb, fixed_formula, mvar, rand_formula, taxanames), silent = TRUE)
 
-    res.ancom = ancom.out$res
-    ancom_df = res.ancom %>%
-      dplyr::select(taxon, contains(mvar))
+      if (class(tt) == "try-error") {
+        # 0 sum 샘플 제거
+        psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 0, psIN.cb)
 
-    #View(res.ancom)
+        cutoff <- 0.001
+        increment <- 0.0005
+        final_cutoff <- 0.01
 
-    rownames(ancom_df) <- ancom_df$taxon; ancom_df$taxon <- NULL
+        while (cutoff <= final_cutoff) {
+          message(" [INFO] Trying cutoff value: ", cutoff)
+          psIN.cb2 <- Go_filter(psIN.cb1, cutoff = cutoff)
 
-    #print(dim(ancom_df))
+          test2 <- try(run_ancombc2(psIN.cb2, fixed_formula, mvar, rand_formula, taxanames), silent = TRUE)
+          if (!inherits(test2, "try-error")) {
+            ancom.out <- test2
+            message(" [SUCCESS] Analysis succeeded with cutoff: ", cutoff)
+            break
+          } else {
+            message(" [FAIL] Analysis failed with cutoff: ", cutoff, " - Increasing cutoff")
+            cutoff <- cutoff + increment
+          }
+        }
 
-    #rownames(df_mvar) <- df_mvar$taxon
-    #names(df_mvar)[length(names(df_mvar))]<-"diff_abn"
-    names(ancom_df)<- c("lfc_ancombc", "se_ancombc", "W_ancombc", "pvalue_ancombc", "qvalue_ancombc",  "diff_abn", "pass")
+        if (cutoff > final_cutoff) {
+          message(" [FAIL] Analysis failed with all attempted cutoff values up to ", final_cutoff)
+          next
+        } else {
+          message(" [INFO] Final successful cutoff: ", cutoff)
+        }
+      }
 
-    ancom_df$mvar <- mvar
-    ancom_df$basline<-basline
-    ancom_df$bas.count <-  sum(with(mapping.sel.cb, mapping.sel.cb[,mvar] == basline))
-    ancom_df$smvar <- smvar
-    ancom_df$smvar.count <-  sum(with(mapping.sel.cb, mapping.sel.cb[,mvar] == smvar))
-    ancom_df$ancom2.FDR <- ifelse(ancom_df$qvalue_ancombc < 0.05, ifelse(sign(ancom_df$lfc_ancombc)==1, "up", "down"), "NS")
-    ancom_df$ancom2.P <- ifelse(ancom_df$pvalue_ancombc < 0.05, ifelse(sign(ancom_df$lfc_ancombc)==1, "up", "down"), "NS")
+      # 에러 없이 ancom.out 만들었다면 결과 처리
+      res.ancom <- ancom.out$res
+      ancom_df <- res.ancom %>% dplyr::select(taxon, contains(mvar))
+      rownames(ancom_df) <- ancom_df$taxon
+      ancom_df$taxon <- NULL
 
-    # Extract the taxonomy table from the phyloseq object
-    tax_table <- as.data.frame(tax_table(psIN.cb))
-    ancom_df <- as.data.frame(ancom_df)
+      colnames(ancom_df) <- c("lfc_ancombc", "se_ancombc", "W_ancombc", "pvalue_ancombc",
+                              "qvalue_ancombc", "diff_abn", "pass")
 
-    merged_results <- merge(ancom_df, tax_table, by = 0, all.x = TRUE)
-    merged_results[merged_results == "NA NA"] <- NA
+      ancom_df$mvar <- mvar
+      ancom_df$basline <- basline
+      ancom_df$bas.count <- sum(mapping.sel.cb[,mvar] == basline)
+      ancom_df$smvar <- smvar
+      ancom_df$smvar.count <- sum(mapping.sel.cb[,mvar] == smvar)
+      ancom_df$ancom2.FDR <- ifelse(ancom_df$qvalue_ancombc < 0.05,
+                                    ifelse(sign(ancom_df$lfc_ancombc) == 1, "up", "down"), "NS")
+      ancom_df$ancom2.P <- ifelse(ancom_df$pvalue_ancombc < 0.05,
+                                  ifelse(sign(ancom_df$lfc_ancombc) == 1, "up", "down"), "NS")
 
-    # Fill missing values with the last available non-missing value in each row
-    tt <- try(filled_data <- apply(merged_results[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE)), T)
+      # tax_table merge
+      tax_table_df <- data.frame(tax_table(psIN.cb))
+      merged_results <- merge(ancom_df, tax_table_df, by = 0, all.x = TRUE)
+      merged_results[merged_results == "NA NA"] <- NA
+      colnames(merged_results)[colnames(merged_results) == "Row.names"] <- "ASV"
 
+      # pvalue 기준 정렬
+      merged_results <- merged_results %>% arrange(pvalue_ancombc)
+      significant_bacteria <- merged_results[merged_results$qvalue_ancombc < 0.05, ]
+      num_significant <- nrow(significant_bacteria)
 
-    if(inherits(tt, "try-error")){
-      filled_data <- apply(merged_results[, c("Rank1", "Phylum", "Class", "Order", "Family", "Genus", "Species")], 1, function(x) na.locf(x, na.rm = FALSE))
-    }
+      # 파일명 생성
+      confounder_part <- ifelse(!is.null(confounder), ".with_confounder", "")
+      rand.eff_part <- ifelse(!is.null(rand.eff), paste0(".with_random_effect_", rand.eff),"")
+      name_part <- ifelse(!is.null(name), paste0(".", name), "")
+      filename <- sprintf("ancom2.(%s.vs.%s).Sig%s.%s%s%s%s.%s.csv",
+                          basline, smvar, num_significant, mvar,
+                          confounder_part, rand.eff_part, name_part, project)
 
-    filled_data <- t(as.data.frame(filled_data))
+      output_path <- file.path(out_DA, filename)
+      write.csv(merged_results, quote = FALSE, col.names = NA, file = output_path)
 
-    tt <- try(merged_results[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- filled_data, T)
-
-
-    if(inherits(tt, "try-error")){
-      merged_results[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- t(filled_data)
-    }
-    colnames(merged_results)[colnames(merged_results) == "Row.names"] <- "ASV"
-
-    colnames(merged_results)
-
-    merged_results <- arrange(merged_results, merged_results$pvalue_ancombc)
-    significant_bacteria <- merged_results[merged_results$qvalue_ancombc < 0.05, ]
-    # Counting the number of significant bacteria
-    num_significant <- nrow(significant_bacteria)
-
-    confounder_part <- ifelse(!is.null(confounder), ".with_confounder", "")
-    rand.eff_part <- ifelse(!is.null(rand.eff), paste0(".with_random_effect_",rand.eff),"")
-    name_part <- ifelse(!is.null(name), paste0(".", name), "")
-    filename <- sprintf("ancom2.(%s.vs.%s).Sig%s.%s%s%s%s.%s.csv",
-                        basline, smvar, num_significant, mvar,
-                        confounder_part,rand.eff_part, name_part, project)
-
-    output_path <- file.path(out_DA, filename)
-    write.csv(merged_results, quote = FALSE, col.names = NA, file = output_path)
-
+      message(sprintf(" [DONE] Saved: %s", output_path))
     }
   }
 }
-
