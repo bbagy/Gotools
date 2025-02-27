@@ -39,7 +39,9 @@ Go_Aldex2 <- function(psIN,  project,
                       cont.conf = NULL,
                       orders = NULL,
                       name = NULL){
-
+  ########################################################
+  # 1. 출력 디렉토리 생성
+  ########################################################
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
@@ -50,6 +52,36 @@ Go_Aldex2 <- function(psIN,  project,
 
   #out_DA.Tab <- file.path(sprintf("%s_%s/table/Aldex2/tab",project, format(Sys.Date(), "%y%m%d")))
   #if(!file_test("-d", out_DA.Tab)) dir.create(out_DA.Tab)
+
+
+
+  ########################################################
+  # 2. relative vs. absolute 자동 판단 후 변환
+  ########################################################
+  detect_abundance_type <- function(physeq) {
+    lib_sizes <- sample_sums(physeq)
+    mean_lib <- mean(lib_sizes)
+    # 100 ± 0.1 → relative, 1000 초과 → absolute, 그 외 unknown
+    if (abs(mean_lib - 100) < 0.1) {
+      return("relative")
+    } else if (mean_lib > 1000) {
+      return("absolute")
+    } else {
+      return("unknown")
+    }
+  }
+
+  abundance_type <- detect_abundance_type(psIN)
+  if (abundance_type == "relative") {
+    # Pseudo-count 변환 적용 (ALDEx2, ANCOM 용)
+    otu_table(psIN) <- otu_table(psIN) * 1000000  # 10^6 스케일링
+    otu_table(psIN) <- round(otu_table(psIN))  # 정수 변환
+    message(" [INFO] The table was relative. Converted to pseudo-counts.")
+  } else if (abundance_type == "unknown") {
+    message(" [WARN] Abundance type unknown. Proceeding as is.")
+  } else {
+    message(" [INFO] The table is recognized as absolute count.")
+  }
 
 
   # get data tyep
@@ -353,6 +385,8 @@ Go_Aldex2 <- function(psIN,  project,
           merged_results[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")] <- t(filled_data)
         }
         colnames(merged_results)[colnames(merged_results) == "Row.names"] <- "ASV"
+
+
 
 
         # Filtering based on adjusted p-value threshold
