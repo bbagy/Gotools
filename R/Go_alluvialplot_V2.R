@@ -236,7 +236,7 @@ Go_alluvialplot <- function(project,
     plotlist[[length(plotlist)+1]] <- p1
   }
 
-  pdf(sprintf("%s/%s.Alluvial.plots.%s.(%s%s)%s%s.pdf", out_path,
+  pdf(sprintf("%s/Alluvial.%s.%s.(%s%s)%s%s.pdf", out_path,
               project,
               outcome,
               ifelse(is.null(column1), "", paste(column1, ".", sep = "")),
