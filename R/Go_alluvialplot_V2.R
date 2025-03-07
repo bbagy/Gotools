@@ -204,12 +204,18 @@ Go_alluvialplot <- function(project,
       dplyr::mutate(label = ifelse(variable %in% unique(variable), paste(variable, " (n=", count, ")", sep=""), variable))
 
 
+    df[[outcome]] <- factor(df[[outcome]], levels = intersect(orders, unique(df[[outcome]])))
 
     #===== Logic for the vatiation
     if (!is.null(column1) & !is.null(column2)){
+      df[[column1]] <- factor(df[[column1]], levels = intersect(orders, df[[column1]]))
+      df[[column2]] <- factor(df[[column2]], levels = intersect(orders, df[[column2]]))
+
       p <- ggplot(data = df, aes(y = value, axis1 = label, axis2 = !!sym(column1), axis3 = !!sym(column2), axis4 = !!sym(outcome)))
     } else if (!is.null(column1) | !is.null(column2)){
       column = ifelse(!is.null(column1), column1, column2)
+      df[[column]] <- factor(df[[column]], levels = intersect(orders, df[[column]]))
+
       p <- ggplot(data = df, aes(y = value, axis1 = label, axis2 = !!sym(column), axis3 = !!sym(outcome)))
     } else {
       p <- ggplot(data = df, aes(y = value, axis1 = label, axis2 = !!sym(outcome)))
