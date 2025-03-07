@@ -33,7 +33,29 @@ Go_adiv <- function(psIN, project, alpha_metrics, name=NULL){
   print("You can measure Observed, Chao1, ACE, Shannon, Simpson, InvSimpson, Fisher, and PD (Phylogenetic diversity:Faith’s PD).")
 
   # adiv table
-  adiv <- estimate_richness(psIN, measures=alpha_metrics) # se.chao1 stand error
+  # Alpha diversity 계산을 시도
+  adiv <- try(estimate_richness(psIN, measures=alpha_metrics), silent = TRUE)
+
+  # 만약 오류가 발생하면 Read Count 변환 후 다시 시도
+  if (inherits(adiv, "try-error")) {
+    message("⚠ `estimate_richness()`. Converting relative abundance to count data...")
+
+    # Read Count 변환 (Metaphlan3 결과는 상대적 풍부도이므로 변환 필요)
+    total_reads <- 100000
+    species_counts <- round(otu_table(psIN) * total_reads)
+
+    # 새로운 Phyloseq 객체 생성
+    psIN_counts <- phyloseq(otu_table(species_counts, taxa_are_rows = TRUE),
+                            sample_data(psIN))
+
+    # Alpha diversity 다시 계산
+    adiv <- estimate_richness(psIN_counts, measures=alpha_metrics)
+
+    message("✅ Alpha diversity calculated successfully after conversion!")
+  }
+
+
+
   mapping.sel <- data.frame(sample_data(psIN))
   rownames(adiv) <- gsub("^X", "", rownames(adiv))
   adiv$SampleID <- rownames(adiv)
