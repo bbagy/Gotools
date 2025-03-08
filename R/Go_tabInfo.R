@@ -35,8 +35,9 @@
 #'
 #' @export
 
-Go_tabInfo <- function(ASVs_Tab=NA,
+Go_tabInfo <- function(Taxa_Tab=NA,
                        Tract_Tab=NA,
+                       Func_Tab =NA,
                        Other_Tab=NA,
                        Alpha_divTab=NA,
                        Alpha_div_LmerTab=NA,
@@ -51,10 +52,10 @@ Go_tabInfo <- function(ASVs_Tab=NA,
   }
 
   # Check if all arguments are missing and print options if they are
-  if (all_na(ASVs_Tab) && all_na(Tract_Tab) && all_na(Alpha_divTab) && all_na(Alpha_div_LmerTab) &&  all_na(HumannTab) &&
+  if (all_na(Taxa_Tab) && all_na(Tract_Tab) && all_na(Alpha_divTab) && all_na(Alpha_div_LmerTab) &&  all_na(HumannTab) &&
       all_na(PermanovaTab) && all_na(RNAseq) && all_na(Tab1)) {
     cat(
-      "ASVs_Tab: Add the location of the ASVs table. \n",
+      "Taxa_Tab: Add the location of the ASVs table. \n",
       "Tract_Tab: Add the location of the sequencing QC tract table.\n\n",
       "Alpha_divTab: Add the calculation of the alpha diversity table. \n",
       "Alpha_div_LmerTab: Add the calculation of the alpha diversity lmer table.\n",
@@ -89,7 +90,8 @@ Go_tabInfo <- function(ASVs_Tab=NA,
 
 
   return(list(
-    asvs = lapply(ASVs_Tab, safely_read_table),
+    asvs = lapply(Taxa_Tab, safely_read_table),
+    func = lapply(Func_Tab, safely_read_table),
     otherTab = lapply(Other_Tab, safely_read_table),
     track = safely_read_table(Tract_Tab),
     rnaseq = safely_read_table(RNAseq),
