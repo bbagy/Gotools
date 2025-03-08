@@ -36,6 +36,7 @@
 #' @export
 
 Go_tabInfo <- function(Taxa_Tab=NA,
+                       ASVs_Tab=NA,
                        Tract_Tab=NA,
                        Func_Tab =NA,
                        Other_Tab=NA,
@@ -48,18 +49,23 @@ Go_tabInfo <- function(Taxa_Tab=NA,
                        PermanovaTab=NA) {
   # Helper function to check if all elements are NA
   all_na <- function(x) {
-    all(is.na(x)) && length(x) == 1
+    all(is.na(x))
   }
 
   # Check if all arguments are missing and print options if they are
-  if (all_na(Taxa_Tab) && all_na(Tract_Tab) && all_na(Alpha_divTab) && all_na(Alpha_div_LmerTab) &&  all_na(HumannTab) &&
-      all_na(PermanovaTab) && all_na(RNAseq) && all_na(Tab1)) {
+  if (all_na(Taxa_Tab) && all_na(Tract_Tab) && all_na(Func_Tab) && all_na(Other_Tab) &&
+      all_na(Alpha_divTab) && all_na(Alpha_div_LmerTab) && all_na(HumannTab) &&
+      all_na(PermanovaTab) && all_na(RNAseq) && all_na(Tab1) && all_na(Tab2)) {
     cat(
       "Taxa_Tab: Add the location of the ASVs table. \n",
-      "Tract_Tab: Add the location of the sequencing QC tract table.\n\n",
+      "Tract_Tab: Add the location of the sequencing QC tract table.\n",
+      "Func_Tab: Add the location of the functional annotation table.\n",
+      "Other_Tab: Add the location of other tables.\n",
       "Alpha_divTab: Add the calculation of the alpha diversity table. \n",
       "Alpha_div_LmerTab: Add the calculation of the alpha diversity lmer table.\n",
-      "PermanovaTab: Add the calculation of the PERMANOVA table.\n")
+      "PermanovaTab: Add the calculation of the PERMANOVA table.\n",
+      "Tab1 & Tab2: Additional optional tables.\n"
+    )
     return(invisible())
   }
 
@@ -79,18 +85,18 @@ Go_tabInfo <- function(Taxa_Tab=NA,
         }
       }, error = function(e) {
         cat("[ERROR]", e$message, "\n")
-        NULL
+        return(NA)
       })
       return(result)
     } else {
       cat("[DEBUG] path is invalid\n")
-      return(NULL)
+      return(NA)
     }
   }
 
-
   return(list(
-    asvs = lapply(Taxa_Tab, safely_read_table),
+    taxa = lapply(Taxa_Tab, safely_read_table),
+    asvs = lapply(ASVs_Tab, safely_read_table),
     func = lapply(Func_Tab, safely_read_table),
     otherTab = lapply(Other_Tab, safely_read_table),
     track = safely_read_table(Tract_Tab),
@@ -99,7 +105,7 @@ Go_tabInfo <- function(Taxa_Tab=NA,
     tab1 = safely_read_table(Tab1),
     tab2 = safely_read_table(Tab2),
     adiv = lapply(Alpha_divTab, safely_read_table),
-    lmer.tab = Alpha_div_LmerTab,
-    Permanova = PermanovaTab
+    lmer.tab = lapply(Alpha_div_LmerTab, safely_read_table),
+    Permanova = lapply(PermanovaTab, safely_read_table)
   ))
 }
