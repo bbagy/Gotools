@@ -5,8 +5,10 @@
 \title{Retrieve and Organize Table Information}
 \usage{
 Go_tabInfo(
+  Taxa_Tab = NA,
   ASVs_Tab = NA,
   Tract_Tab = NA,
+  Func_Tab = NA,
   Other_Tab = NA,
   Alpha_divTab = NA,
   Alpha_div_LmerTab = NA,
