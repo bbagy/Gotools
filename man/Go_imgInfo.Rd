@@ -14,7 +14,9 @@ Go_imgInfo(
   Adivplot = NA,
   Foreplot = NA,
   Bdivplot = NA,
-  DAplot = NA
+  DAplot = NA,
+  EBplot = NA,
+  Network = NA
 )
 }
 \arguments{
