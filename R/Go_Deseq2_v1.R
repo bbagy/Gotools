@@ -62,9 +62,11 @@ Go_Deseq2 <- function(psIN,  project,
   detect_abundance_type <- function(physeq) {
     lib_sizes <- sample_sums(physeq)
     mean_lib <- mean(lib_sizes)
-    # 100 ± 0.1 → relative, 1000 초과 → absolute, 그 외 unknown
-    if (abs(mean_lib - 100) < 0.1) {
-      return("relative")
+
+    if (mean_lib >= 0.5 && mean_lib <= 1.5) {
+      return("relative")  # sum to ~1.0
+    } else if (abs(mean_lib - 100) < 5) {
+      return("relative")  # sum to ~100
     } else if (mean_lib > 1000) {
       return("absolute")
     } else {
