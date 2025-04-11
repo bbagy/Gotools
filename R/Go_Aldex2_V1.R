@@ -73,16 +73,34 @@ Go_Aldex2 <- function(psIN,  project,
     }
   }
 
-  abundance_type <- detect_abundance_type(psIN)
   if (abundance_type == "relative") {
-    # Pseudo-count 변환 적용 (ALDEx2, ANCOM 용)
-    otu_table(psIN) <- otu_table(psIN) * 1000000  # 10^6 스케일링
-    otu_table(psIN) <- round(otu_table(psIN))  # 정수 변환
-    message(" [INFO] The table was relative. Converted to pseudo-counts.")
+    if (mean_lib >= 0.5 && mean_lib <= 1.5) {
+      total_reads <- 10000  # 총합이 1로 정규화된 경우
+    } else if (abs(mean_lib - 100) < 5) {
+      total_reads <- median(lib_sizes)  # 총합이 100인 경우
+    } else {
+      total_reads <- median(lib_sizes)  # fallback
+    }
+
+    mat <- as(otu_table(psIN), "matrix")
+    if (!taxa_are_rows(psIN)) {
+      mat <- t(mat)
+      mat <- round(mat * total_reads)
+      otu_table(psIN) <- otu_table(t(mat), taxa_are_rows = FALSE)
+    } else {
+      mat <- round(mat * total_reads)
+      otu_table(psIN) <- otu_table(mat, taxa_are_rows = TRUE)
+    }
+
+    message(sprintf(
+      " [INFO] Detected relative abundance. Converted to count using total_reads = %s (QMP).",
+      round(total_reads)
+    ))
+
   } else if (abundance_type == "unknown") {
     message(" [WARN] Abundance type unknown. Proceeding as is.")
   } else {
-    message(" [INFO] The table is recognized as absolute count.")
+    message(" [INFO] Absolute count table detected. No transformation needed.")
   }
 
 
