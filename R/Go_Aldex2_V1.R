@@ -73,6 +73,10 @@ Go_Aldex2 <- function(psIN,  project,
     }
   }
 
+  abundance_type <- detect_abundance_type(psIN)
+  lib_sizes <- sample_sums(psIN)
+  mean_lib <- mean(lib_sizes)
+
   if (abundance_type == "relative") {
     if (mean_lib >= 0.5 && mean_lib <= 1.5) {
       total_reads <- 10000  # 총합이 1로 정규화된 경우
