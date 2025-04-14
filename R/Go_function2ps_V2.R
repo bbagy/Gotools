@@ -37,45 +37,87 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL) {
   }
 
   # Identify data type and perform necessary preprocessing
-  if (tolower(func.type) %in% c("picrust", "picrust2", "picrustt2")) {
+  func.type <- tolower(func.type)
+
+  if (func.type %in% c("picrust", "picrust2", "picrust2")) {
     func.type <- "PICRUSt2"
-  } else if (tolower(func.type) %in% c("humann", "humann2", "humann3")) {
+
+    # ID (KO, PWY, EC 등) 설정
+    if (!is.null(rownames(func.tab))) {
+      func.tab$ID <- rownames(func.tab)
+    } else if ("function" %in% colnames(func.tab)) {
+      func.tab$ID <- func.tab$`function`
+    } else {
+      stop("Cannot identify function ID column.")
+    }
+
+    # Sample matrix와 tax table 분리
+    NumOfSample <- ncol(func.tab) - 1
+    otu <- as.matrix(func.tab[, 1:NumOfSample])
+    tax <- as.matrix(func.tab[, NumOfSample + 1, drop = FALSE])
+    rownames(otu) <- func.tab$ID
+    rownames(tax) <- func.tab$ID
+
+    # ID가 KO, Pathway, 또는 EC인지 판단
+    if (any(grepl("^K\\d{5}$", rownames(tax)))) {
+      func <- "KEGG"
+      colnames(tax) <- "KO"
+
+    } else if (any(grepl("^PWY", rownames(tax)))) {
+      func <- "pathway"
+      colnames(tax) <- "Pathway"
+
+    } else if (any(grepl("^\\d+\\.\\d+\\.\\d+\\.\\d+$", rownames(tax)))) {
+      func <- "EC"
+      colnames(tax) <- "EC"
+
+    } else {
+      func <- "Unknown"
+      colnames(tax) <- "Function"
+    }
+
+  } else if (func.type %in% c("humann", "humann2", "humann3")) {
     func.type <- "Humann3"
 
-    # HUMAnN 데이터 전처리: 특정 단어 포함된 행 제거
+    # 특정 단어 포함된 행 제거
     func.tab <- func.tab[!grepl("ribosomal protein|UNGROUPED|unclassified|UNMAPPED|UNINTEGRATED", rownames(func.tab)), ]
 
-    # KO ID와 설명을 분리
+    # ID와 Description 분리
     func.tab1 <- data.frame(do.call(rbind, str_split(rownames(func.tab), ": ", n = 2)))
     colnames(func.tab1) <- c("ID", "Description")
-
-    # Description이 없는 경우 처리
     func.tab1$Description[is.na(func.tab1$Description)] <- "Unknown"
 
-    # 원본 데이터에 병합
+    # 병합 및 재구성
     func.tab <- cbind(func.tab1, func.tab)
     rownames(func.tab) <- func.tab$ID
-  } else {
-    print("Please define the data type: PICRUSt2 or Humann3")
-    return(NULL)
-  }
 
-  # Define number of samples and split data frame
-  NumOfSample <- ncol(func.tab)
-  otu <- as.matrix(func.tab[, 3:NumOfSample])
-  tax <- as.matrix(func.tab[, 1:2])
-  rownames(otu) <- tax[, 1]
-  rownames(tax) <- tax[, 1]
+    # Sample matrix와 tax table 분리
+    NumOfSample <- ncol(func.tab)
+    otu <- as.matrix(func.tab[, 3:NumOfSample])
+    tax <- as.matrix(func.tab[, 1:2])
+    rownames(otu) <- tax[, 1]
+    rownames(tax) <- tax[, 1]
 
-  # Define KEGG or pathway
-  if (any(grepl("^K\\d{5}", tax[, 1]))) {
-    colnames(tax) <- c("KO", "KO.des")
-    func <- "KEGG"
-  } else if (any(grepl("^PWY", tax[, 1]))) {
-    colnames(tax) <- c("pathway", "path.des")
-    func <- "pathway"
+    # KO, PWY, EC 판별
+    if (any(grepl("^K\\d{5}", tax[, 1]))) {
+      colnames(tax) <- c("KO", "KO.des")
+      func <- "KEGG"
+
+    } else if (any(grepl("^PWY", tax[, 1]))) {
+      colnames(tax) <- c("pathway", "path.des")
+      func <- "pathway"
+
+    } else if (any(grepl("^\\d+\\.\\d+\\.\\d+\\.\\d+$", tax[, 1]))) {
+      colnames(tax) <- c("EC", "EC.des")
+      func <- "EC"
+
+    } else {
+      colnames(tax) <- c("Function", "Description")
+      func <- "Unknown"
+    }
+
   } else {
-    func <- NULL
+    stop("Please define the correct data type: PICRUSt2 or Humann3")
   }
 
   # Merge phyloseq
