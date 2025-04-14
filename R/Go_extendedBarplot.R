@@ -128,16 +128,19 @@ Go_extendedBarplot <- function(psIN,
   }else if(func == "ec_number"){
     func1 <- "KO"
     func2 <- "ec_number"
+  } else if(func == "Function"){
+    func1 <- "Function"
   }
 
   # Function to perform Wilcoxon tests with dynamic group names
-  perform_wilcox_test <- function(data, group1, group2, func1, func2, mvar) {
-    # Make sure to import necessary libraries
+  perform_wilcox_test <- function(data, group1, group2, func1, func2 = NULL, mvar) {
     library(dplyr)
     library(tidyr)
+    library(rlang)
 
-    data %>%
-      dplyr::group_by(!!rlang::sym(func1), !!rlang::sym(func2)) %>%
+    # 그룹화 대상: func1만 사용
+    grouped <- data %>%
+      dplyr::group_by(!!sym(func1)) %>%
       dplyr::summarise(
         list_group1 = list(Abundance[get(mvar) == group1]),
         list_group2 = list(Abundance[get(mvar) == group2]),
@@ -145,15 +148,28 @@ Go_extendedBarplot <- function(psIN,
         count_group2 = length(Abundance[get(mvar) == group2]),
         .groups = 'drop'
       ) %>%
-      dplyr::rowwise() %>%
-      dplyr::mutate(
+      rowwise() %>%
+      mutate(
         p_value = if (count_group1 > 1 && count_group2 > 1) {
           stats::wilcox.test(unlist(list_group1), unlist(list_group2), exact = FALSE)$p.value
         } else {
-          NA_real_  # Not enough data to perform test
+          NA_real_
         }
       ) %>%
-      dplyr::select(!!rlang::sym(func1), !!rlang::sym(func2), p_value, count_group1, count_group2)
+      ungroup()
+
+    # 2. func2가 주어졌다면 description 붙이기
+    if (!is.null(func2) && func2 != func1) {
+      desc_df <- data %>% select(!!sym(func1), !!sym(func2)) %>% distinct()
+      grouped <- left_join(grouped, desc_df, by = func1)
+    }
+
+    # 결과 정리
+    if (!is.null(func2) && func2 != func1) {
+      grouped %>% select(!!sym(func1), !!sym(func2), p_value, count_group1, count_group2)
+    } else {
+      grouped %>% select(!!sym(func1), p_value, count_group1, count_group2)
+    }
   }
 
 
