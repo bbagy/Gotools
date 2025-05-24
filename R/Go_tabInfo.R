@@ -37,6 +37,7 @@
 
 Go_tabInfo <- function(Taxa_Tab=NA,
                        ASVs_Tab=NA,
+                       GTDBTK_Tab=NA,
                        Tract_Tab=NA,
                        Func_Tab =NA,
                        Other_Tab=NA,
@@ -53,7 +54,7 @@ Go_tabInfo <- function(Taxa_Tab=NA,
   }
 
   # Check if all arguments are missing and print options if they are
-  if (all_na(Taxa_Tab) && all_na(Tract_Tab) && all_na(Func_Tab) && all_na(Other_Tab) &&
+  if (all_na(Taxa_Tab) && all_na(Tract_Tab) && all_na(Func_Tab) && all_na(Other_Tab) && all_na(GTDBTK_Tab) &&
       all_na(Alpha_divTab) && all_na(Alpha_div_LmerTab) && all_na(HumannTab) &&
       all_na(PermanovaTab) && all_na(RNAseq) && all_na(Tab1) && all_na(Tab2)) {
     cat(
@@ -97,6 +98,7 @@ Go_tabInfo <- function(Taxa_Tab=NA,
   return(list(
     taxa = lapply(Taxa_Tab, safely_read_table),
     asvs = lapply(ASVs_Tab, safely_read_table),
+    gtdbtk = lapply(GTDBTK_Tab, safely_read_table),
     func = lapply(Func_Tab, safely_read_table),
     otherTab = lapply(Other_Tab, safely_read_table),
     track = safely_read_table(Tract_Tab),

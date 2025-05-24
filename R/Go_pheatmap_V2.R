@@ -147,6 +147,10 @@ print("Check the psIN")
     taxaTab <- data.frame(tax_table(ps.rel.sel)[,"BileAcid"])
     type <- "BileAcid"
     print(type)
+  }else if(any(grepl("SCFA", taxtab.col))){
+    taxaTab <- data.frame(tax_table(ps.rel.sel)[,"SCFA"])
+    type <- "SCFA"
+    print(type)
   }else if(any(grepl("symbol", taxtab.col))){
     taxaTab <- data.frame(tax_table(ps.rel.sel)[,"symbol"])
     type <- "RNAseq"
@@ -159,13 +163,19 @@ print("Check the psIN")
   colnames(taxaTab) <- "Rank"
   taxaTab.print <- data.frame(tax_table(ps.rel.sel))
 
-  write.csv(taxaTab.print,file=sprintf("%s/pheatmap.%s.tap(%s).%s%s%s.csv",out_pheatmapTab,
-                                       project,
-                                       Ntax,
-                                       ifelse(is.null(title), "", paste(title, ".", sep = "")),
-                                       ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                                       format(Sys.Date(), "%y%m%d"),
-                                       sep="/"), quote = FALSE, col.names = NA)
+  # 파일 이름만 생성
+  file_name_csv <- sprintf("pheatmap.%s.tap(%s).%s%s%s.csv",
+                           project,
+                           Ntax,
+                           ifelse(is.null(title), "", paste0(title, ".")),
+                           ifelse(is.null(name), "", paste0(name, ".")),
+                           format(Sys.Date(), "%y%m%d"))
+
+  # 전체 경로는 file.path()로 안전하게 연결
+  write.csv(taxaTab.print,
+            file = file.path(out_pheatmapTab, file_name_csv),
+            quote = FALSE,
+            row.names = TRUE)
 
 
   print("test1")
@@ -224,6 +234,9 @@ print("Check the psIN")
     Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
   }else if(type %in% c("BileAcid")) {
     annotation_row <- data.frame(Path = as.factor(tax_table(ps.rel.sel)[, "BileAcid"]))
+    Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
+  }else if(type %in% c("SCFA")) {
+    annotation_row <- data.frame(Path = as.factor(tax_table(ps.rel.sel)[, "SCFA"]))
     Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
   }
 
@@ -357,12 +370,15 @@ print("Check the psIN")
 
 
   # logic for out file
-  pdf(sprintf("%s/pheatmap.%s.%s%s%spdf", out_pdf,
-              project,
-              ifelse(is.null(col_orders), "", paste("ordered", ".", sep = "")),
-              ifelse(is.null(title), "", paste(title, ".", sep = "")),
-              ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              format(Sys.Date(), "%y%m%d")), height = h, width = width)
+  file_name_pdf <- sprintf("pheatmap.%s.%s%s%s%s",
+                           project,
+                           ifelse(is.null(col_orders), "", "ordered."),
+                           ifelse(is.null(title), "", paste0(title, ".")),
+                           ifelse(is.null(name), "", paste0(name, ".")),
+                           format(Sys.Date(), "%y%m%d"))
+
+  pdf(file = file.path(out_pdf, paste0(file_name_pdf, ".pdf")),
+      height = h, width = width)
 
   print("p4")
   print(p)

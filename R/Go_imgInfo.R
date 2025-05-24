@@ -37,10 +37,13 @@ Go_imgInfo <- function(Overview=NA,
                        Bdivplot=NA,
                        DAplot=NA,
                        EBplot=NA,
-                       Network=NA) {
+                       Network=NA,
+                       MAGs_tree=NA,
+                       MAGs_upset=NA,
+                       MAGs_heatmap=NA) {
   # Check if all arguments are missing and print options if they are
   if (all(is.na(c(Overview, Rarefaction, Barchart, Bac.heatmap, HumannHeatmap,
-                  RNAseq.heatmap, Adivplot, Foreplot, Bdivplot, DAplot, EBplot, Network)))) {
+                  RNAseq.heatmap, Adivplot, Foreplot, Bdivplot, DAplot, EBplot, Network,MAGs_tree, MAGs_upset, MAGs_heatmap)))) {
     cat(
       "Provide paths for the respective graphical outputs. Each parameter expects a path or a vector of paths for its respective images. \n",
       "Available parameters are: Overview, Rarefaction, Barchart, Bac.heatmap, RNAseq.heatmap, HumannHeatmap, Adivplot, Foreplot, Bdivplot, DAplot, EBplot, and Network. \n",
@@ -62,6 +65,9 @@ Go_imgInfo <- function(Overview=NA,
     bdivplot = Bdivplot,
     daplot = DAplot,
     ebplot = EBplot,
-    ntplot = Network
+    ntplot = Network,
+    magstree = MAGs_tree,
+    magsupset = MAGs_upset,
+    magsheatmap = MAGs_heatmap
   ))
 }
