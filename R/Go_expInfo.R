@@ -50,6 +50,7 @@ Go_expInfo <- function(Project_name=NA,
         "Sequencing_date: Add the sequenicng date.\n",
         "Sequencing_platform: Add the sequenicng platform and sequencing kit. \n\n",
         "Available kit numbers and their descriptions:\n",
+        "0: ",
         "1: ZymoBIOMICS 96 MagBead DNA/RNA Kit (Catalog# D4300)\n",
         "2: DNeasy® 96 PowerSoil® Pro QIAcube® HT Kit (Catalog# 47021)\n",
         "3: QIAamp® 96 Virus QIAcube® HT (Catalog# 57731)\n",
@@ -60,9 +61,11 @@ Go_expInfo <- function(Project_name=NA,
         "8: RNeasy Mini Kit (Catalog# 74104)\n\n",
 
         "Available positive control numbers and their descriptions:\n",
+        "0: ",
         "1: ZymoBIOMICS Microbial Community Standard (D6300)\n\n",
 
         "Available prep numbers and their descriptions:\n",
+        "0: ",
         "1: Illumina V3V4\n",
         "2: Illumina V1V2\n",
         "3: Zymo Quick-16S V3V4 Plus NGS Library prep kit (#catalog D6420)\n",
@@ -73,6 +76,7 @@ Go_expInfo <- function(Project_name=NA,
         "8: \n\n",
 
         "Available spike-in numbers and their descriptions:\n",
+        "0: ",
         "1: ZymoBIOMICSTM Spike-in Control I (High Microbial Load) (D6320)\n",
         "2: No Spike-in Control\n\n",
         "Available Technicians and email address:\n",
@@ -90,6 +94,7 @@ Go_expInfo <- function(Project_name=NA,
 
   # Define the kit based on kit_number
   kit <- switch(as.character(kit_number),
+                "0" = "",
                 "1" = "ZymoBIOMICS 96 MagBead DNA/RNA Kit (Catalog# D4300)",
                 "2" = "DNeasy® 96 PowerSoil® Pro QIAcube® HT Kit (Catalog# 47021)",
                 "3" = "QIAamp® 96 Virus QIAcube® HT (Catalog# 57731)",
@@ -103,11 +108,13 @@ Go_expInfo <- function(Project_name=NA,
 
   # Define the positive control based on prep_number
   pos <- switch(as.character(pos_number),
+                "0" = "",
                  "1" = "ZymoBIOMICS Microbial Community Standard (D6300)",
                  "Unknown prep")
 
   # Define the prep based on prep_number
   prep <- switch(as.character(prep_number),
+                 "0" = "",
                  "1" = "Illumina V3V4",
                  "2" = "Illumina V1V2",
                  "3" = "Zymo Quick-16S V3V4 Plus NGS Library prep kit (#catalog D6420)",
@@ -123,6 +130,7 @@ Go_expInfo <- function(Project_name=NA,
 
   # Define the spikein based on spikein_number
   spikein <- switch(as.character(spikein_number),
+                    "0" = "",
                     "1" = "ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)",
                     "2" = NULL,  # Representing no spike-in control
                     "Unknown Spike-in")
