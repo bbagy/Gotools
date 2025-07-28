@@ -50,7 +50,7 @@ Go_sumInfo <- function(Prep_overview=NA,
 
   # Check if all arguments are missing and print options if they are
   if (missing(Prep_overview) && missing(Taxa_overview) && missing(Alpha_div) &&
-      missing(Beta_div) && missing(Bacterial_div) && missing(DA_test) &&missing(Conclusion) && missing(Useful_info) && missing(Summary) ) {
+      missing(Beta_div) && missing(Bacterial_div) && missing(DA_test) &&missing(Conclusion) && missing(Useful_info) && missing(Summary)  && missing(Useful_info) ) {
     cat(
       "Provide paths for the respective summary text. Each parameter expects a path or a vector of paths for its respective text.\n",
       "Available parameters are: Extraction_Summary, Taxa_overview, Alpha_div, Beta_div, DA_test, and Conclusion. \n\n",
