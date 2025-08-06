@@ -58,6 +58,7 @@ Go_extendedBarplot <- function(psIN,
   library(dplyr)
   library(ggplot2)
   library(tidyr)
+  library(rlang)
 
   if(!is.null(dev.list())) dev.off()
   # out dir
@@ -134,9 +135,7 @@ Go_extendedBarplot <- function(psIN,
 
   # Function to perform Wilcoxon tests with dynamic group names
   perform_wilcox_test <- function(data, group1, group2, func1, func2 = NULL, mvar) {
-    library(dplyr)
-    library(tidyr)
-    library(rlang)
+
 
     # 그룹화 대상: func1만 사용
     grouped <- data %>%
@@ -150,7 +149,7 @@ Go_extendedBarplot <- function(psIN,
       ) %>%
       rowwise() %>%
       mutate(
-        p_value = if (count_group1 > 1 && count_group2 > 1) {
+        p_value = if (count_group1 > 1 & count_group2 > 1) {
           stats::wilcox.test(unlist(list_group1), unlist(list_group2), exact = FALSE)$p.value
         } else {
           NA_real_
