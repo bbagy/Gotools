@@ -149,7 +149,7 @@ Go_extendedBarplot <- function(psIN,
       ) %>%
       rowwise() %>%
       mutate(
-        p_value = if (count_group1 > 1 & count_group2 > 1) {
+        p_value = if (all(count_group1 > 1, count_group2 > 1)) {
           stats::wilcox.test(unlist(list_group1), unlist(list_group2), exact = FALSE)$p.value
         } else {
           NA_real_
