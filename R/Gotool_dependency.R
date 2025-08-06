@@ -18,13 +18,13 @@
 
 Gotool_dependency <- function() {
   # Packages to install from CRAN
-  cran_packages <- c("ape", "Boruta", "car", "cluster", "CLME", "compositions",
+  cran_packages <- c("magick", "ape", "Boruta", "car", "cluster", "CLME", "compositions",
                      "cowplot", "crayon", "caret", "colorspace", "digest",
                      "data.table", "devtools", "doParallel", "ellipse", "emmeans",
                      "e1071", "gplots", "ggplot2", "grid", "gridExtra", "ggrepel",
                      "doRNG", "ggalluvial", "ggforce", "Hmisc", "irlba", "huge",  #"igraph",
                      "irr", "lme4", "lmerTest", "nnet", "MLmetrics",
-                     "Matrix", "magrittr", "MASS", "missForest", "magick", "nlme",
+                     "Matrix", "magrittr", "MASS", "missForest", "nlme",
                      "phangorn", "pheatmap", "pkgconfig", "dplyr", "parallel", "pscl",
                      "plotly", "pdftools",  "rlang", "randomForest", #"rfUtilities",
                      "readxl", "RColorBrewer", "ROCR", "reshape", "reshape2", "yarrr",
