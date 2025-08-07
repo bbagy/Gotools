@@ -269,11 +269,19 @@ Go_extendedBarplot <- function(psIN,
   merged_data <- dplyr::left_join(plot_data, wilcox_results, by = c(func))
 
   print(dim(merged_data))
-
   merged_data.sig <- subset(merged_data, p_value < wilcox.p);dim(merged_data.sig)
 
 
+  merged_data.sig <- merged_data %>%
+    dplyr::filter(!is.na(p_value) & p_value < wilcox.p)
+
+
+
+  print(merged_data$wilcox.p)
+
   print(dim(merged_data.sig))
+
+
   merged_data.sig[mvar] <- factor(merged_data.sig[[mvar]] , levels = c(group1, group2))
 
 
