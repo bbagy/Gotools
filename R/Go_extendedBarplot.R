@@ -268,10 +268,12 @@ Go_extendedBarplot <- function(psIN,
   # Assuming wilcox_results and plot_data are already created and they share common identifiers 'pathway' and 'path.des'
   merged_data <- dplyr::left_join(plot_data, wilcox_results, by = c(func))
 
+  print(dim(merged_data))
+
   merged_data.sig <- subset(merged_data, p_value < wilcox.p);dim(merged_data.sig)
 
 
-
+  print(dim(merged_data.sig))
   merged_data.sig[mvar] <- factor(merged_data.sig[[mvar]] , levels = c(group1, group2))
 
 
@@ -286,7 +288,7 @@ Go_extendedBarplot <- function(psIN,
    # geom_errorbar(data = subset(merged_data.sig, Panel == "Proportion with CI"),
    #                aes_string(ymin = "Lower_CI", ymax = "Upper_CI", group = mvar),
    #               position = position_dodge(width = 0.7), width = 0.25)
-  print(3)
+
 
   p2 <- p1 + geom_point(data = subset(merged_data.sig, Panel == "Difference Mean with CI"),
                         aes_string(x = "Reordered_Category", y = "Diff_Mean", group = mvar, fill = "Higher_Group"),
@@ -318,9 +320,9 @@ Go_extendedBarplot <- function(psIN,
               project,
               ifelse(is.null(name), "", paste(name, ".", sep = "")),
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
-
+  print(1)
   print(p4)
-  print(6)
+  print(2)
 
   dev.off()
   #return(merged_data.sig)
