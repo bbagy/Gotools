@@ -115,7 +115,7 @@ Go_extendedBarplot <- function(psIN,
   head(df_top_norm)
 
 
-
+  print(1)
   #===== wilcox test
   if(func == "pathway" | func == "path.des"){
     func1 <- "pathway"
@@ -171,7 +171,7 @@ Go_extendedBarplot <- function(psIN,
     }
   }
 
-
+  print(2)
   # Example usage
   wilcox_results <- perform_wilcox_test(df_top_norm, group1, group2,func1, func2, mvar)
 
@@ -211,6 +211,7 @@ Go_extendedBarplot <- function(psIN,
   upper_col_group1 <- paste("Upper_CI", group1, sep = "_")
   upper_col_group2 <- paste("Upper_CI", group2, sep = "_")
 
+  print(3)
 
   df_wide <- df_wide %>%
     dplyr::mutate(
@@ -275,7 +276,7 @@ Go_extendedBarplot <- function(psIN,
 
   merged_data.sig[mvar] <- factor(merged_data.sig[[mvar]] , levels = c(group1, group2))
 
-
+  print(4)
 
   # Plotting
   p <- ggplot(merged_data.sig, aes_string(x = "Reordered_Category", y = "Mean_Abundance", fill = mvar))
