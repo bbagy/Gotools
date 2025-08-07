@@ -135,8 +135,6 @@ Go_extendedBarplot <- function(psIN,
 
   # Function to perform Wilcoxon tests with dynamic group names
   perform_wilcox_test <- function(data, group1, group2, func1, func2 = NULL, mvar) {
-
-
     # 그룹화 대상: func1만 사용
     grouped <- data %>%
       dplyr::group_by(!!sym(func1)) %>%
@@ -148,7 +146,7 @@ Go_extendedBarplot <- function(psIN,
         .groups = 'drop'
       ) %>%
       rowwise() %>%
-      mutate(
+      dplyr::mutate(
         p_value = ifelse(
           count_group1 > 1 & count_group2 > 1,
           stats::wilcox.test(unlist(list_group1), unlist(list_group2), exact = FALSE)$p.value,
