@@ -266,20 +266,20 @@ Go_extendedBarplot <- function(psIN,
 
 
   # Assuming wilcox_results and plot_data are already created and they share common identifiers 'pathway' and 'path.des'
-  merged_data <- left_join(plot_data, wilcox_results, by = c(func))
+  merged_data <- dplyr::left_join(plot_data, wilcox_results, by = c(func))
 
   merged_data.sig <- subset(merged_data, p_value < wilcox.p);dim(merged_data.sig)
 
 
 
   merged_data.sig[mvar] <- factor(merged_data.sig[[mvar]] , levels = c(group1, group2))
-  print(1)
+
 
 
   # Plotting
   p <- ggplot(merged_data.sig, aes_string(x = "Reordered_Category", y = "Mean_Abundance", fill = mvar))
 
-  print(2)
+
 
   p1 <- p + geom_bar(data = subset(merged_data.sig, Panel == "Mean Proportion"),
                      stat = "identity", position = position_dodge(width = 0.7), width = 0.6)
@@ -295,7 +295,6 @@ Go_extendedBarplot <- function(psIN,
                   aes_string(ymin = "Diff_Lower", ymax = "Diff_Upper", group = mvar), width = 0.25)
 
 
-  print(merged_data.sig)
   # Adjusting the geom_text for p-values
   p3 <- p2 + geom_text(data = subset(merged_data.sig, Panel == "p_value"),
                        aes(x = Reordered_Category, y = 0, label = sprintf("p = %.3f", p_value)),
@@ -312,7 +311,7 @@ Go_extendedBarplot <- function(psIN,
           legend.title = element_blank())
 
 
-  print(5)
+
   pdf(sprintf("%s/extended_error_barplot.(%s.vs.%s).%s.%s%s.pdf", out_path,
               group1,
               group2,
@@ -321,6 +320,8 @@ Go_extendedBarplot <- function(psIN,
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
 
   print(p4)
+  print(6)
+
   dev.off()
   #return(merged_data.sig)
 }
