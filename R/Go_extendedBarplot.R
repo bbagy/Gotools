@@ -115,7 +115,7 @@ Go_extendedBarplot <- function(psIN,
   head(df_top_norm)
 
 
-  print(1)
+
   #===== wilcox test
   if(func == "pathway" | func == "path.des"){
     func1 <- "pathway"
@@ -171,7 +171,6 @@ Go_extendedBarplot <- function(psIN,
     }
   }
 
-  print(2)
   # Example usage
   wilcox_results <- perform_wilcox_test(df_top_norm, group1, group2,func1, func2, mvar)
 
@@ -211,7 +210,6 @@ Go_extendedBarplot <- function(psIN,
   upper_col_group1 <- paste("Upper_CI", group1, sep = "_")
   upper_col_group2 <- paste("Upper_CI", group2, sep = "_")
 
-  print(3)
 
   df_wide <- df_wide %>%
     dplyr::mutate(
@@ -275,18 +273,20 @@ Go_extendedBarplot <- function(psIN,
 
 
   merged_data.sig[mvar] <- factor(merged_data.sig[[mvar]] , levels = c(group1, group2))
+  print(1)
 
-  print(4)
 
   # Plotting
   p <- ggplot(merged_data.sig, aes_string(x = "Reordered_Category", y = "Mean_Abundance", fill = mvar))
 
+  print(2)
 
   p1 <- p + geom_bar(data = subset(merged_data.sig, Panel == "Mean Proportion"),
                      stat = "identity", position = position_dodge(width = 0.7), width = 0.6)
    # geom_errorbar(data = subset(merged_data.sig, Panel == "Proportion with CI"),
    #                aes_string(ymin = "Lower_CI", ymax = "Upper_CI", group = mvar),
    #               position = position_dodge(width = 0.7), width = 0.25)
+  print(3)
 
   p2 <- p1 + geom_point(data = subset(merged_data.sig, Panel == "Difference Mean with CI"),
                         aes_string(x = "Reordered_Category", y = "Diff_Mean", group = mvar, fill = "Higher_Group"),
@@ -295,12 +295,12 @@ Go_extendedBarplot <- function(psIN,
                   aes_string(ymin = "Diff_Lower", ymax = "Diff_Upper", group = mvar), width = 0.25)
 
 
-
+  print(4)
   # Adjusting the geom_text for p-values
   p3 <- p2 + geom_text(data = subset(merged_data.sig, Panel == "p_value"),
                        aes(x = Reordered_Category, y = 0, label = sprintf("p = %.3f", p_value)),
                        hjust = 0, vjust = 0, inherit.aes = FALSE, size = 3, color= "darkgrey")
-
+  print(5)
   # Print the final plot with p-values
 
   p4 <- p3 + facet_grid(. ~ Panel, scales = "free_x") + #space "free_x"
