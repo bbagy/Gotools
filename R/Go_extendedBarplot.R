@@ -295,12 +295,12 @@ Go_extendedBarplot <- function(psIN,
                   aes_string(ymin = "Diff_Lower", ymax = "Diff_Upper", group = mvar), width = 0.25)
 
 
-  print(4)
+  print(merged_data.sig)
   # Adjusting the geom_text for p-values
   p3 <- p2 + geom_text(data = subset(merged_data.sig, Panel == "p_value"),
                        aes(x = Reordered_Category, y = 0, label = sprintf("p = %.3f", p_value)),
                        hjust = 0, vjust = 0, inherit.aes = FALSE, size = 3, color= "darkgrey")
-  print(5)
+
   # Print the final plot with p-values
 
   p4 <- p3 + facet_grid(. ~ Panel, scales = "free_x") + #space "free_x"
@@ -312,7 +312,7 @@ Go_extendedBarplot <- function(psIN,
           legend.title = element_blank())
 
 
-
+  print(5)
   pdf(sprintf("%s/extended_error_barplot.(%s.vs.%s).%s.%s%s.pdf", out_path,
               group1,
               group2,
