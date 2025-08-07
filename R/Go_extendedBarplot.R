@@ -268,17 +268,13 @@ Go_extendedBarplot <- function(psIN,
   # Assuming wilcox_results and plot_data are already created and they share common identifiers 'pathway' and 'path.des'
   merged_data <- dplyr::left_join(plot_data, wilcox_results, by = c(func))
 
-  print(dim(merged_data))
+  print(colnames(merged_data))
+  print(merged_data$p_value)
+
   merged_data.sig <- subset(merged_data, p_value < wilcox.p);dim(merged_data.sig)
 
 
-  merged_data.sig <- merged_data %>%
-    dplyr::filter(!is.na(p_value) & p_value < wilcox.p)
-
-
-
-  print(merged_data$wilcox.p)
-
+  print(colnames(merged_data.sig))
   print(dim(merged_data.sig))
 
 
