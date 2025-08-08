@@ -320,12 +320,29 @@ Go_Ancom2 <- function(psIN, project,
 
       # 에러 없이 ancom.out 만들었다면 결과 처리
       res.ancom <- ancom.out$res
-      ancom_df <- res.ancom %>% dplyr::select(taxon, contains(mvar))
+
+      # (1) lfc_* 중 Intercept를 빼고 실제 효과 열을 자동으로 하나 잡음
+      lfc_cols <- grep("^lfc_", colnames(res.ancom), value = TRUE)
+      lfc_cols <- setdiff(lfc_cols, "lfc_(Intercept)")
+      suffix   <- sub("^lfc_", "", lfc_cols)[1]   # 예: "caselabelControl"
+
+      # (2) suffix를 재사용해서 필요한 열을 정확히 선택
+      ancom_df <- res.ancom %>%
+        dplyr::select(
+          taxon,
+          lfc    = !!rlang::sym(paste0("lfc_", suffix)),
+          se     = !!rlang::sym(paste0("se_", suffix)),
+          W      = !!rlang::sym(paste0("W_",  suffix)),
+          pvalue = !!rlang::sym(paste0("p_",  suffix)),
+          qvalue = !!rlang::sym(paste0("q_",  suffix)),
+          diff   = !!rlang::sym(paste0("diff_", suffix)),
+          pass   = !!rlang::sym(paste0("passed_ss_", suffix))
+        )
       rownames(ancom_df) <- ancom_df$taxon
       ancom_df$taxon <- NULL
 
-      colnames(ancom_df) <- c("lfc_ancombc", "se_ancombc", "W_ancombc", "pvalue_ancombc",
-                              "qvalue_ancombc", "diff_abn", "pass")
+      colnames(ancom_df) <- c("lfc_ancombc", "se_ancombc", "W_ancombc",
+                              "pvalue_ancombc", "qvalue_ancombc", "diff_abn", "pass")
 
       ancom_df$mvar <- mvar
       ancom_df$basline <- basline
@@ -340,11 +357,14 @@ Go_Ancom2 <- function(psIN, project,
       # tax_table merge
       tax_table_df <- data.frame(tax_table(psIN.cb))
       merged_results <- merge(ancom_df, tax_table_df, by = 0, all.x = TRUE)
+
+
+
       merged_results[merged_results == "NA NA"] <- NA
       colnames(merged_results)[colnames(merged_results) == "Row.names"] <- "ASV"
 
       # pvalue 기준 정렬
-      merged_results <- merged_results %>% arrange(pvalue_ancombc)
+      merged_results <- merged_results %>% dplyr::arrange(pvalue_ancombc)
       significant_bacteria <- merged_results[merged_results$qvalue_ancombc < 0.05, ]
       num_significant <- nrow(significant_bacteria)
 
@@ -363,3 +383,4 @@ Go_Ancom2 <- function(psIN, project,
     }
   }
 }
+
