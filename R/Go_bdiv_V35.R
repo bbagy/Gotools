@@ -78,13 +78,19 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
   # ---------- helpers ----------
   .safe_levels <- function(x, levs) {
     x <- factor(x)
-    if (!is.null(levs)) x <- factor(x, levels = intersect(levs, levels(x)))
-    x
+    if (is.null(levs)) return(x)
+    # orders(levs)에서 실제로 존재하는 레벨만, orders의 순서 그대로
+    keep <- levs[levs %in% levels(x)]
+    factor(x, levels = keep)
   }
 
   # facet 있을 때: facet별 PERMANOVA + 코너 고정 좌표(-Inf, -Inf)
   .perm_ann_by_facet <- function(ps_obj, pdataframe, mvar, facet, distance_metric, cate.conf, project, name){
-    levs <- unique(pdataframe[[facet]])
+    levs <- if (is.factor(pdataframe[[facet]])) {
+      levels(droplevels(pdataframe[[facet]]))
+    } else {
+      unique(pdataframe[[facet]])
+    }
     stat_list <- lapply(levs, function(flv){
       map_sub <- as.data.frame(sample_data(ps_obj))
       map_sub <- map_sub[map_sub[[facet]] == flv, , drop = FALSE]
@@ -125,6 +131,11 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
       )
 
     ann_df[[facet]] <- ann_df$facet_val
+    ann_df[[facet]] <- factor(
+      ann_df[[facet]],
+      levels = levels(pdataframe[[facet]])
+    )
+
     ann_df
   }
   # -----------------------------
@@ -201,10 +212,18 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           names(plist) <- ord_meths
           pdataframe = plyr::ldply(plist, identity); names(pdataframe)[1] = "method"
 
+
+
           if (!is.null(facet) && facet %in% names(pdataframe)) {
-            pdataframe[,facet] <- .safe_levels(pdataframe[,facet], orders)
+            pdataframe[, facet] <- factor(pdataframe[, facet],
+                                    levels = intersect(orders, unique(pdataframe[, facet])))
           }
-          pdataframe[,mvar] <- .safe_levels(pdataframe[,mvar], orders)
+
+
+
+          pdataframe[, mvar] <- factor(pdataframe[, mvar],
+                                        levels = intersect(orders, unique(pdataframe[, mvar])))
+
 
           # n 표시(전체 기준; facet별 n표시가 필요하면 말해줘서 바꿀 수 있음)
           if(addnumber==TRUE){
@@ -343,10 +362,17 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         names(plist) <- ord_meths
         pdataframe = plyr::ldply(plist, identity); names(pdataframe)[1] = "method"
 
+        ## ---- FORCE facet order by `orders` (robust) ----
+
         if (!is.null(facet) && facet %in% names(pdataframe)) {
-          pdataframe[,facet] <- .safe_levels(pdataframe[,facet], orders)
+          pdataframe[, facet] <- factor(pdataframe[, facet],
+                                        levels = intersect(orders, unique(pdataframe[, facet])))
         }
-        pdataframe[,mvar] <- .safe_levels(pdataframe[,mvar], orders)
+
+
+
+        pdataframe[, mvar] <- factor(pdataframe[, mvar],
+                                     levels = intersect(orders, unique(pdataframe[, mvar])))
 
         if(addnumber==TRUE){
           for (Name in unique(pdataframe[,mvar])) {
@@ -435,6 +461,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
         if (!is.null(facet) && facet %in% names(pdataframe)) {
           ncol <- length(unique(mapping.sel.na.rem[,facet]))
+          mapping.sel.na.rem[[facet]] <- factor(mapping.sel.na.rem[[facet]], levels = orders)
+
           p <- p + facet_wrap(as.formula(sprintf("~ %s", facet)), scales="free_x", ncol = ncol)
         }
 
@@ -469,3 +497,4 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
     }
   }
 }
+
