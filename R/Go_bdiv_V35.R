@@ -468,13 +468,13 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             ann_df <- data.frame(
               x = -Inf,
               y = -Inf,
-              label = ggplot2::geom_text(
-                data = ann_df,
-                aes(x = x, y = y, label = label),
-                size = 3, hjust = -0.005, vjust = -0.3,
-                lineheight = 0.95,
-                inherit.aes = FALSE
-              )
+              label = sprintf(
+                "%s\nR2=%.3f\nPERMANOVA p=%.3f",
+                distance_metric,
+                R2,
+                padj
+              ),
+              stringsAsFactors = FALSE
             )
             p <- p + ggplot2::geom_text(
               data = ann_df,
