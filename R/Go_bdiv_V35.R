@@ -86,56 +86,63 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
   # facet 있을 때: facet별 PERMANOVA + 코너 고정 좌표(-Inf, -Inf)
   .perm_ann_by_facet <- function(ps_obj, pdataframe, mvar, facet, distance_metric, cate.conf, project, name){
+    distance_metric <- as.character(distance_metric)
+
     levs <- if (is.factor(pdataframe[[facet]])) {
-      levels(droplevels(pdataframe[[facet]]))
+      base::levels(base::droplevels(pdataframe[[facet]]))
     } else {
-      unique(pdataframe[[facet]])
+      base::unique(pdataframe[[facet]])
     }
-    stat_list <- lapply(levs, function(flv){
-      map_sub <- as.data.frame(sample_data(ps_obj))
+
+    stat_list <- base::lapply(levs, function(flv){
+      map_sub <- base::as.data.frame(phyloseq::sample_data(ps_obj))
       map_sub <- map_sub[map_sub[[facet]] == flv, , drop = FALSE]
-      if (nrow(map_sub) < 3 || length(unique(map_sub[[mvar]])) < 2) {
-        return(data.frame(facet_val = flv, R2 = NA_real_, p = NA_real_))
+      if (base::nrow(map_sub) < 3 || base::length(base::unique(map_sub[[mvar]])) < 2) {
+        return(base::data.frame(facet_val = flv, R2 = NA_real_, p = NA_real_))
       }
-      ps_sub <- prune_samples(rownames(map_sub), ps_obj)
+      ps_sub <- phyloseq::prune_samples(base::rownames(map_sub), ps_obj)
 
       dist_list <- Go_dist(psIN = ps_sub, project = project, name = name,
                            cate.vars = mvar, distance_metrics = distance_metric)
-      x <- as.dist(dist_list[[distance_metric]])
+      x <- stats::as.dist(dist_list[[distance_metric]])
 
-      map_sub2 <- data.frame(sample_data(ps_sub))
-      if (!is.null(cate.conf) && length(cate.conf) > 0) {
-        for (conf in cate.conf) map_sub2[[conf]] <- factor(map_sub2[[conf]])
-        form <- as.formula(sprintf("x ~ %s + %s", mvar,
-                                   paste(setdiff(cate.conf, "SampleType"), collapse = " + ")))
+      map_sub2 <- base::data.frame(phyloseq::sample_data(ps_sub))
+      if (!base::is.null(cate.conf) && base::length(cate.conf) > 0) {
+        for (conf in cate.conf) map_sub2[[conf]] <- base::factor(map_sub2[[conf]])
+        form <- stats::as.formula(base::sprintf("x ~ %s + %s", mvar,
+                                                base::paste(base::setdiff(cate.conf, "SampleType"), collapse = " + ")))
       } else {
-        form <- as.formula(sprintf("x ~ %s", mvar))
+        form <- stats::as.formula(base::sprintf("x ~ %s", mvar))
       }
 
       ad <- vegan::adonis2(form, data = map_sub2, permutations = 999, by = "terms")
-      data.frame(facet_val = flv,
-                 R2 = suppressWarnings(round(ad[1,"R2"], 3)),
-                 p  = suppressWarnings(ad[1,"Pr(>F)"]))
+      base::data.frame(
+        facet_val = flv,
+        R2 = base::suppressWarnings(base::round(ad[1,"R2"], 3)),
+        p  = base::suppressWarnings(ad[1,"Pr(>F)"]),
+        stringsAsFactors = FALSE
+      )
     })
 
-    stat_df <- do.call(rbind, stat_list)
-    stat_df$padj <- p.adjust(stat_df$p, method = "bonferroni")
+    # ✅ 여기! rbind 말고 bind_rows (열 불일치/리스트 섞여도 안정)
+    stat_df <- dplyr::bind_rows(stat_list)
 
-    ann_df <- stat_df |>
-      dplyr::mutate(
-        label = sprintf("%-12s\n%-12s\n%-12s",
-                        distance_metric,
-                        paste0("R2=", formatC(R2, format="f", digits=3)),
-                        paste0("PERMANOVA p=", formatC(padj, format="f", digits=3))),
-        x = -Inf,  # 코너 고정
-        y = -Inf
-      )
+    stat_df$padj <- stats::p.adjust(stat_df$p, method = "bonferroni")
+
+    ann_df <- dplyr::mutate(
+      stat_df,
+      label = base::sprintf(
+        "%-12s\n%-12s\n%-12s",
+        distance_metric,
+        base::paste0("R2=", base::formatC(R2, format="f", digits=3)),
+        base::paste0("PERMANOVA p=", base::formatC(padj, format="f", digits=3))
+      ),
+      x = -Inf,
+      y = -Inf
+    )
 
     ann_df[[facet]] <- ann_df$facet_val
-    ann_df[[facet]] <- factor(
-      ann_df[[facet]],
-      levels = levels(pdataframe[[facet]])
-    )
+    ann_df[[facet]] <- base::factor(ann_df[[facet]], levels = base::levels(pdataframe[[facet]]))
 
     ann_df
   }
@@ -269,6 +276,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           # ======= PERMANOVA (코너 고정) ======= #
           if (statistics){
             if (!is.null(facet) && facet %in% names(pdataframe)) {
+              print(1)
+
               ann_df <- .perm_ann_by_facet(ps_obj = psIN.cbn.na, pdataframe = pdataframe,
                                            mvar = mvar, facet = facet,
                                            distance_metric = distance_metric,
@@ -297,6 +306,9 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
               }
               ad <- vegan::adonis2(form, data = map.pair, permutations=999, by="terms")
               R2 <- round(ad[1,3], 3); padj <- ad[1,5]
+
+              print(2)
+
               ann_df <- data.frame(
                 x = -Inf,
                 y = -Inf,
@@ -420,6 +432,9 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         # ======= PERMANOVA (코너 고정) ======= #
         if (statistics){
           if (!is.null(facet) && facet %in% names(pdataframe)) {
+
+            print(3)
+
             ann_df <- .perm_ann_by_facet(ps_obj = psIN.na, pdataframe = pdataframe,
                                          mvar = mvar, facet = facet,
                                          distance_metric = distance_metric,
@@ -447,6 +462,9 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             }
             ad <- vegan::adonis2(form, data = map.pair, permutations=999, by="terms")
             R2 <- round(ad[1,3], 3); padj <- ad[1,5]
+
+            print(4)
+
             ann_df <- data.frame(
               x = -Inf,
               y = -Inf,
