@@ -123,9 +123,10 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
     ann_df <- stat_df |>
       dplyr::mutate(
-        label = paste0(distance_metric,
-                       "\nR2=", ifelse(is.na(R2), "NA", format(R2, nsmall = 3)),
-                       "\nPERMANOVA p=", ifelse(is.na(padj), "NA", signif(padj,3))),
+        label = sprintf("%-12s\n%-12s\n%-12s",
+                        distance_metric,
+                        paste0("R2=", formatC(R2, format="f", digits=3)),
+                        paste0("PERMANOVA p=", formatC(padj, format="f", digits=3))),
         x = -Inf,  # 코너 고정
         y = -Inf
       )
@@ -277,7 +278,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
               p <- p + ggplot2::geom_text(
                 data = ann_df,
                 mapping = aes(x = x, y = y, label = label),
-                size = 3, hjust = -0.1, vjust = -0.6,
+                size = 3, hjust = -0.005, vjust = -0.3,
                 lineheight = 0.95,
                 inherit.aes = FALSE
               )
@@ -299,12 +300,15 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
               ann_df <- data.frame(
                 x = -Inf,
                 y = -Inf,
-                label = paste0(distance_metric, "\nR2=",R2,"\nPERMANOVA p=", signif(padj,3))
+                label = sprintf("%-12s\n%-12s\n%-12s",
+                                distance_metric,
+                                paste0("R2=", formatC(R2, format="f", digits=3)),
+                                paste0("PERMANOVA p=", formatC(padj, format="f", digits=3)))
               )
               p <- p + ggplot2::geom_text(
                 data = ann_df,
                 aes(x = x, y = y, label = label),
-                size = 3, hjust = -0.1, vjust = -0.6,
+                size = 3, hjust = -0.005, vjust = -0.3,
                 lineheight = 0.95,
                 inherit.aes = FALSE
               )
@@ -424,7 +428,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             p <- p + ggplot2::geom_text(
               data = ann_df,
               mapping = aes(x = x, y = y, label = label),
-              size = 3, hjust = -0.1, vjust = -0.6,
+              size = 3, hjust = -0.005, vjust = -0.3,
               lineheight = 0.95,
               inherit.aes = FALSE
             )
@@ -446,12 +450,18 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             ann_df <- data.frame(
               x = -Inf,
               y = -Inf,
-              label = paste0(distance_metric, "\nR2=",R2,"\nPERMANOVA p=", signif(padj,3))
+              label = ggplot2::geom_text(
+                data = ann_df,
+                aes(x = x, y = y, label = label),
+                size = 3, hjust = -0.005, vjust = -0.3,
+                lineheight = 0.95,
+                inherit.aes = FALSE
+              )
             )
             p <- p + ggplot2::geom_text(
               data = ann_df,
               aes(x = x, y = y, label = label),
-              size = 3, hjust = -0.1, vjust = -0.6,
+              size = 3, hjust = -0.005, vjust = -0.3,
               lineheight = 0.95,
               inherit.aes = FALSE
             )
