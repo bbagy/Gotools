@@ -16,7 +16,11 @@ Go_imgInfo(
   Bdivplot = NA,
   DAplot = NA,
   EBplot = NA,
-  Network = NA
+  Network = NA,
+  SHeatmap = NA,
+  MAGs_tree = NA,
+  MAGs_upset = NA,
+  MAGs_heatmap = NA
 )
 }
 \arguments{
