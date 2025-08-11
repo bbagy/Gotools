@@ -5,14 +5,15 @@
 \title{Summarize and Organize Text Information}
 \usage{
 Go_sumInfo(
-  Prep_overview,
-  Taxa_overview,
-  Alpha_div,
-  Beta_div,
-  Bacterial_div,
-  DA_test,
-  Conclusion,
-  Useful_info
+  Prep_overview = NA,
+  Taxa_overview = NA,
+  Alpha_div = NA,
+  Beta_div = NA,
+  Bacterial_div = NA,
+  DA_test = NA,
+  Summary = NA,
+  Conclusion = NA,
+  Useful_info = NA
 )
 }
 \arguments{

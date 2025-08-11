@@ -7,6 +7,7 @@
 Go_tabInfo(
   Taxa_Tab = NA,
   ASVs_Tab = NA,
+  GTDBTK_Tab = NA,
   Tract_Tab = NA,
   Func_Tab = NA,
   Other_Tab = NA,

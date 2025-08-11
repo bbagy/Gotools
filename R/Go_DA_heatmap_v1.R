@@ -125,21 +125,18 @@ colnames(df)
 
     # Create formatted labels
     formatted_labels <- paste(resSig.top$smvar, " (n=", resSig.top$smvar.count, ")", sep="")
+    unique(formatted_labels)
+
     formatted_orders <- paste(orders, " (n=", resSig.top$smvar.count[match(orders, resSig.top$smvar)], ")", sep="")
 
+    print(formatted_orders)
 
 
-    # resSig.top$smvar <- paste(resSig.top$smvar," (n=", resSig.top$smvar.count, ")",sep="")
-    # re-order using number
-    # new.orders <- c()
-    # for(i in orders){
-    #   if(length(order <- grep(i, unique(resSig.top$smvar)))){
-    #     order <- c(unique(resSig.top$smvar)[order])
-    #  }
-    #  new.orders <- c(new.orders, order)
-    # }
 
-    new.orders <- c(formatted_orders, orders)
+    new.orders <- unique(c(formatted_orders, orders,formatted_labels))
+    print(new.orders)
+
+
     # resSig.top$smvar  <- factor(resSig.top$smvar, levels = intersect(new.orders, resSig.top$smvar))
     # Convert formatted labels back into a factor with the specified order
     resSig.top$smvar <- factor(formatted_labels, levels = new.orders)

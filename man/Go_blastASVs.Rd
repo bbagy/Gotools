@@ -38,7 +38,7 @@ It assumes that the BLAST tool is properly installed and accessible in the syste
 The results include the genus and species extracted from the hit definitions.
 }
 \examples{
-Go_blastASVs(asvsTable="path/to/your/asvTable.csv", 
+Go_blastASVs(asvsTable="path/to/your/asvTable.csv",
              blastDB="/path/to/your/blastDB/16S_ribosomal_RNA")
 
 }
