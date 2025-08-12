@@ -29,7 +29,8 @@
 #' @importFrom igraph graph_from_data_frame degree betweenness closeness evcent
 #' @importFrom ggplot2 ggplot aes_string geom_point
 #' @importFrom stats p.adjust
-#' @import base read.csv setNames
+#' @importFrom utils read.csv
+#' @importFrom stats setNames
 #'
 #' @examples
 #' \dontrun{

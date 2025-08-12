@@ -39,193 +39,7 @@
 #'
 #' @export
 
-suppressPackageStartupMessages({
-  library(ggplot2)
-  library(ggpubr)
-  library(dplyr)
-  library(lme4)
-  library(lmerTest)
-  library(emmeans)
-})
 
-# --------------------------------------------
-# LMM 보조 함수들 (최소 침습 추가)
-# --------------------------------------------
-
-# 1) LMM + emmeans 요약 콘솔 출력 (paired일 때만 호출)
-multiplot <- function(..., plotlist=NULL, file, cols=1, rows=1) {
-  require(grid)
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-  numPlots = length(plots)
-
-  i = 1
-  while (i < numPlots) {
-    numToPlot <- min(numPlots-i+1, cols*rows)
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(i, i+cols*rows-1), ncol = cols, nrow = rows, byrow=T)
-    if (numToPlot==1) {
-      print(plots[[i]])
-    } else {
-      # Set up the page
-      grid.newpage()
-      pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-      # Make each plot, in the correct location
-      for (j in i:(i+numToPlot-1)) {
-        # Get the i,j matrix positions of the regions that contain this subplot
-        matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
-        print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
-                                        layout.pos.col = matchidx$col))
-      }
-    }
-    i <- i+numToPlot
-  }
-}
-
-
-.print_lmm_emm <- function(DAT, mvar, oc, id_col, emm_adjust = "none", digits = 4) {
-  if (!all(c(mvar, oc, id_col) %in% names(DAT))) return(invisible(NULL))
-  keep <- stats::complete.cases(DAT[, c(mvar, oc, id_col)])
-  DAT  <- DAT[keep, , drop = FALSE]
-  if (!nrow(DAT)) return(invisible(NULL))
-
-  # (n=) 라벨 제거 후 모델에 투입
-  DAT[[mvar]] <- as.character(DAT[[mvar]])
-  DAT[[mvar]] <- sub(" \\(n=.*\\)$", "", DAT[[mvar]])
-  DAT[[mvar]] <- droplevels(factor(DAT[[mvar]]))
-  if (nlevels(DAT[[mvar]]) < 2) return(invisible(NULL))
-
-  fm <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
-  mod <- try(lme4::lmer(fm, data = DAT), silent = TRUE)
-  if (inherits(mod, "try-error")) {
-    message(sprintf("[LMM] fit failed for %s ~ %s | id=%s", oc, mvar, id_col))
-    return(invisible(NULL))
-  }
-
-  cat("\n==================== LMM summary ====================\n")
-  cat(sprintf("Outcome: %s | Fixed: %s | Random: (1|%s)\n", oc, mvar, id_col))
-  print(summary(mod), digits = digits)
-
-  cat("\n-------------------- ANOVA(mod) ---------------------\n")
-  suppressMessages(print(anova(mod), digits = digits))  # lmerTest 로드 시 Pr(>F) 포함
-
-  emm <- try(emmeans::emmeans(mod, stats::as.formula(paste0("~ ", mvar))), silent = TRUE)
-  if (!inherits(emm, "try-error")) {
-    cat("\n================= emmeans summary ===================\n")
-    print(summary(emm, infer = c(TRUE, TRUE)), digits = digits)
-
-    contr <- try(emmeans::contrast(emm, method = "pairwise", adjust = emm_adjust), silent = TRUE)
-    if (!inherits(contr, "try-error")) {
-      cat("\n============= emmeans pairwise contrasts ============\n")
-      print(summary(contr, infer = c(TRUE, TRUE)), digits = digits)
-    }
-  } else {
-    cat("\n[emmeans] failed to compute marginal means.\n")
-  }
-  invisible(NULL)
-}
-
-# 2) LMM pairwise p-value 주석 생성 (방향 무관 매칭 보강 + 실패시 윌콕슨 fallback)
-.lmm_pvals <- function(df, mvar, oc, id_col, comparisons, y_nudge = 1.08, digits = 3) {
-  keep <- stats::complete.cases(df[, c(mvar, oc, id_col)])
-  df <- df[keep, , drop = FALSE]
-  if (!nrow(df)) return(data.frame())
-
-  # 모델엔 (n=) 제거한 원래 레벨 사용
-  df[[mvar]] <- as.character(df[[mvar]])
-  df[[mvar]] <- sub(" \\(n=.*\\)$", "", df[[mvar]])
-  df[[mvar]] <- droplevels(factor(df[[mvar]]))
-  if (nlevels(df[[mvar]]) < 2) return(data.frame())
-
-  lvl_order <- levels(df[[mvar]])
-  .pair_key <- function(a, b, lvl = NULL) {
-    if (!is.null(lvl)) {
-      ia <- match(a, lvl); ib <- match(b, lvl)
-      ord <- order(c(ia, ib), na.last = TRUE)
-      paste(c(a, b)[ord], collapse = "__")
-    } else paste(sort(c(a, b)), collapse = "__")
-  }
-
-  fm  <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
-  fit_ok <- TRUE
-  mod <- try(lme4::lmer(fm, data = df), silent = TRUE)
-  if (inherits(mod, "try-error")) fit_ok <- FALSE
-
-  if (fit_ok) {
-    emm <- try(emmeans::emmeans(mod, stats::as.formula(paste0("~ ", mvar))), silent = TRUE)
-    if (inherits(emm, "try-error")) fit_ok <- FALSE
-  }
-
-  if (!fit_ok) {
-    # 실패 시: unpaired 윌콕슨(안전장치)
-    get_p <- function(a,b){
-      x <- df[df[[mvar]]==a, oc]; y <- df[df[[mvar]]==b, oc]
-      p <- try(stats::wilcox.test(x, y, exact=FALSE)$p.value, silent=TRUE)
-      if (inherits(p, "try-error")) p <- NA_real_
-      p
-    }
-    ymax <- max(df[[oc]], na.rm = TRUE)*y_nudge
-    ann <- lapply(seq_along(comparisons), function(i){
-      g <- comparisons[[i]]
-      pval <- get_p(g[1], g[2])
-      data.frame(group1=g[1], group2=g[2],
-                 y.position = ymax*(1 + 0.06*(i-1)),
-                 p = pval,
-                 label = sprintf(paste0("%.", digits, "f"), pval))
-    })
-    return(do.call(rbind, ann))
-  }
-
-  cmp <- as.data.frame(emmeans::contrast(emm, method = "pairwise", adjust = "none"))
-  parse_con <- function(s){ strsplit(s, " - ", fixed=TRUE)[[1]] }
-  cmp$g1 <- vapply(cmp$contrast, function(z) parse_con(z)[1], character(1))
-  cmp$g2 <- vapply(cmp$contrast, function(z) parse_con(z)[2], character(1))
-  cmp$key  <- mapply(.pair_key, cmp$g1, cmp$g2, MoreArgs = list(lvl = lvl_order))
-
-  want_df  <- do.call(rbind, lapply(comparisons, function(x) data.frame(g1=x[1], g2=x[2])))
-  want_df$key <- mapply(.pair_key, want_df$g1, want_df$g2, MoreArgs = list(lvl = lvl_order))
-
-  out <- merge(cmp[, c("key","g1","g2","p.value")], unique(want_df["key"]), by="key", all.y=TRUE)
-  names(out)[names(out)=="p.value"] <- "p"
-  if (!nrow(out)) return(data.frame())
-
-  ymax <- max(df[[oc]], na.rm = TRUE)*y_nudge
-  out$y.position <- ymax*(1 + 0.06*(seq_len(nrow(out))-1))
-  out$label <- sprintf(paste0("%.", digits, "f"), out$p)
-  names(out)[names(out) %in% c("g1","g2")] <- c("group1","group2")
-  out
-}
-
-# 3) (n=) 라벨로 바뀐 축 레벨에 p주석 레벨 매핑
-.map_ann_levels <- function(ann, old2new) {
-  if (!nrow(ann)) return(ann)
-  ann$group1 <- ifelse(ann$group1 %in% names(old2new), old2new[ann$group1], ann$group1)
-  ann$group2 <- ifelse(ann$group2 %in% names(old2new), old2new[ann$group2], ann$group2)
-  ann
-}
-
-# 4) (선택) LMM omnibus p-value (제목에 쓰고자 할 때 사용 가능)
-.lmm_omnibus <- function(df, mvar, oc, id_col) {
-  keep <- complete.cases(df[, c(mvar, oc, id_col)])
-  df <- df[keep, , drop = FALSE]
-  if (!nrow(df)) return(list(name="LMM", pval=NA_real_))
-
-  df[[mvar]] <- as.character(df[[mvar]])
-  df[[mvar]] <- sub(" \\(n=.*\\)$", "", df[[mvar]])
-  df[[mvar]] <- droplevels(factor(df[[mvar]]))
-  if (nlevels(df[[mvar]]) < 2) return(list(name="LMM", pval=NA_real_))
-
-  fm  <- as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
-  mod <- lmer(fm, data = df)
-  atab <- suppressMessages(anova(mod))
-  rn <- rownames(atab)
-  hit <- which(rn == mvar)
-  if (length(hit) == 0) hit <- grep(sprintf("^%s$", gsub("([\\W])", "\\\\\\1", mvar)), rn)
-  p <- if (length(hit)>=1 && "Pr(>F)" %in% colnames(atab)) atab[hit[1], "Pr(>F)"] else NA_real_
-  list(name="LMM", pval=ifelse(is.na(p), NA_real_, round(as.numeric(p), 4)))
-}
 
 # --------------------------------------------
 # 원본 함수 (최소 침습: LMM 기능만 얹음)
@@ -248,6 +62,195 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                        xangle=90,
                        cutoff = 0.1,
                        height, width, plotCols, plotRows){
+
+  suppressPackageStartupMessages({
+    library(ggplot2)
+    library(ggpubr)
+    library(dplyr)
+    library(lme4)
+    library(lmerTest)
+    library(emmeans)
+  })
+
+  # --------------------------------------------
+  # LMM 보조 함수들 (최소 침습 추가)
+  # --------------------------------------------
+
+  # 1) LMM + emmeans 요약 콘솔 출력 (paired일 때만 호출)
+  multiplot <- function(..., plotlist=NULL, file, cols=1, rows=1) {
+    require(grid)
+    # Make a list from the ... arguments and plotlist
+    plots <- c(list(...), plotlist)
+    numPlots = length(plots)
+
+    i = 1
+    while (i < numPlots) {
+      numToPlot <- min(numPlots-i+1, cols*rows)
+      # Make the panel
+      # ncol: Number of columns of plots
+      # nrow: Number of rows needed, calculated from # of cols
+      layout <- matrix(seq(i, i+cols*rows-1), ncol = cols, nrow = rows, byrow=T)
+      if (numToPlot==1) {
+        print(plots[[i]])
+      } else {
+        # Set up the page
+        grid.newpage()
+        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+        # Make each plot, in the correct location
+        for (j in i:(i+numToPlot-1)) {
+          # Get the i,j matrix positions of the regions that contain this subplot
+          matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
+          print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
+                                          layout.pos.col = matchidx$col))
+        }
+      }
+      i <- i+numToPlot
+    }
+  }
+
+
+  .print_lmm_emm <- function(DAT, mvar, oc, id_col, emm_adjust = "none", digits = 4) {
+    if (!all(c(mvar, oc, id_col) %in% names(DAT))) return(invisible(NULL))
+    keep <- stats::complete.cases(DAT[, c(mvar, oc, id_col)])
+    DAT  <- DAT[keep, , drop = FALSE]
+    if (!nrow(DAT)) return(invisible(NULL))
+
+    # (n=) 라벨 제거 후 모델에 투입
+    DAT[[mvar]] <- as.character(DAT[[mvar]])
+    DAT[[mvar]] <- sub(" \\(n=.*\\)$", "", DAT[[mvar]])
+    DAT[[mvar]] <- droplevels(factor(DAT[[mvar]]))
+    if (nlevels(DAT[[mvar]]) < 2) return(invisible(NULL))
+
+    fm <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
+    mod <- try(lme4::lmer(fm, data = DAT), silent = TRUE)
+    if (inherits(mod, "try-error")) {
+      message(sprintf("[LMM] fit failed for %s ~ %s | id=%s", oc, mvar, id_col))
+      return(invisible(NULL))
+    }
+
+    cat("\n==================== LMM summary ====================\n")
+    cat(sprintf("Outcome: %s | Fixed: %s | Random: (1|%s)\n", oc, mvar, id_col))
+    print(summary(mod), digits = digits)
+
+    cat("\n-------------------- ANOVA(mod) ---------------------\n")
+    suppressMessages(print(anova(mod), digits = digits))  # lmerTest 로드 시 Pr(>F) 포함
+
+    emm <- try(emmeans::emmeans(mod, stats::as.formula(paste0("~ ", mvar))), silent = TRUE)
+    if (!inherits(emm, "try-error")) {
+      cat("\n================= emmeans summary ===================\n")
+      print(summary(emm, infer = c(TRUE, TRUE)), digits = digits)
+
+      contr <- try(emmeans::contrast(emm, method = "pairwise", adjust = emm_adjust), silent = TRUE)
+      if (!inherits(contr, "try-error")) {
+        cat("\n============= emmeans pairwise contrasts ============\n")
+        print(summary(contr, infer = c(TRUE, TRUE)), digits = digits)
+      }
+    } else {
+      cat("\n[emmeans] failed to compute marginal means.\n")
+    }
+    invisible(NULL)
+  }
+
+  # 2) LMM pairwise p-value 주석 생성 (방향 무관 매칭 보강 + 실패시 윌콕슨 fallback)
+  .lmm_pvals <- function(df, mvar, oc, id_col, comparisons, y_nudge = 1.08, digits = 3) {
+    keep <- stats::complete.cases(df[, c(mvar, oc, id_col)])
+    df <- df[keep, , drop = FALSE]
+    if (!nrow(df)) return(data.frame())
+
+    # 모델엔 (n=) 제거한 원래 레벨 사용
+    df[[mvar]] <- as.character(df[[mvar]])
+    df[[mvar]] <- sub(" \\(n=.*\\)$", "", df[[mvar]])
+    df[[mvar]] <- droplevels(factor(df[[mvar]]))
+    if (nlevels(df[[mvar]]) < 2) return(data.frame())
+
+    lvl_order <- levels(df[[mvar]])
+    .pair_key <- function(a, b, lvl = NULL) {
+      if (!is.null(lvl)) {
+        ia <- match(a, lvl); ib <- match(b, lvl)
+        ord <- order(c(ia, ib), na.last = TRUE)
+        paste(c(a, b)[ord], collapse = "__")
+      } else paste(sort(c(a, b)), collapse = "__")
+    }
+
+    fm  <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
+    fit_ok <- TRUE
+    mod <- try(lme4::lmer(fm, data = df), silent = TRUE)
+    if (inherits(mod, "try-error")) fit_ok <- FALSE
+
+    if (fit_ok) {
+      emm <- try(emmeans::emmeans(mod, stats::as.formula(paste0("~ ", mvar))), silent = TRUE)
+      if (inherits(emm, "try-error")) fit_ok <- FALSE
+    }
+
+    if (!fit_ok) {
+      # 실패 시: unpaired 윌콕슨(안전장치)
+      get_p <- function(a,b){
+        x <- df[df[[mvar]]==a, oc]; y <- df[df[[mvar]]==b, oc]
+        p <- try(stats::wilcox.test(x, y, exact=FALSE)$p.value, silent=TRUE)
+        if (inherits(p, "try-error")) p <- NA_real_
+        p
+      }
+      ymax <- max(df[[oc]], na.rm = TRUE)*y_nudge
+      ann <- lapply(seq_along(comparisons), function(i){
+        g <- comparisons[[i]]
+        pval <- get_p(g[1], g[2])
+        data.frame(group1=g[1], group2=g[2],
+                   y.position = ymax*(1 + 0.06*(i-1)),
+                   p = pval,
+                   label = sprintf(paste0("%.", digits, "f"), pval))
+      })
+      return(do.call(rbind, ann))
+    }
+
+    cmp <- as.data.frame(emmeans::contrast(emm, method = "pairwise", adjust = "none"))
+    parse_con <- function(s){ strsplit(s, " - ", fixed=TRUE)[[1]] }
+    cmp$g1 <- vapply(cmp$contrast, function(z) parse_con(z)[1], character(1))
+    cmp$g2 <- vapply(cmp$contrast, function(z) parse_con(z)[2], character(1))
+    cmp$key  <- mapply(.pair_key, cmp$g1, cmp$g2, MoreArgs = list(lvl = lvl_order))
+
+    want_df  <- do.call(rbind, lapply(comparisons, function(x) data.frame(g1=x[1], g2=x[2])))
+    want_df$key <- mapply(.pair_key, want_df$g1, want_df$g2, MoreArgs = list(lvl = lvl_order))
+
+    out <- merge(cmp[, c("key","g1","g2","p.value")], unique(want_df["key"]), by="key", all.y=TRUE)
+    names(out)[names(out)=="p.value"] <- "p"
+    if (!nrow(out)) return(data.frame())
+
+    ymax <- max(df[[oc]], na.rm = TRUE)*y_nudge
+    out$y.position <- ymax*(1 + 0.06*(seq_len(nrow(out))-1))
+    out$label <- sprintf(paste0("%.", digits, "f"), out$p)
+    names(out)[names(out) %in% c("g1","g2")] <- c("group1","group2")
+    out
+  }
+
+  # 3) (n=) 라벨로 바뀐 축 레벨에 p주석 레벨 매핑
+  .map_ann_levels <- function(ann, old2new) {
+    if (!nrow(ann)) return(ann)
+    ann$group1 <- ifelse(ann$group1 %in% names(old2new), old2new[ann$group1], ann$group1)
+    ann$group2 <- ifelse(ann$group2 %in% names(old2new), old2new[ann$group2], ann$group2)
+    ann
+  }
+
+  # 4) (선택) LMM omnibus p-value (제목에 쓰고자 할 때 사용 가능)
+  .lmm_omnibus <- function(df, mvar, oc, id_col) {
+    keep <- complete.cases(df[, c(mvar, oc, id_col)])
+    df <- df[keep, , drop = FALSE]
+    if (!nrow(df)) return(list(name="LMM", pval=NA_real_))
+
+    df[[mvar]] <- as.character(df[[mvar]])
+    df[[mvar]] <- sub(" \\(n=.*\\)$", "", df[[mvar]])
+    df[[mvar]] <- droplevels(factor(df[[mvar]]))
+    if (nlevels(df[[mvar]]) < 2) return(list(name="LMM", pval=NA_real_))
+
+    fm  <- as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
+    mod <- lmer(fm, data = df)
+    atab <- suppressMessages(anova(mod))
+    rn <- rownames(atab)
+    hit <- which(rn == mvar)
+    if (length(hit) == 0) hit <- grep(sprintf("^%s$", gsub("([\\W])", "\\\\\\1", mvar)), rn)
+    p <- if (length(hit)>=1 && "Pr(>F)" %in% colnames(atab)) atab[hit[1], "Pr(>F)"] else NA_real_
+    list(name="LMM", pval=ifelse(is.na(p), NA_real_, round(as.numeric(p), 4)))
+  }
+
 
   if(!is.null(dev.list())) dev.off()
 
