@@ -19,7 +19,6 @@
 #' @importFrom dplyr subset filter
 #' @importFrom stats set.seed
 #' @import GUniFrac
-#' @importFrom base rowSums apply as.matrix
 #'
 #' @examples
 #' \dontrun{

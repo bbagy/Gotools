@@ -1,45 +1,43 @@
 #' Perform ANCOM-II Analysis on Phyloseq Data
 #'
-#' This function conducts Analysis of Compositions of Microbiomes (ANCOM-II) on data from a Phyloseq object.
-#' It supports various types of variables including categorical and continuous, and allows for adjusting for confounders.
-#' The function can handle multiple categories and generates output for each pairwise comparison.
+#' This function runs ANCOM-II on a phyloseq object. It supports categorical and
+#' continuous variables and allows adjusting for confounders. For categorical
+#' outcomes, it can iterate over level combinations and save per-contrast results.
 #'
-#' @param psIN Phyloseq object containing the data for analysis.
-#' @param project Name of the project or analysis.
-#' @param taxanames Rank of taxa.
-#' @param rand.eff
-#' @param data_type Type of data in the Phyloseq object ("taxonomy", "kegg", "pathway", "RNAseq").
-#' @param cate.outs Categorical outcomes to be analyzed.
-#' @param cate.conf Categorical confounding variables to adjust for in the analysis.
-#' @param cont.conf Continuous confounding variables to adjust for in the analysis.
-#' @param orders Custom order of factors in the analysis, if applicable.
-#' @param name Optional name for the analysis.
+#' @param psIN A \code{phyloseq} object containing count data and sample metadata.
+#' @param project Character. Project or analysis name (used in output paths).
+#' @param taxanames Character or NULL. Taxonomic rank to report (e.g., \code{"Genus"}).
+#' @param rand.eff Character or NULL. Random-effect column name in \code{sample_data(psIN)}
+#'   (e.g., subject ID) to be modeled as a random intercept. Use \code{NULL} for no random effect.
+#' @param data_type Character. One of \code{c("taxonomy","kegg","pathway","RNAseq")}.
+#' @param cate.outs Character vector. Categorical outcomes to analyze.
+#' @param cate.conf Character vector or NULL. Categorical confounders to adjust for.
+#' @param cont.conf Character vector or NULL. Continuous confounders to adjust for.
+#' @param orders Character vector or NULL. Custom factor level order for outcomes/confounders.
+#' @param name Character or NULL. Extra tag appended to output filenames.
 #'
-#' @return The function generates CSV files containing the results of the ANCOM-II analysis.
-#' These include statistics like log fold change, standard error, W statistic, p-values, and adjusted p-values,
-#' along with taxonomic information for each feature. Files are saved in a specified directory
-#' with a naming convention that includes key details of the analysis.
+#' @return Invisibly returns a list of data.frames (one per analysis), and writes CSV
+#'   files containing ANCOM-II results (W-statistic, p-values, q-values/fdr, effect sizes)
+#'   merged with taxonomy where applicable.
 #'
 #' @details
-#' The function first checks the type of data in the Phyloseq object.
-#' It then processes categorical and continuous variables, adjusting for confounders if specified.
-#' ANCOM-II analysis is performed for each variable or combination of variables.
-#' The results are merged with taxonomy data and saved as CSV files.
-#'
-#' For categorical variables, the function considers combinations of levels for analysis.
-#' The analysis takes into account the structure of microbiome data and adjusts for compositionality.
+#' The function prepares the design from \code{sample_data(psIN)}, optionally sets a random
+#' intercept via \code{rand.eff}, runs ANCOM-II per outcome (and per level comparison when
+#' applicable), and saves tidy results under \code{<project>_<YYMMDD>/table/}.
 #'
 #' @examples
-#' # psIN is a Phyloseq object
-#' # Example usage:
-#' Go_Ancom2(psIN = psIN,
-#'           project = "MyProject",
-#'           data_type = "taxonomy",
-#'           cate.outs = c("Treatment", "Condition"),
-#'           cate.conf = c("Gender"),
-#'           cont.conf = NULL,
-#'           orders = NULL,
-#'           name = "Analysis1")
+#' \donttest{
+#' Go_Ancom2(
+#'   psIN      = psIN,
+#'   project   = "MyProject",
+#'   data_type = "taxonomy",
+#'   cate.outs = c("Treatment","Condition"),
+#'   cate.conf = "Gender",
+#'   cont.conf = NULL,
+#'   orders    = NULL,
+#'   name      = "Analysis1"
+#' )
+#' }
 #'
 #' @export
 

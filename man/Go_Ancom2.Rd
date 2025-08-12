@@ -18,54 +18,54 @@ Go_Ancom2(
 )
 }
 \arguments{
-\item{psIN}{Phyloseq object containing the data for analysis.}
+\item{psIN}{A \code{phyloseq} object containing count data and sample metadata.}
 
-\item{project}{Name of the project or analysis.}
+\item{project}{Character. Project or analysis name (used in output paths).}
 
-\item{data_type}{Type of data in the Phyloseq object ("taxonomy", "kegg", "pathway", "RNAseq").}
+\item{data_type}{Character. One of \code{c("taxonomy","kegg","pathway","RNAseq")}.}
 
-\item{taxanames}{Rank of taxa.}
+\item{taxanames}{Character or NULL. Taxonomic rank to report (e.g., \code{"Genus"}).}
 
-\item{cate.outs}{Categorical outcomes to be analyzed.}
+\item{cate.outs}{Character vector. Categorical outcomes to analyze.}
 
-\item{cate.conf}{Categorical confounding variables to adjust for in the analysis.}
+\item{cate.conf}{Character vector or NULL. Categorical confounders to adjust for.}
 
-\item{cont.conf}{Continuous confounding variables to adjust for in the analysis.}
+\item{cont.conf}{Character vector or NULL. Continuous confounders to adjust for.}
 
-\item{orders}{Custom order of factors in the analysis, if applicable.}
+\item{rand.eff}{Character or NULL. Random-effect column name in \code{sample_data(psIN)}
+(e.g., subject ID) to be modeled as a random intercept. Use \code{NULL} for no random effect.}
 
-\item{name}{Optional name for the analysis.}
+\item{orders}{Character vector or NULL. Custom factor level order for outcomes/confounders.}
+
+\item{name}{Character or NULL. Extra tag appended to output filenames.}
 }
 \value{
-The function generates CSV files containing the results of the ANCOM-II analysis.
-These include statistics like log fold change, standard error, W statistic, p-values, and adjusted p-values,
-along with taxonomic information for each feature. Files are saved in a specified directory
-with a naming convention that includes key details of the analysis.
+Invisibly returns a list of data.frames (one per analysis), and writes CSV
+files containing ANCOM-II results (W-statistic, p-values, q-values/fdr, effect sizes)
+merged with taxonomy where applicable.
 }
 \description{
-This function conducts Analysis of Compositions of Microbiomes (ANCOM-II) on data from a Phyloseq object.
-It supports various types of variables including categorical and continuous, and allows for adjusting for confounders.
-The function can handle multiple categories and generates output for each pairwise comparison.
+This function runs ANCOM-II on a phyloseq object. It supports categorical and
+continuous variables and allows adjusting for confounders. For categorical
+outcomes, it can iterate over level combinations and save per-contrast results.
 }
 \details{
-The function first checks the type of data in the Phyloseq object.
-It then processes categorical and continuous variables, adjusting for confounders if specified.
-ANCOM-II analysis is performed for each variable or combination of variables.
-The results are merged with taxonomy data and saved as CSV files.
-
-For categorical variables, the function considers combinations of levels for analysis.
-The analysis takes into account the structure of microbiome data and adjusts for compositionality.
+The function prepares the design from \code{sample_data(psIN)}, optionally sets a random
+intercept via \code{rand.eff}, runs ANCOM-II per outcome (and per level comparison when
+applicable), and saves tidy results under \code{<project>_<YYMMDD>/table/}.
 }
 \examples{
-# psIN is a Phyloseq object
-# Example usage:
-Go_Ancom2(psIN = psIN,
-          project = "MyProject",
-          data_type = "taxonomy",
-          cate.outs = c("Treatment", "Condition"),
-          cate.conf = c("Gender"),
-          cont.conf = NULL,
-          orders = NULL,
-          name = "Analysis1")
+\donttest{
+Go_Ancom2(
+  psIN      = psIN,
+  project   = "MyProject",
+  data_type = "taxonomy",
+  cate.outs = c("Treatment","Condition"),
+  cate.conf = "Gender",
+  cont.conf = NULL,
+  orders    = NULL,
+  name      = "Analysis1"
+)
+}
 
 }
