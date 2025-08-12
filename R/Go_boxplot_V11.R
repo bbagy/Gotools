@@ -39,6 +39,197 @@
 #'
 #' @export
 
+suppressPackageStartupMessages({
+  library(ggplot2)
+  library(ggpubr)
+  library(dplyr)
+  library(lme4)
+  library(lmerTest)
+  library(emmeans)
+})
+
+# --------------------------------------------
+# LMM 보조 함수들 (최소 침습 추가)
+# --------------------------------------------
+
+# 1) LMM + emmeans 요약 콘솔 출력 (paired일 때만 호출)
+multiplot <- function(..., plotlist=NULL, file, cols=1, rows=1) {
+  require(grid)
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  numPlots = length(plots)
+
+  i = 1
+  while (i < numPlots) {
+    numToPlot <- min(numPlots-i+1, cols*rows)
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(i, i+cols*rows-1), ncol = cols, nrow = rows, byrow=T)
+    if (numToPlot==1) {
+      print(plots[[i]])
+    } else {
+      # Set up the page
+      grid.newpage()
+      pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+      # Make each plot, in the correct location
+      for (j in i:(i+numToPlot-1)) {
+        # Get the i,j matrix positions of the regions that contain this subplot
+        matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
+        print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
+                                        layout.pos.col = matchidx$col))
+      }
+    }
+    i <- i+numToPlot
+  }
+}
+
+
+.print_lmm_emm <- function(DAT, mvar, oc, id_col, emm_adjust = "none", digits = 4) {
+  if (!all(c(mvar, oc, id_col) %in% names(DAT))) return(invisible(NULL))
+  keep <- stats::complete.cases(DAT[, c(mvar, oc, id_col)])
+  DAT  <- DAT[keep, , drop = FALSE]
+  if (!nrow(DAT)) return(invisible(NULL))
+
+  # (n=) 라벨 제거 후 모델에 투입
+  DAT[[mvar]] <- as.character(DAT[[mvar]])
+  DAT[[mvar]] <- sub(" \\(n=.*\\)$", "", DAT[[mvar]])
+  DAT[[mvar]] <- droplevels(factor(DAT[[mvar]]))
+  if (nlevels(DAT[[mvar]]) < 2) return(invisible(NULL))
+
+  fm <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
+  mod <- try(lme4::lmer(fm, data = DAT), silent = TRUE)
+  if (inherits(mod, "try-error")) {
+    message(sprintf("[LMM] fit failed for %s ~ %s | id=%s", oc, mvar, id_col))
+    return(invisible(NULL))
+  }
+
+  cat("\n==================== LMM summary ====================\n")
+  cat(sprintf("Outcome: %s | Fixed: %s | Random: (1|%s)\n", oc, mvar, id_col))
+  print(summary(mod), digits = digits)
+
+  cat("\n-------------------- ANOVA(mod) ---------------------\n")
+  suppressMessages(print(anova(mod), digits = digits))  # lmerTest 로드 시 Pr(>F) 포함
+
+  emm <- try(emmeans::emmeans(mod, stats::as.formula(paste0("~ ", mvar))), silent = TRUE)
+  if (!inherits(emm, "try-error")) {
+    cat("\n================= emmeans summary ===================\n")
+    print(summary(emm, infer = c(TRUE, TRUE)), digits = digits)
+
+    contr <- try(emmeans::contrast(emm, method = "pairwise", adjust = emm_adjust), silent = TRUE)
+    if (!inherits(contr, "try-error")) {
+      cat("\n============= emmeans pairwise contrasts ============\n")
+      print(summary(contr, infer = c(TRUE, TRUE)), digits = digits)
+    }
+  } else {
+    cat("\n[emmeans] failed to compute marginal means.\n")
+  }
+  invisible(NULL)
+}
+
+# 2) LMM pairwise p-value 주석 생성 (방향 무관 매칭 보강 + 실패시 윌콕슨 fallback)
+.lmm_pvals <- function(df, mvar, oc, id_col, comparisons, y_nudge = 1.08, digits = 3) {
+  keep <- stats::complete.cases(df[, c(mvar, oc, id_col)])
+  df <- df[keep, , drop = FALSE]
+  if (!nrow(df)) return(data.frame())
+
+  # 모델엔 (n=) 제거한 원래 레벨 사용
+  df[[mvar]] <- as.character(df[[mvar]])
+  df[[mvar]] <- sub(" \\(n=.*\\)$", "", df[[mvar]])
+  df[[mvar]] <- droplevels(factor(df[[mvar]]))
+  if (nlevels(df[[mvar]]) < 2) return(data.frame())
+
+  lvl_order <- levels(df[[mvar]])
+  .pair_key <- function(a, b, lvl = NULL) {
+    if (!is.null(lvl)) {
+      ia <- match(a, lvl); ib <- match(b, lvl)
+      ord <- order(c(ia, ib), na.last = TRUE)
+      paste(c(a, b)[ord], collapse = "__")
+    } else paste(sort(c(a, b)), collapse = "__")
+  }
+
+  fm  <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
+  fit_ok <- TRUE
+  mod <- try(lme4::lmer(fm, data = df), silent = TRUE)
+  if (inherits(mod, "try-error")) fit_ok <- FALSE
+
+  if (fit_ok) {
+    emm <- try(emmeans::emmeans(mod, stats::as.formula(paste0("~ ", mvar))), silent = TRUE)
+    if (inherits(emm, "try-error")) fit_ok <- FALSE
+  }
+
+  if (!fit_ok) {
+    # 실패 시: unpaired 윌콕슨(안전장치)
+    get_p <- function(a,b){
+      x <- df[df[[mvar]]==a, oc]; y <- df[df[[mvar]]==b, oc]
+      p <- try(stats::wilcox.test(x, y, exact=FALSE)$p.value, silent=TRUE)
+      if (inherits(p, "try-error")) p <- NA_real_
+      p
+    }
+    ymax <- max(df[[oc]], na.rm = TRUE)*y_nudge
+    ann <- lapply(seq_along(comparisons), function(i){
+      g <- comparisons[[i]]
+      pval <- get_p(g[1], g[2])
+      data.frame(group1=g[1], group2=g[2],
+                 y.position = ymax*(1 + 0.06*(i-1)),
+                 p = pval,
+                 label = sprintf(paste0("%.", digits, "f"), pval))
+    })
+    return(do.call(rbind, ann))
+  }
+
+  cmp <- as.data.frame(emmeans::contrast(emm, method = "pairwise", adjust = "none"))
+  parse_con <- function(s){ strsplit(s, " - ", fixed=TRUE)[[1]] }
+  cmp$g1 <- vapply(cmp$contrast, function(z) parse_con(z)[1], character(1))
+  cmp$g2 <- vapply(cmp$contrast, function(z) parse_con(z)[2], character(1))
+  cmp$key  <- mapply(.pair_key, cmp$g1, cmp$g2, MoreArgs = list(lvl = lvl_order))
+
+  want_df  <- do.call(rbind, lapply(comparisons, function(x) data.frame(g1=x[1], g2=x[2])))
+  want_df$key <- mapply(.pair_key, want_df$g1, want_df$g2, MoreArgs = list(lvl = lvl_order))
+
+  out <- merge(cmp[, c("key","g1","g2","p.value")], unique(want_df["key"]), by="key", all.y=TRUE)
+  names(out)[names(out)=="p.value"] <- "p"
+  if (!nrow(out)) return(data.frame())
+
+  ymax <- max(df[[oc]], na.rm = TRUE)*y_nudge
+  out$y.position <- ymax*(1 + 0.06*(seq_len(nrow(out))-1))
+  out$label <- sprintf(paste0("%.", digits, "f"), out$p)
+  names(out)[names(out) %in% c("g1","g2")] <- c("group1","group2")
+  out
+}
+
+# 3) (n=) 라벨로 바뀐 축 레벨에 p주석 레벨 매핑
+.map_ann_levels <- function(ann, old2new) {
+  if (!nrow(ann)) return(ann)
+  ann$group1 <- ifelse(ann$group1 %in% names(old2new), old2new[ann$group1], ann$group1)
+  ann$group2 <- ifelse(ann$group2 %in% names(old2new), old2new[ann$group2], ann$group2)
+  ann
+}
+
+# 4) (선택) LMM omnibus p-value (제목에 쓰고자 할 때 사용 가능)
+.lmm_omnibus <- function(df, mvar, oc, id_col) {
+  keep <- complete.cases(df[, c(mvar, oc, id_col)])
+  df <- df[keep, , drop = FALSE]
+  if (!nrow(df)) return(list(name="LMM", pval=NA_real_))
+
+  df[[mvar]] <- as.character(df[[mvar]])
+  df[[mvar]] <- sub(" \\(n=.*\\)$", "", df[[mvar]])
+  df[[mvar]] <- droplevels(factor(df[[mvar]]))
+  if (nlevels(df[[mvar]]) < 2) return(list(name="LMM", pval=NA_real_))
+
+  fm  <- as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
+  mod <- lmer(fm, data = df)
+  atab <- suppressMessages(anova(mod))
+  rn <- rownames(atab)
+  hit <- which(rn == mvar)
+  if (length(hit) == 0) hit <- grep(sprintf("^%s$", gsub("([\\W])", "\\\\\\1", mvar)), rn)
+  p <- if (length(hit)>=1 && "Pr(>F)" %in% colnames(atab)) atab[hit[1], "Pr(>F)"] else NA_real_
+  list(name="LMM", pval=ifelse(is.na(p), NA_real_, round(as.numeric(p), 4)))
+}
+
+# --------------------------------------------
+# 원본 함수 (최소 침습: LMM 기능만 얹음)
+# --------------------------------------------
 Go_boxplot <- function(df, cate.vars, project, outcomes,
                        orders=NULL,
                        mycols=NULL,
@@ -67,9 +258,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
   if(!file_test("-d", out_path)) dir.create(out_path)
   set.seed(151)
 
-
   # out file
-  # "name" definition
   if (class(name) == "function"){
     name <- NULL
   }
@@ -131,26 +320,23 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
     df.na[,mvar] <- factor(df.na[,mvar], levels = intersect(orders, df.na[,mvar]))
 
-
     # Add number of samples in the group
     print("Add sample number informations")
     if(addnumber==TRUE){
-    renamed_levels <- as.character(levels(df.na[,mvar]));renamed_levels
-    oldNames <- unique(df.na[,mvar]);oldNames
-    if (length(renamed_levels) == 0) {
-      renamed_levels <- oldNames
-    }
-    for (name in oldNames) {
-      total <- length(which(df.na[,mvar] == name));total
-      new_n <- paste(name, " (n=", total, ")", sep="");new_n
-      levels(df.na[[mvar]])[levels(df.na[[mvar]])== name] <- new_n
-      renamed_levels <- replace(renamed_levels, renamed_levels == name, new_n);renamed_levels
-    }
+      renamed_levels <- as.character(levels(df.na[,mvar]));renamed_levels
+      oldNames <- unique(df.na[,mvar]);oldNames
+      if (length(renamed_levels) == 0) {
+        renamed_levels <- oldNames
+      }
+      for (name in oldNames) {
+        total <- length(which(df.na[,mvar] == name));total
+        new_n <- paste(name, " (n=", total, ")", sep="");new_n
+        levels(df.na[[mvar]])[levels(df.na[[mvar]])== name] <- new_n
+        renamed_levels <- replace(renamed_levels, renamed_levels == name, new_n);renamed_levels
+      }
     }else{
       df.na <- df.na
     }
-
-
 
     print(sprintf("##-- %s (total without NA: %s/%s) --##",
                   mvar, dim(df.na)[1], dim(df)[1]))
@@ -165,12 +351,9 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
     # for group combination or not #
     #------------------------------#
 
-
     if (!is.null(combination)){
       print(sprintf("Combination n=", combination))
       group.cbn <- combn(x = levels(df.na[,mvar]), m = combination)
-
-      #print(count(group.cbn))
 
       group_comparisons <- {}
       for(i in 1:ncol(group.cbn)){
@@ -245,7 +428,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar1, smvar2,smvar3,smvar4,smvar5,smvar6,smvar7,smvar8))
         }else if(combination ==10){
           basline <- group.combination[1]
-          smvar1 <- group.combination[2]
+          smvar1 <- group_com
           smvar2 <- group.combination[3]
           smvar3 <- group.combination[4]
           smvar4 <- group.combination[5]
@@ -262,25 +445,18 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
         unique(df.cbn[,mvar])
 
-
         # make a comnination for stat
         df.cbn[,mvar] <- factor(df.cbn[,mvar])
         cbn <- combn(x = levels(df.cbn[,mvar]), m = 2)
-
-
         my_comparisons <- {}
         for(i in 1:ncol(cbn)){
           x <- cbn[,i]
           my_comparisons[[i]] <- x
         };my_comparisons
-
         if(combination != 2){
           combination.N <- combination - 1
-          my_comparisons <- my_comparisons[1:combination.N]
+          my_comparisons <- my_comparisons[1:combination.N]  # baseline-only 유지
         }
-
-
-
 
         for(oc in outcomes){
           # remove NA for facet
@@ -297,7 +473,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
           print(oc)
 
-           # check statistics method
+          # check statistics method (원본 유지)
           if (statistics){
             if (parametric){
               if (nlevels(factor(df.cbn[,mvar])) > 2) {
@@ -327,28 +503,24 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             pval <- NULL
           }
 
-
-          p1 <- ggplot(df.cbn, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) + #theme_bw() +
+          p1 <- ggplot(df.cbn, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
             theme(strip.background = element_blank()) +
             theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
-                  plot.title=element_text(size=8)) # ,face="bold"
-
-
+                  plot.title=element_text(size=8))
 
           if (!is.null(title)) {
             p1 <- p1 + ggtitle(sprintf("%s%s%s%s", title,
-                                       ifelse(is.null(test.name), "", paste("\n",test.name, " ", sep = "")),
-                                       ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
-                                       ifelse(is.null(pval), "", paste(pval, " ", sep = "")), sep=""))
+                                       ifelse(is.null(test.name), "", paste("\n",test.name, " ")),
+                                       ifelse(is.null(pval), "", paste("p=", " ")),
+                                       ifelse(is.null(pval), "", paste(pval, " "))))
           } else{
             p1 <- p1 + ggtitle(sprintf("%s%s%s%s", mvar,
-                                       ifelse(is.null(test.name), "", paste("\n",test.name, " ", sep = "")),
-                                       ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
-                                       ifelse(is.null(pval), "", paste(pval, " ", sep = "")), sep=""))
+                                       ifelse(is.null(test.name), "", paste("\n",test.name, " ")),
+                                       ifelse(is.null(pval), "", paste("p=", " ")),
+                                       ifelse(is.null(pval), "", paste(pval, " "))))
           }
 
-          # control statistic on the plot
-
+          # control statistic on the plot (원본 유지)
           if(is.null(test.name)){
             p1 <- p1
           } else if(test.name == "KW" | test.name == "ANOVA"){
@@ -367,17 +539,13 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             }
           }else if(testmethod == "wilcox.test" | testmethod == "t.test"){
             if (statistics){
-              print(1)
               if (star) {
                 p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
-                print(2)
               } else{
                 p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-                print(3)
               }
             }else{
               p1 <- p1
-              print(4)
             }
           }
 
@@ -389,8 +557,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             }
           }
 
-
-          # paired plot type
+          # paired plot type (원본 유지 + LMM 주석/요약 추가)
           if (!is.null(paired)) {
 
             if(!is.null(mycols)){
@@ -400,12 +567,43 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             }
 
             p1 = p1 + geom_boxplot(aes_string(colour=mvar),outlier.shape = NA,lwd=box.tickness)  + theme(legend.position="none")
-            p1 = p1 + geom_point(aes_string(colour=mvar,group=paired),alpha = 0.8, size = dot.size, position = position_dodge(0.3),show.legend = F)  #scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
+            p1 = p1 + geom_point(aes_string(colour=mvar,group=paired),alpha = 0.8, size = dot.size, position = position_dodge(0.3),show.legend = F)
             p1 = p1 + geom_line(aes_string(group=paired), color="grey50", size=0.3,position = position_dodge(0.3))
             p1 = p1 + theme(legend.title = element_blank(), legend.position="bottom", legend.justification="left",legend.box.margin = ggplot2::margin(0,0,0,-1,"cm"))
+
+            # ---- (추가) LMM pairwise 주석 + 요약 출력 ----
+            # 통계용 원본 레벨로 비교쌍 구성 (baseline-only 규칙 유지)
+            lv_orig <- levels(droplevels(factor(sub(" \\(n=.*\\)$","", as.character(df.cbn[,mvar])))))
+            if (length(lv_orig) >= 2) {
+              if (!is.null(combination) && combination != 2) {
+                # baseline vs others, 앞에서 combination-1개만
+                k <- min(length(lv_orig)-1, combination-1)
+                my_comp0 <- lapply(seq_len(k), function(j) c(lv_orig[1], lv_orig[j+1]))
+              } else {
+                cbn0 <- combn(lv_orig, 2)
+                my_comp0 <- lapply(seq_len(ncol(cbn0)), function(k) cbn0[,k])
+              }
+              tmp <- df.cbn
+              ann <- .lmm_pvals(df = tmp, mvar = mvar, oc = oc, id_col = paired,
+                                comparisons = my_comp0, y_nudge = 1.08, digits = 3)
+              if (nrow(ann) > 0) {
+                # (n=) 라벨로 매핑
+                cur_levels <- levels(df.cbn[[mvar]])
+                old_levels <- lv_orig
+                map <- setNames(sapply(old_levels, function(ol){
+                  hit <- cur_levels[startsWith(cur_levels, ol)]
+                  if (length(hit)>=1) hit[1] else ol
+                }), old_levels)
+                ann2 <- .map_ann_levels(ann, old2new = map)
+                p1 <- p1 + ggpubr::stat_pvalue_manual(ann2, label = "label", tip.length = 0.01, size = 3)
+              }
+              # 콘솔 요약
+              .print_lmm_emm(DAT = df.cbn, mvar = mvar, oc = oc, id_col = paired)
+            }
+
           }  else{
 
-            # count or table for number of variable
+            # count or table for number of variable (원본)
             if (max(table(df.cbn[,mvar])) > 150){
 
               if(!is.null(mycols)){
@@ -414,7 +612,6 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                 p1 <- p1
               }
               p1 = p1 + geom_boxplot(aes_string(fill=mvar),outlier.shape = NULL,lwd=box.tickness)   + theme(legend.position="none")
-              # outlier.shape = NA
             } else {
 
               if(!is.null(mycols)){
@@ -429,13 +626,11 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             }
           }
 
-          # facet
+          # facet (원본)
           if (length(facet) >= 1) {
             if(is.null(ncol)){
               ncol <- length(unique(df[,facet]))
             }
-
-
             p1 = p1 + facet_wrap(as.formula(sprintf("~ %s" , paste(setdiff(facet, "SocpleType"), collapse="+"))),
                                  scales="free_x", ncol = ncol)
             p1 = p1 + guides(color = "none", size = "none", shape= "none")
@@ -443,8 +638,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             p1 = p1 + guides(color = "none", size = "none", shape= "none")
           }
 
-
-          # plot size ratio
+          # plot size ratio (원본)
           if (length(unique(df.cbn[,mvar])) < 5){
             if(standardsize==TRUE){
               num.subgroup <- length(unique(df.cbn[,mvar]))*0.1
@@ -463,8 +657,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         }
       }
     }else{
-      # make a comnination for stat
-
+      # ------------ combination 미사용 (원본) ------------
       print("Check combination for statistics")
       cbn <- combn(x = levels(df.na[,mvar]), m = 2)
 
@@ -473,7 +666,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         x <- cbn[,i]
         my_comparisons[[i]] <- x
       };my_comparisons
-      # check statistics method
+
       for(oc in outcomes){
         # remove NA for facet
         if (!is.null(facet)) {
@@ -518,17 +711,12 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           pval <- NULL
         }
 
-
         p1 <- ggplot(df.na, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
           theme(strip.background = element_blank()) +
           theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
                 plot.title=element_text(size=8))
 
-
-
-
-
-        # paired plot type
+        # paired plot type (원본 유지 + LMM 주석/요약 추가)
         if (!is.null(paired)) {
 
           if(!is.null(mycols)){
@@ -538,9 +726,31 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           }
 
           p1 = p1 + geom_boxplot(aes_string(colour=mvar),outlier.shape = NA,lwd=box.tickness)  + theme(legend.position="none")
-          p1 = p1 + geom_point(aes_string(colour=mvar,group=paired),alpha = 0.8, size = dot.size, position = position_dodge(0.3), show.legend = F)   #scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
+          p1 = p1 + geom_point(aes_string(colour=mvar,group=paired),alpha = 0.8, size = dot.size, position = position_dodge(0.3), show.legend = F)
           p1 = p1 + geom_line(aes_string(group=paired), color="grey50", size=0.3,position = position_dodge(0.3))
           p1 = p1 + theme(legend.title = element_blank(), legend.position="bottom", legend.justification="left",legend.box.margin = ggplot2::margin(0,0,0,-1,"cm"))
+
+          # ---- (추가) LMM pairwise 주석 + 요약 출력 ----
+          lv_orig <- levels(droplevels(factor(sub(" \\(n=.*\\)$","", as.character(df.na[,mvar])))))
+          if (length(lv_orig) >= 2) {
+            # non-combination에서는 모든 페어 (원본 의도 유지)
+            cbn0 <- combn(lv_orig, 2)
+            my_comp0 <- lapply(seq_len(ncol(cbn0)), function(k) cbn0[,k])
+            tmp <- df.na
+            ann <- .lmm_pvals(df = tmp, mvar = mvar, oc = oc, id_col = paired,
+                              comparisons = my_comp0, y_nudge = 1.08, digits = 3)
+            if (nrow(ann) > 0) {
+              cur_levels <- levels(df.na[[mvar]])
+              old_levels <- lv_orig
+              map <- setNames(sapply(old_levels, function(ol){
+                hit <- cur_levels[startsWith(cur_levels, ol)]
+                if (length(hit)>=1) hit[1] else ol
+              }), old_levels)
+              ann2 <- .map_ann_levels(ann, old2new = map)
+              p1 <- p1 + ggpubr::stat_pvalue_manual(ann2, label = "label", tip.length = 0.01, size = 3)
+            }
+            .print_lmm_emm(DAT = df.na, mvar = mvar, oc = oc, id_col = paired)
+          }
 
         } else{
           # count or table for number of variable
@@ -567,9 +777,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           }
         }
 
-
-
-        # control statistic on the plot
+        # control statistic on the plot (원본 유지)
         if(is.null(paired)){
           if(is.null(test.name)){
             p1 <- p1
@@ -578,6 +786,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               if (statistics){
                 if (star) {
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
+
                 } else {
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
                 }
@@ -642,23 +851,21 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           }
         }
 
-
-
-        # Close an image
+        # Close an image (원본)
         if (!is.null(title)) {
           p1 <- p1 + ggtitle(sprintf("%s%s%s%s", title,
-                                     ifelse(is.null(test.name), "", paste("\n",test.name, " ", sep = "")),
-                                     ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
-                                     ifelse(is.null(pval), "", paste(pval, " ", sep = "")), sep=""))
+                                     ifelse(is.null(test.name), "", paste("\n",test.name, " ")),
+                                     ifelse(is.null(pval), "", paste("p=", " ")),
+                                     ifelse(is.null(pval), "", paste(pval, " "))))
         } else{
           p1 <- p1 + ggtitle(sprintf("%s%s%s%s", mvar,
-                                     ifelse(is.null(test.name), "", paste("\n",test.name, " ", sep = "")),
-                                     ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
-                                     ifelse(is.null(pval), "", paste(pval, " ", sep = "")), sep=""))
+                                     ifelse(is.null(test.name), "", paste("\n",test.name, " ")),
+                                     ifelse(is.null(pval), "", paste("p=", " ")),
+                                     ifelse(is.null(pval), "", paste(pval, " "))))
 
         }
 
-        # y axis limit
+        # y axis limit (원본)
         if(!is.null(ylim)){
           if(oc == "Chao1"){
             p1 = p1
@@ -666,20 +873,18 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             p1 = p1 + ylim(ylim[1] , ylim[2])
           }
         }
-        # facet
+        # facet (원본)
         if (length(facet) >= 1) {
           if(is.null(ncol)){
             ncol <- length(unique(df[,facet]))
           }
-
-
           p1 = p1 + facet_wrap(as.formula(sprintf("~ %s" , paste(setdiff(facet, "SocpleType"), collapse="+"))), scales="free_x", ncol = ncol)
           p1 = p1 + guides(color = "none", size = "none", shape= "none")
         } else {
           p1 = p1 + guides(color = "none", size = "none", shape= "none")
         }
 
-        # plot size ratio
+        # plot size ratio (원본)
         if (length(unique(df.na[,mvar])) < 5){
           if(standardsize==TRUE){
             num.subgroup <- length(unique(df.na[,mvar]))*0.1
@@ -695,11 +900,9 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                            aspect.ratio = 1/num.subgroup)
 
         plotlist[[length(plotlist)+1]] <- p1
-
       }
     }
   }
   multiplot(plotlist=plotlist, cols=plotCols, rows=plotRows)
   dev.off()
 }
-
