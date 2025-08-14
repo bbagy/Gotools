@@ -1,6 +1,10 @@
 
 #' Generate Boxplots for Multiple Variables
 #'
+#' @importFrom lmerTest lmer
+#' @importFrom emmeans emmeans contrast
+#' @importFrom ggpubr stat_pvalue_manual
+#' @importFrom stats anova as.formula complete.cases
 #' @param df Data frame containing the data to be plotted.
 #' @param cate.vars Categorical variables to be used for the boxplot's x-axis.
 #' @param project Project name used for output file naming.
@@ -39,11 +43,6 @@
 #'
 #' @export
 
-
-
-# --------------------------------------------
-# 원본 함수 (최소 침습: LMM 기능만 얹음)
-# --------------------------------------------
 Go_boxplot <- function(df, cate.vars, project, outcomes,
                        orders=NULL,
                        mycols=NULL,
@@ -243,7 +242,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
     fm  <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
     mod <- lmerTest::lmer(fm, data = df)
-    atab <- suppressMessages(lmerTest::anova(mod))
+    atab <- suppressMessages(stats::anova(mod))
     rn <- rownames(atab)
     hit <- which(rn == mvar)
     if (length(hit) == 0) hit <- grep(sprintf("^%s$", gsub("([\\W])", "\\\\\\1", mvar)), rn)

@@ -26,7 +26,7 @@
 #'   \item Generates a heatmap and saves it as a PDF file with the specified dimensions.
 #' }
 #'
-#' @importFrom dplyr arrange as.data.frame filter mutate select slice table
+#' @importFrom dplyr arrange filter mutate select slice
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom ggplot2 ggplot aes geom_tile scale_fill_gradientn theme element_blank
 #' @importFrom magrittr %>%

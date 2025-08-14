@@ -24,7 +24,8 @@
 #'                overlaps = 10, font = 12, height = 7, width = 7)
 #'
 #' @export
-#' @importFrom ggplot2 ggplot aes_string xlab ylab geom_vline scale_color_manual theme element_text geom_text_repel ggtitle geom_point scale_shape_manual
+#' @importFrom ggplot2 ggplot aes_string xlab ylab geom_vline scale_color_manual theme element_text ggtitle geom_point scale_shape_manual
+#' @importFrom ggrepel geom_text_repel
 
 
 Go_volcanoPlot <- function(project,
