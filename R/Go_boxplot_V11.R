@@ -506,10 +506,21 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             pval <- NULL
           }
 
+          # ----- PATCH: paired이면 제목용 전역 테스트를 LMM으로 교체 -----
+          if (!is.null(paired)) {
+            om <- .lmm_omnibus(df = df.cbn, mvar = mvar, oc = oc, id_col = paired)
+            test.name <- om$name        # "LMM"
+            pval <- om$pval             # LMM omnibus p-value
+            if (!is.na(pval)) pval <- round(pval, 3)  # 3자리로 표시 원하면
+          }
+          # ----------------------------------------------------------------
+
           p1 <- ggplot(df.cbn, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
             theme(strip.background = element_blank()) +
             theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
                   plot.title=element_text(size=8))
+
+
 
           if (!is.null(title)) {
             p1 <- p1 + ggtitle(sprintf("%s%s%s%s", title,
@@ -714,10 +725,19 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           pval <- NULL
         }
 
+        # ----- PATCH: paired이면 제목용 전역 테스트를 LMM으로 교체 -----
+        if (!is.null(paired)) {
+          om <- .lmm_omnibus(df = df.na, mvar = mvar, oc = oc, id_col = paired)
+          test.name <- om$name
+          pval <- om$pval
+          if (!is.na(pval)) pval <- round(pval, 3)
+        }
+        # ----------------------------------------------------------------
         p1 <- ggplot(df.na, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
           theme(strip.background = element_blank()) +
           theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
                 plot.title=element_text(size=8))
+
 
         # paired plot type (원본 유지 + LMM 주석/요약 추가)
         if (!is.null(paired)) {
@@ -844,10 +864,9 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2,paired = TRUE)
                 }else{
                   p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-
                 }
-
               }
+
             }else{
               p1 <- p1
             }
@@ -855,6 +874,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         }
 
         # Close an image (원본)
+
+
         if (!is.null(title)) {
           p1 <- p1 + ggtitle(sprintf("%s%s%s%s", title,
                                      ifelse(is.null(test.name), "", paste("\n",test.name, " ")),
