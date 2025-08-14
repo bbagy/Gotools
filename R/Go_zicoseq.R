@@ -16,8 +16,7 @@
 #' The function subsets the `phyloseq` object to include only the samples of interest based on `cate.outs`. It then relevels the factor of interest to set the first specified group as the reference. It filters the OTU table to remove features with zero counts across all samples, and optionally adjusts for covariates and random effects if specified.
 #'
 #' @importFrom phyloseq sample_data otu_table tax_table
-#' @importFrom dplyr subset filter
-#' @importFrom stats set.seed
+#' @importFrom dplyr filter
 #' @import GUniFrac
 #'
 #' @examples

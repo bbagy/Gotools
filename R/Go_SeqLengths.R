@@ -21,7 +21,6 @@
 #'
 #' @export
 #' @importFrom phyloseq otu_table sample_data merge_phyloseq
-#' @importFrom stats nchar table
 #' @importFrom graphics hist
 
 Go_SeqLengths <- function(psIN, from=NULL, to=NULL){
