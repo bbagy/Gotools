@@ -232,7 +232,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
   # 4) (선택) LMM omnibus p-value (제목에 쓰고자 할 때 사용 가능)
   .lmm_omnibus <- function(df, mvar, oc, id_col) {
-    keep <- complete.cases(df[, c(mvar, oc, id_col)])
+    keep <- stats::complete.cases(df[, c(mvar, oc, id_col)])
     df <- df[keep, , drop = FALSE]
     if (!nrow(df)) return(list(name="LMM", pval=NA_real_))
 
@@ -241,9 +241,9 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
     df[[mvar]] <- droplevels(factor(df[[mvar]]))
     if (nlevels(df[[mvar]]) < 2) return(list(name="LMM", pval=NA_real_))
 
-    fm  <- as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
-    mod <- lmer(fm, data = df)
-    atab <- suppressMessages(anova(mod))
+    fm  <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
+    mod <- lmerTest::lmer(fm, data = df)
+    atab <- suppressMessages(lmerTest::anova(mod))
     rn <- rownames(atab)
     hit <- which(rn == mvar)
     if (length(hit) == 0) hit <- grep(sprintf("^%s$", gsub("([\\W])", "\\\\\\1", mvar)), rn)
