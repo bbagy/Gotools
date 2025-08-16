@@ -71,6 +71,10 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
     library(emmeans)
   })
 
+  emmeans::emm_options(lmer.df = "asymptotic")
+  use_lmm_pairwise    <- !is.null(paired)  # paired 있으면 LMM만
+  use_ggpubr_pairwise <-  is.null(paired)  # paired 없으면 ggpubr만
+
   # --------------------------------------------
   # LMM 보조 함수들 (최소 침습 추가)
   # --------------------------------------------
@@ -152,17 +156,21 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
   # 2) LMM pairwise p-value 주석 생성 (방향 무관 매칭 보강 + 실패시 윌콕슨 fallback)
   .lmm_pvals <- function(df, mvar, oc, id_col, comparisons, y_nudge = 1.08, digits = 3) {
-    keep <- stats::complete.cases(df[, c(mvar, oc, id_col)])
+    # 0) 입력/결측 가드
+    need_cols <- c(mvar, oc, id_col)
+    need_cols <- need_cols[!is.null(need_cols)]
+    keep <- stats::complete.cases(df[, need_cols, drop = FALSE])
     df <- df[keep, , drop = FALSE]
     if (!nrow(df)) return(data.frame())
 
-    # 모델엔 (n=) 제거한 원래 레벨 사용
-    df[[mvar]] <- as.character(df[[mvar]])
-    df[[mvar]] <- sub(" \\(n=.*\\)$", "", df[[mvar]])
-    df[[mvar]] <- droplevels(factor(df[[mvar]]))
+    # 1) (n=) 제거된 "원라벨" 기준 factor 구성 (모델/emmeans는 항상 원라벨로)
+    raw_vec <- sub(" \\(n=.*\\)$", "", as.character(df[[mvar]]))
+    df[[mvar]] <- droplevels(factor(raw_vec))
     if (nlevels(df[[mvar]]) < 2) return(data.frame())
-
     lvl_order <- levels(df[[mvar]])
+
+    # 2) 비교쌍 사전 정리: 원라벨 기준으로 정리 + 최소 표본/ID 가드
+    #    (비교쌍은 방향 무관하게 키를 만들어 매칭)
     .pair_key <- function(a, b, lvl = NULL) {
       if (!is.null(lvl)) {
         ia <- match(a, lvl); ib <- match(b, lvl)
@@ -171,53 +179,81 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
       } else paste(sort(c(a, b)), collapse = "__")
     }
 
-    fm  <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
-    fit_ok <- TRUE
-    mod <- try(lme4::lmer(fm, data = df), silent = TRUE)
-    if (inherits(mod, "try-error")) fit_ok <- FALSE
-
-    if (fit_ok) {
-      emm <- try(emmeans::emmeans(mod, stats::as.formula(paste0("~ ", mvar))), silent = TRUE)
-      if (inherits(emm, "try-error")) fit_ok <- FALSE
-    }
-
-    if (!fit_ok) {
-      # 실패 시: unpaired 윌콕슨(안전장치)
-      get_p <- function(a,b){
-        x <- df[df[[mvar]]==a, oc]; y <- df[df[[mvar]]==b, oc]
-        p <- try(stats::wilcox.test(x, y, exact=FALSE)$p.value, silent=TRUE)
-        if (inherits(p, "try-error")) p <- NA_real_
-        p
+    .keep_pair <- function(a, b, d, id_col = NULL) {
+      raw <- as.character(d[[mvar]])
+      nA <- sum(raw == a); nB <- sum(raw == b)
+      ok <- (nA >= 2 && nB >= 2)             # 쌍별 최소 표본수
+      if (!is.null(id_col)) {
+        idsA <- unique(d[raw == a, id_col])
+        idsB <- unique(d[raw == b, id_col])
+        # 두 군에 걸쳐 최소 2명 이상 존재 (너무 빡세지 않게 완화)
+        ok <- ok && length(unique(na.omit(c(idsA, idsB)))) >= 2
       }
-      ymax <- max(df[[oc]], na.rm = TRUE)*y_nudge
-      ann <- lapply(seq_along(comparisons), function(i){
-        g <- comparisons[[i]]
-        pval <- get_p(g[1], g[2])
-        data.frame(group1=g[1], group2=g[2],
-                   y.position = ymax*(1 + 0.06*(i-1)),
-                   p = pval,
-                   label = sprintf(paste0("%.", digits, "f"), pval))
-      })
-      return(do.call(rbind, ann))
+      ok
     }
 
-    cmp <- as.data.frame(emmeans::contrast(emm, method = "pairwise", adjust = "none"))
-    parse_con <- function(s){ strsplit(s, " - ", fixed=TRUE)[[1]] }
-    cmp$g1 <- vapply(cmp$contrast, function(z) parse_con(z)[1], character(1))
-    cmp$g2 <- vapply(cmp$contrast, function(z) parse_con(z)[2], character(1))
-    cmp$key  <- mapply(.pair_key, cmp$g1, cmp$g2, MoreArgs = list(lvl = lvl_order))
+    comp_raw <- lapply(comparisons, function(x) {
+      a <- sub(" \\(n=.*\\)$", "", x[1])
+      b <- sub(" \\(n=.*\\)$", "", x[2])
+      c(a, b)
+    })
+    comp_raw <- Filter(function(z) all(z %in% lvl_order) && .keep_pair(z[1], z[2], df, id_col), comp_raw)
+    if (!length(comp_raw)) return(data.frame())
 
-    want_df  <- do.call(rbind, lapply(comparisons, function(x) data.frame(g1=x[1], g2=x[2])))
-    want_df$key <- mapply(.pair_key, want_df$g1, want_df$g2, MoreArgs = list(lvl = lvl_order))
+    # 3) LMM 적합
+    fm  <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
+    mod <- try(lme4::lmer(fm, data = df), silent = TRUE)
+    if (inherits(mod, "try-error")) return(data.frame())
 
-    out <- merge(cmp[, c("key","g1","g2","p.value")], unique(want_df["key"]), by="key", all.y=TRUE)
-    names(out)[names(out)=="p.value"] <- "p"
-    if (!nrow(out)) return(data.frame())
+    # 4) emmeans (asymptotic df로 NA 감소)
+    emm <- try(emmeans::emmeans(mod, stats::as.formula(paste0("~ ", mvar)), lmer.df = "asymptotic"), silent = TRUE)
+    if (inherits(emm, "try-error")) return(data.frame())
 
-    ymax <- max(df[[oc]], na.rm = TRUE)*y_nudge
-    out$y.position <- ymax*(1 + 0.06*(seq_len(nrow(out))-1))
-    out$label <- sprintf(paste0("%.", digits, "f"), out$p)
-    names(out)[names(out) %in% c("g1","g2")] <- c("group1","group2")
+    contr <- try(emmeans::contrast(emm, method = "pairwise", adjust = "none"), silent = TRUE)
+    if (inherits(contr, "try-error")) return(data.frame())
+
+    # 5) emmeans 결과를 (a,b) 쌍 키로 매칭
+    contr_df <- as.data.frame(contr)
+    parse_con <- function(s) strsplit(s, " - ", fixed = TRUE)[[1]]
+    contr_df$g1 <- vapply(contr_df$contrast, function(z) parse_con(z)[1], character(1))
+    contr_df$g2 <- vapply(contr_df$contrast, function(z) parse_con(z)[2], character(1))
+    contr_df$key <- mapply(.pair_key, contr_df$g1, contr_df$g2, MoreArgs = list(lvl = lvl_order))
+
+    want <- data.frame(
+      g1 = vapply(comp_raw, `[`, character(1), 1),
+      g2 = vapply(comp_raw, `[`, character(1), 2)
+    )
+    want$key <- mapply(.pair_key, want$g1, want$g2, MoreArgs = list(lvl = lvl_order))
+
+    out <- merge(contr_df[, c("key", "g1", "g2", "p.value")], unique(want["key"]), by = "key", all.y = TRUE)
+    names(out)[names(out) == "p.value"] <- "p"
+
+    # 6) NA 보수: 해당 쌍만 윌콕슨으로 대체 (paired 가능하면 paired=TRUE)
+    if (any(is.na(out$p))) {
+      get_p_fallback <- function(a, b) {
+        raw <- as.character(df[[mvar]])
+        x <- df[raw == a, oc]; y <- df[raw == b, oc]
+        do_paired <- FALSE
+        if (!is.null(id_col)) {
+          idsA <- unique(df[raw == a, id_col])
+          idsB <- unique(df[raw == b, id_col])
+          if (length(intersect(idsA, idsB)) >= 2) do_paired <- TRUE
+        }
+        p <- try(stats::wilcox.test(x, y, paired = do_paired, exact = FALSE)$p.value, silent = TRUE)
+        if (inherits(p, "try-error")) NA_real_ else p
+      }
+      for (i in which(is.na(out$p))) {
+        out$p[i] <- get_p_fallback(out$g1[i], out$g2[i])
+      }
+    }
+
+    # 7) 주석용 좌표/라벨
+    ymax <- max(df[[oc]], na.rm = TRUE) * y_nudge
+    out$y.position <- ymax * (1 + 0.06 * (seq_len(nrow(out)) - 1))
+    out$label <- ifelse(is.na(out$p), "NA", sprintf(paste0("%.", digits, "f"), out$p))
+    names(out)[names(out) %in% c("g1", "g2")] <- c("group1", "group2")
+
+    # (n=) 라벨 매핑은 바깥에서 .map_ann_levels()로 처리
     out
   }
 
@@ -249,6 +285,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
     p <- if (length(hit)>=1 && "Pr(>F)" %in% colnames(atab)) atab[hit[1], "Pr(>F)"] else NA_real_
     list(name="LMM", pval=ifelse(is.na(p), NA_real_, round(as.numeric(p), 4)))
   }
+
 
 
   if(!is.null(dev.list())) dev.off()
@@ -349,12 +386,14 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
     summary.df.na <- summary(df.na[,mvar])
 
+
+
     #------------------------------#
     # for group combination or not #
     #------------------------------#
 
     if (!is.null(combination)){
-      print(sprintf("Combination n=", combination))
+      print(sprintf("Combination n=%s", combination))
       group.cbn <- combn(x = levels(df.na[,mvar]), m = combination)
 
       group_comparisons <- {}
@@ -364,100 +403,26 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
       };group_comparisons
 
       print(1)
-      for(i in 1:length(group_comparisons)){
-        print(group_comparisons[i])
-        group.combination <- unlist(group_comparisons[i]);group.combination
+      for (i in seq_along(group_comparisons)) {
+        group.combination <- unlist(group_comparisons[i])
 
-        if(combination ==2){
-          basline <- group.combination[1]
-          smvar <- group.combination[2]
-          df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar))
-        } else if(combination ==3){
-          basline <- group.combination[1]
-          smvar1 <- group.combination[2]
-          smvar2 <- group.combination[3]
-          df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar1, smvar2))
-        }else if(combination ==4){
-          basline <- group.combination[1]
-          smvar1 <- group.combination[2]
-          smvar2 <- group.combination[3]
-          smvar3 <- group.combination[4]
-          df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar1, smvar2,smvar3))
-        }else if(combination ==5){
-          basline <- group.combination[1]
-          smvar1 <- group.combination[2]
-          smvar2 <- group.combination[3]
-          smvar3 <- group.combination[4]
-          smvar4 <- group.combination[5]
-          df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar1, smvar2,smvar3,smvar4))
-        }else if(combination ==6){
-          basline <- group.combination[1]
-          smvar1 <- group.combination[2]
-          smvar2 <- group.combination[3]
-          smvar3 <- group.combination[4]
-          smvar4 <- group.combination[5]
-          smvar5 <- group.combination[6]
-          df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar1, smvar2,smvar3,smvar4,smvar5))
-        }else if(combination ==7){
-          basline <- group.combination[1]
-          smvar1 <- group.combination[2]
-          smvar2 <- group.combination[3]
-          smvar3 <- group.combination[4]
-          smvar4 <- group.combination[5]
-          smvar5 <- group.combination[6]
-          smvar6 <- group.combination[7]
-          df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar1, smvar2,smvar3,smvar4,smvar5,smvar6))
-        }else if(combination ==8){
-          basline <- group.combination[1]
-          smvar1 <- group.combination[2]
-          smvar2 <- group.combination[3]
-          smvar3 <- group.combination[4]
-          smvar4 <- group.combination[5]
-          smvar5 <- group.combination[6]
-          smvar6 <- group.combination[7]
-          smvar7 <- group.combination[8]
-          df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar1, smvar2,smvar3,smvar4,smvar5,smvar6,smvar7))
-        }else if(combination ==9){
-          basline <- group.combination[1]
-          smvar1 <- group.combination[2]
-          smvar2 <- group.combination[3]
-          smvar3 <- group.combination[4]
-          smvar4 <- group.combination[5]
-          smvar5 <- group.combination[6]
-          smvar6 <- group.combination[7]
-          smvar7 <- group.combination[8]
-          smvar8 <- group.combination[9]
-          df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar1, smvar2,smvar3,smvar4,smvar5,smvar6,smvar7,smvar8))
-        }else if(combination ==10){
-          basline <- group.combination[1]
-          smvar1 <- group_com
-          smvar2 <- group.combination[3]
-          smvar3 <- group.combination[4]
-          smvar4 <- group.combination[5]
-          smvar5 <- group.combination[6]
-          smvar6 <- group.combination[7]
-          smvar7 <- group.combination[8]
-          smvar8 <- group.combination[9]
-          smvar9 <- group.combination[10]
-          df.cbn <- subset(df.na, df.na[,mvar] %in% c(basline,smvar1, smvar2,smvar3,smvar4,smvar5,smvar6,smvar7,smvar8,smvar9))
-        }  else{
-          print("combination should be 2~10 only.")
-          break
-        }
+        # 가드: 선택 가능한 길이로 제한
+        k <- min(combination, length(group.combination))
+        if (k < 2) next
 
-        unique(df.cbn[,mvar])
+        baseline <- group.combination[1]
+        sel <- group.combination[seq_len(k)]
 
-        # make a comnination for stat
-        df.cbn[,mvar] <- factor(df.cbn[,mvar])
-        cbn <- combn(x = levels(df.cbn[,mvar]), m = 2)
-        my_comparisons <- {}
-        for(i in 1:ncol(cbn)){
-          x <- cbn[,i]
-          my_comparisons[[i]] <- x
-        };my_comparisons
-        if(combination != 2){
-          combination.N <- combination - 1
-          my_comparisons <- my_comparisons[1:combination.N]  # baseline-only 유지
+        df.cbn <- subset(df.na, df.na[[mvar]] %in% sel)
+
+        lvl_new <- c(baseline, setdiff(sel, baseline))
+        df.cbn[[mvar]] <- factor(df.cbn[[mvar]], levels = lvl_new)
+
+        # baseline vs others
+        if (k == 2) {
+          my_comparisons <- list(c(lvl_new[1], lvl_new[2]))
+        } else {
+          my_comparisons <- lapply(lvl_new[-1], function(g) c(lvl_new[1], g))
         }
 
         for(oc in outcomes){
@@ -472,6 +437,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               df.cbn[,fc] <- factor(df.cbn[,fc], levels = orders)
             }
           }
+
+
 
           print(oc)
 
@@ -514,6 +481,13 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           }
           # ----------------------------------------------------------------
 
+
+          # x축은 반드시 *_lab 사용
+          xvar_lab <- paste0(mvar, "_lab")
+
+
+
+
           p1 <- ggplot(df.cbn, aes_string(x=mvar, y=oc))  + labs(y=oc, x=NULL) +
             theme(strip.background = element_blank()) +
             theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
@@ -534,31 +508,34 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           }
 
           # control statistic on the plot (원본 유지)
-          if(is.null(test.name)){
-            p1 <- p1
-          } else if(test.name == "KW" | test.name == "ANOVA"){
-            if(pval < cutoff){
-              if (statistics){
+          if (use_ggpubr_pairwise && statistics) {
+            if (test.name %in% c("KW", "ANOVA")) {
+              # pval이 NA일 수도 있으니 isTRUE()로 방어
+              if (isTRUE(pval < cutoff)) {
                 if (star) {
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
-                }  else {
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
+                  p1 <- p1 + stat_compare_means(
+                    method = testmethod, label = "p.signif",
+                    comparisons = my_comparisons, hide.ns = TRUE, size = 3
+                  )
+                } else {
+                  p1 <- p1 + stat_compare_means(
+                    method = testmethod, label = "p.format",
+                    comparisons = my_comparisons, size = 2
+                  )
                 }
-              }else{
-                p1 <- p1
               }
-            }else {
-              p1 <- p1
-            }
-          }else if(testmethod == "wilcox.test" | testmethod == "t.test"){
-            if (statistics){
+            } else if (testmethod %in% c("wilcox.test", "t.test")) {
               if (star) {
-                p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
-              } else{
-                p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
+                p1 <- p1 + stat_compare_means(
+                  method = testmethod, label = "p.signif",
+                  comparisons = my_comparisons, hide.ns = TRUE, size = 3
+                )
+              } else {
+                p1 <- p1 + stat_compare_means(
+                  method = testmethod, label = "p.format",
+                  comparisons = my_comparisons, size = 2
+                )
               }
-            }else{
-              p1 <- p1
             }
           }
 
@@ -586,32 +563,119 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
             # ---- (추가) LMM pairwise 주석 + 요약 출력 ----
             # 통계용 원본 레벨로 비교쌍 구성 (baseline-only 규칙 유지)
-            lv_orig <- levels(droplevels(factor(sub(" \\(n=.*\\)$","", as.character(df.cbn[,mvar])))))
-            if (length(lv_orig) >= 2) {
+            tmp_lmm <- df.cbn
+            tmp_lmm[[mvar]] <- sub(" \\(n=.*\\)$", "", as.character(tmp_lmm[[mvar]]))
+            tmp_lmm[[mvar]] <- droplevels(factor(tmp_lmm[[mvar]]))
+            tmp_lmm[[mvar]] <- factor(tmp_lmm[[mvar]],
+                                      intersect(orders, tmp_lmm[,mvar]))
+
+            lv_raw <- levels(tmp_lmm[[mvar]])
+
+            if (length(lv_raw) >= 2) {
+              # 2) 비교쌍 구성: combination이면 baseline(첫 레벨) vs others, 아니면 모든 페어
               if (!is.null(combination) && combination != 2) {
-                # baseline vs others, 앞에서 combination-1개만
-                k <- min(length(lv_orig)-1, combination-1)
-                my_comp0 <- lapply(seq_len(k), function(j) c(lv_orig[1], lv_orig[j+1]))
+                my_comp0 <- lapply(lv_raw[-1], function(g) c(lv_raw[1], g))
               } else {
-                cbn0 <- combn(lv_orig, 2)
-                my_comp0 <- lapply(seq_len(ncol(cbn0)), function(k) cbn0[,k])
+                cbn0 <- combn(lv_raw, 2)
+                my_comp0 <- lapply(seq_len(ncol(cbn0)), function(k) cbn0[, k])
               }
-              tmp <- df.cbn
-              ann <- .lmm_pvals(df = tmp, mvar = mvar, oc = oc, id_col = paired,
+
+              # 3) LMM pairwise p 추출
+              ann <- .lmm_pvals(df = tmp_lmm, mvar = mvar, oc = oc, id_col = paired,
                                 comparisons = my_comp0, y_nudge = 1.08, digits = 3)
-              if (nrow(ann) > 0) {
-                # (n=) 라벨로 매핑
-                cur_levels <- levels(df.cbn[[mvar]])
-                old_levels <- lv_orig
-                map <- setNames(sapply(old_levels, function(ol){
-                  hit <- cur_levels[startsWith(cur_levels, ol)]
-                  if (length(hit)>=1) hit[1] else ol
-                }), old_levels)
-                ann2 <- .map_ann_levels(ann, old2new = map)
-                p1 <- p1 + ggpubr::stat_pvalue_manual(ann2, label = "label", tip.length = 0.01, size = 3)
+              ## ----- [PVAL FORMAT PATCH for combination == 전체그룹수] -----
+              ## ann: .lmm_pvals(...) 결과 (group1, group2, p, y.position, label ...)
+              ## dfX: 지금 그리는 데이터프레임 (combination이면 df.cbn, 아니면 df.na)
+              ## mvar, star, cutoff 변수는 기존 그대로 사용
+
+              # 0) 전체 그룹 수 = combination 인지 확인
+              n_groups <- nlevels(df.cbn[[mvar]])
+              if (!is.null(combination) && combination == n_groups && nrow(ann) > 0) {
+
+                # 1) 다중비교 보정 (BH). NA는 그대로 유지되므로 먼저 제거 후 보정하고 다시 병합
+                keep_idx <- which(!is.na(ann$p))
+                if (length(keep_idx)) {
+                  padj <- stats::p.adjust(ann$p[keep_idx], method = "BH")
+                  ann$padj <- NA_real_
+                  ann$padj[keep_idx] <- padj
+                } else {
+                  ann$padj <- ann$p
+                }
+
+                # 2) 표기 라벨: star 또는 숫자 포맷
+                if (isTRUE(star)) {
+                  # cutpoints는 필요 시 조정 가능
+                  ann$label <- ifelse(is.na(ann$padj), "NA",
+                                      ifelse(ann$padj < 0.001, "***",
+                                             ifelse(ann$padj < 0.01, "**",
+                                                    ifelse(ann$padj < 0.05, "*",
+                                                           "ns"))))
+                } else {
+                  ann$label <- ifelse(is.na(ann$padj), "NA",
+                                      sprintf("adj p=%.3g (BH)", ann$padj))
+                }
+
+                # 3) cutoff 적용: 유의한 것만 남김 (겹침 방지)
+                ann <- ann[!is.na(ann$padj) & ann$padj < cutoff, , drop = FALSE]
+
+                # 유의한 게 하나도 없으면 주석 스킵
+                if (nrow(ann) > 0) {
+                  # 4) y 위치: 현재 데이터 범위 기반으로 자동 계단 배치(겹침 최소화)
+                  ymax <- max(df.cbn[[oc]], na.rm = TRUE)
+                  base <- ymax * 1.08
+                  step <- 0.06 * ymax
+                  ann <- ann[order(ann$padj, decreasing = FALSE), , drop = FALSE]  # 더 유의한 것 위쪽
+                  ann$y.position <- base + step * seq_len(nrow(ann))
+
+                  # 5) (좌표 방식) x축 인덱스 매핑
+                  x_levels   <- levels(df.cbn[[mvar]])                  # 라벨 유무 무관
+                  raw_from_x <- sub(" \\(n=.*\\)$", "", x_levels)    # 원라벨로 통일
+                  raw2pos    <- setNames(seq_along(x_levels), raw_from_x)
+
+                  ann$xmin <- unname(raw2pos[ann$group1])
+                  ann$xmax <- unname(raw2pos[ann$group2])
+                  ann <- ann[!is.na(ann$xmin) & !is.na(ann$xmax), , drop = FALSE]
+
+                  if (nrow(ann) > 0) {
+                    p1 <- p1 + ggpubr::stat_pvalue_manual(
+                      ann,
+                      xmin       = "xmin",
+                      xmax       = "xmax",
+                      y.position = "y.position",
+                      label      = "label",
+                      tip.length = 0.01,
+                      size       = 3
+                    )
+                  }
+                }
               }
-              # 콘솔 요약
-              .print_lmm_emm(DAT = df.cbn, mvar = mvar, oc = oc, id_col = paired)
+              ## ----- [END PATCH] -----
+
+              # 4) 좌표 기반으로 p 주석 올리기 (문자열 매칭 X → x축 NA 완전 차단)
+              if (nrow(ann) > 0) {
+                x_levels   <- levels(df.cbn[[mvar]])                    # 현재 x축 레벨(라벨 포함/미포함 상관없음)
+                raw_from_x <- sub(" \\(n=.*\\)$", "", x_levels)         # 원라벨 추출
+                raw2pos    <- setNames(seq_along(x_levels), raw_from_x) # 원라벨 -> 위치
+
+                ann$xmin <- unname(raw2pos[ann$group1])
+                ann$xmax <- unname(raw2pos[ann$group2])
+                ann <- ann[!is.na(ann$xmin) & !is.na(ann$xmax), , drop = FALSE]
+
+                if (nrow(ann)) {
+                  p1 <- p1 + ggpubr::stat_pvalue_manual(
+                    ann,
+                    xmin       = "xmin",
+                    xmax       = "xmax",
+                    y.position = "y.position",
+                    label      = "label",
+                    tip.length = 0.01,
+                    size       = 3
+                  )
+                }
+              }
+
+              # 5) 콘솔 요약
+              .print_lmm_emm(DAT = tmp_lmm, mvar = mvar, oc = oc, id_col = paired)
             }
 
           }  else{
@@ -753,25 +817,118 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           p1 = p1 + theme(legend.title = element_blank(), legend.position="bottom", legend.justification="left",legend.box.margin = ggplot2::margin(0,0,0,-1,"cm"))
 
           # ---- (추가) LMM pairwise 주석 + 요약 출력 ----
-          lv_orig <- levels(droplevels(factor(sub(" \\(n=.*\\)$","", as.character(df.na[,mvar])))))
-          if (length(lv_orig) >= 2) {
-            # non-combination에서는 모든 페어 (원본 의도 유지)
-            cbn0 <- combn(lv_orig, 2)
-            my_comp0 <- lapply(seq_len(ncol(cbn0)), function(k) cbn0[,k])
-            tmp <- df.na
-            ann <- .lmm_pvals(df = tmp, mvar = mvar, oc = oc, id_col = paired,
+          tmp_lmm <- df.na
+          tmp_lmm[[mvar]] <- sub(" \\(n=.*\\)$", "", as.character(tmp_lmm[[mvar]]))
+          tmp_lmm[[mvar]] <- droplevels(factor(tmp_lmm[[mvar]]))
+
+          tmp_lmm[[mvar]] <- factor(tmp_lmm[[mvar]],
+                                    intersect(orders, tmp_lmm[,mvar]))
+          lv_raw <- levels(tmp_lmm[[mvar]])
+
+
+
+          if (length(lv_raw) >= 2) {
+            # 2) 비교쌍 구성: non-combination에서는 모든 페어
+            cbn0 <- combn(lv_raw, 2)
+            my_comp0 <- lapply(seq_len(ncol(cbn0)), function(k) cbn0[, k])
+
+            # 3) LMM pairwise p 추출
+            ann <- .lmm_pvals(df = tmp_lmm, mvar = mvar, oc = oc, id_col = paired,
                               comparisons = my_comp0, y_nudge = 1.08, digits = 3)
-            if (nrow(ann) > 0) {
-              cur_levels <- levels(df.na[[mvar]])
-              old_levels <- lv_orig
-              map <- setNames(sapply(old_levels, function(ol){
-                hit <- cur_levels[startsWith(cur_levels, ol)]
-                if (length(hit)>=1) hit[1] else ol
-              }), old_levels)
-              ann2 <- .map_ann_levels(ann, old2new = map)
-              p1 <- p1 + ggpubr::stat_pvalue_manual(ann2, label = "label", tip.length = 0.01, size = 3)
+
+            ## ----- [PVAL FORMAT PATCH for combination == 전체그룹수] -----
+            ## ann: .lmm_pvals(...) 결과 (group1, group2, p, y.position, label ...)
+            ## dfX: 지금 그리는 데이터프레임 (combination이면 df.cbn, 아니면 df.na)
+            ## mvar, star, cutoff 변수는 기존 그대로 사용
+
+            # 0) 전체 그룹 수 = combination 인지 확인
+            n_groups <- nlevels(df.na[[mvar]])
+            if (!is.null(combination) && combination == n_groups && nrow(ann) > 0) {
+
+              # 1) 다중비교 보정 (BH). NA는 그대로 유지되므로 먼저 제거 후 보정하고 다시 병합
+              keep_idx <- which(!is.na(ann$p))
+              if (length(keep_idx)) {
+                padj <- stats::p.adjust(ann$p[keep_idx], method = "BH")
+                ann$padj <- NA_real_
+                ann$padj[keep_idx] <- padj
+              } else {
+                ann$padj <- ann$p
+              }
+
+              # 2) 표기 라벨: star 또는 숫자 포맷
+              if (isTRUE(star)) {
+                # cutpoints는 필요 시 조정 가능
+                ann$label <- ifelse(is.na(ann$padj), "NA",
+                                    ifelse(ann$padj < 0.001, "***",
+                                           ifelse(ann$padj < 0.01, "**",
+                                                  ifelse(ann$padj < 0.05, "*",
+                                                         "ns"))))
+              } else {
+                ann$label <- ifelse(is.na(ann$padj), "NA",
+                                    sprintf("adj p=%.3g (BH)", ann$padj))
+              }
+
+              # 3) cutoff 적용: 유의한 것만 남김 (겹침 방지)
+              ann <- ann[!is.na(ann$padj) & ann$padj < cutoff, , drop = FALSE]
+
+              # 유의한 게 하나도 없으면 주석 스킵
+              if (nrow(ann) > 0) {
+                # 4) y 위치: 현재 데이터 범위 기반으로 자동 계단 배치(겹침 최소화)
+                ymax <- max(df.na[[oc]], na.rm = TRUE)
+                base <- ymax * 1.08
+                step <- 0.06 * ymax
+                ann <- ann[order(ann$padj, decreasing = FALSE), , drop = FALSE]  # 더 유의한 것 위쪽
+                ann$y.position <- base + step * seq_len(nrow(ann))
+
+                # 5) (좌표 방식) x축 인덱스 매핑
+                x_levels   <- levels(df.na[[mvar]])                  # 라벨 유무 무관
+                raw_from_x <- sub(" \\(n=.*\\)$", "", x_levels)    # 원라벨로 통일
+                raw2pos    <- setNames(seq_along(x_levels), raw_from_x)
+
+                ann$xmin <- unname(raw2pos[ann$group1])
+                ann$xmax <- unname(raw2pos[ann$group2])
+                ann <- ann[!is.na(ann$xmin) & !is.na(ann$xmax), , drop = FALSE]
+
+                if (nrow(ann) > 0) {
+                  p1 <- p1 + ggpubr::stat_pvalue_manual(
+                    ann,
+                    xmin       = "xmin",
+                    xmax       = "xmax",
+                    y.position = "y.position",
+                    label      = "label",
+                    tip.length = 0.01,
+                    size       = 3
+                  )
+                }
+              }
             }
-            .print_lmm_emm(DAT = df.na, mvar = mvar, oc = oc, id_col = paired)
+            ## ----- [END PATCH] -----
+
+            # 4) 좌표 기반으로 p 주석 올리기 (문자열 매칭 X → x축 NA 완전 차단)
+            if (nrow(ann) > 0) {
+              x_levels   <- levels(df.na[[mvar]])
+              raw_from_x <- sub(" \\(n=.*\\)$", "", x_levels)
+              raw2pos    <- setNames(seq_along(x_levels), raw_from_x)
+
+              ann$xmin <- unname(raw2pos[ann$group1])
+              ann$xmax <- unname(raw2pos[ann$group2])
+              ann <- ann[!is.na(ann$xmin) & !is.na(ann$xmax), , drop = FALSE]
+
+              if (nrow(ann)) {
+                p1 <- p1 + ggpubr::stat_pvalue_manual(
+                  ann,
+                  xmin       = "xmin",
+                  xmax       = "xmax",
+                  y.position = "y.position",
+                  label      = "label",
+                  tip.length = 0.01,
+                  size       = 3
+                )
+              }
+            }
+
+            # 5) 콘솔 요약
+            .print_lmm_emm(DAT = tmp_lmm, mvar = mvar, oc = oc, id_col = paired)
           }
 
         } else{
@@ -800,75 +957,56 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         }
 
         # control statistic on the plot (원본 유지)
-        if(is.null(paired)){
-          if(is.null(test.name)){
-            p1 <- p1
-          } else if(test.name == "KW" | test.name == "ANOVA"){
-            if(pval < cutoff){
-              if (statistics){
-                if (star) {
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
+        if (use_ggpubr_pairwise && statistics) {
+          # 지금 플롯에 실제로 쓰이는 데이터프레임 선택
+          dfX <- if (!is.null(combination)) df.cbn else df.na
 
-                } else {
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-                }
-              }else{
-                p1 <- p1
-              }
-            }else {
-              p1 <- p1
-            }
-          }else if(testmethod == "wilcox.test" | testmethod == "t.test"){
-            if (statistics){
-              if (star) {
-                p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3)
+          # x축 레벨(라벨)과 원라벨
+          xlab <- levels(dfX[[mvar]])                    # 예: "Pre (n=26)", "wk1_Post (n=50)" ...
+          xraw <- sub(" \\(n=.*\\)$", "", xlab)          # 예: "Pre", "wk1_Post" ...
 
-              }  else{
-                p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-              }
-            }else{
-              p1 <- p1
-            }
+          # baseline: orders[1] 우선, 없으면 x축 첫 항목
+          if (!is.null(orders) && length(orders) > 0) {
+            cand <- orders[orders %in% xraw]
+            base_raw <- if (length(cand) >= 1) cand[1] else xraw[1]
+          } else {
+            base_raw <- xraw[1]
           }
-        }else{
-          print("paired")
-          if(is.null(test.name)){
-            p1 <- p1
-          } else if(test.name == "KW" | test.name == "ANOVA"){
-            if(pval < cutoff){
-              if (statistics){
-                if (star) {
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.signif", comparisons = my_comparisons, hide.ns = TRUE, size = 3,paired = TRUE)
-                } else{
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2, paired = TRUE)
-                }
-              }else{
-                p1 <- p1
-              }
-            }else {
-              p1 <- p1
-            }
-          }else if(testmethod == "wilcox.test" | testmethod == "t.test"){
-            print(1)
-            if (statistics){
-              if (star) {
-                if (data.frame(table(df.na[,mvar]))$Freq[1] ==  data.frame(table(df.na[,mvar]))$Freq[2]){
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2,paired = TRUE)
-                }else{
-                  test.name <- paste(test.name, "\n","(not fully paired) ", sep = "")
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-                }
-              } else{
-                if (data.frame(table(df.na[,mvar]))$Freq[1] ==  data.frame(table(df.na[,mvar]))$Freq[2]){
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2,paired = TRUE)
-                }else{
-                  p1 <- p1 + stat_compare_means(method= testmethod, label = "p.format", comparisons = my_comparisons, size = 2)
-                }
-              }
+          base_lab <- xlab[match(base_raw, xraw)]
 
-            }else{
-              p1 <- p1
+          # 비교쌍: baseline vs others (라벨 기준으로 만들어 ggpubr에 넘김)
+          if (length(xlab) >= 3) {
+            my_comparisons_lab <- lapply(setdiff(xlab, base_lab), function(g) c(base_lab, g))
+          } else {
+            # 레벨이 2개면 그대로 한 쌍
+            my_comparisons_lab <- list(xlab)
+          }
+
+          # 라벨 모드
+          label_use <- if (isTRUE(star)) "p.signif" else "p.format"
+          size_use  <- if (isTRUE(star)) 3 else 2
+          hide_ns_use <- isTRUE(star)
+
+          # KW/ANOVA는 전역 p가 cutoff 미만일 때만 pairwise 표시
+          if (test.name %in% c("KW", "ANOVA")) {
+            if (!is.null(pval) && pval < cutoff) {
+              p1 <- p1 + ggpubr::stat_compare_means(
+                method      = testmethod,
+                label       = label_use,
+                comparisons = my_comparisons_lab,
+                hide.ns     = hide_ns_use,
+                size        = size_use
+              )
             }
+            # 2군 비교(t.test/wilcox)는 전역 p 없이도 표시
+          } else if (testmethod %in% c("wilcox.test", "t.test")) {
+            p1 <- p1 + ggpubr::stat_compare_means(
+              method      = testmethod,
+              label       = label_use,
+              comparisons = my_comparisons_lab,
+              hide.ns     = hide_ns_use,
+              size        = size_use
+            )
           }
         }
 
