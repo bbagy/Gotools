@@ -1,4 +1,3 @@
-
 #' Generate Biodiversity Plots for Microbiome Data
 #'
 #' @param psIN Phyloseq object containing microbiome data.
@@ -20,36 +19,20 @@
 #' @param addnumber Logical indicating whether to add sample numbers to groups.
 #' @param height Height of the plot.
 #' @param width Width of the plot.
+#' @param strata_var (NEW) Column name to use as permutation blocks for PERMANOVA
+#'        (e.g., subject ID / UID). If NULL, standard unrestricted permutations.
 #'
 #' @details
-#' This function creates biodiversity plots such as PCoA for microbiome data, facilitating comparisons across different conditions or factors. The function supports various distance metrics and provides options for customization.
+#' This function creates biodiversity plots such as PCoA for microbiome data,
+#' facilitating comparisons across different conditions or factors. It supports
+#' various distance metrics and provides options for customization. When
+#' `strata_var` is provided, PERMANOVA is run with *restricted permutations*
+#' (within-block shuffles) to guard random effects like repeated measures.
 #'
 #' @return
 #' A PDF file containing the biodiversity plot(s).
 #'
-#' @examples
-#' Go_bdiv(psIN = ps_object,
-#'         cate.vars = c("Condition", "Treatment"),
-#'         project = "MyMicrobiomeStudy",
-#'         orders = c("Condition1", "Condition2"),
-#'         distance_metrics = c("bray", "unifrac"),
-#'         cate.conf = "AgeGroup",
-#'         plot = "PCoA",
-#'         ellipse = TRUE, or group names
-#'         statistics = TRUE,
-#'         mycols = c("blue", "red"),
-#'         paired = "PatientID",
-#'         combination = 2,
-#'         shapes = 16,
-#'         ID = "SampleID",
-#'         facet = "Group",
-#'         name = "BiodivPlot",
-#'         addnumber = TRUE,
-#'         height = 6,
-#'         width = 8)
-#'
 #' @export
-
 Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                     cate.conf=NULL,
                     plot="PCoA",
@@ -63,7 +46,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                     facet=NULL,
                     name=NULL,
                     addnumber=TRUE,
-                    height, width){
+                    height, width,
+                    strata_var = NULL) {   # <<< NEW
 
   if(!is.null(dev.list())) dev.off()
 
@@ -75,17 +59,34 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
   out_dist <- file.path(sprintf("%s_%s/table/dist",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_dist)) dir.create(out_dist)
 
+  title_suffix <- if (!is.null(strata_var)) sprintf(" | strata=%s", strata_var) else ""
+
+
   # ---------- helpers ----------
   .safe_levels <- function(x, levs) {
     x <- factor(x)
     if (is.null(levs)) return(x)
-    # orders(levs)에서 실제로 존재하는 레벨만, orders의 순서 그대로
     keep <- levs[levs %in% levels(x)]
     factor(x, levels = keep)
   }
 
+  # NEW: make restricted permutation object if strata_var is available
+  .mk_perm_block <- function(id_vec, nperm = 999) {
+    # id_vec: vector (may include NAs). If invalid -> return integer nperm
+    ok <- !is.null(id_vec)
+    if (ok) {
+      id_vec <- as.vector(id_vec)
+      ok <- length(na.omit(id_vec)) > 1 && length(unique(na.omit(id_vec))) > 1
+    }
+    if (!ok) return(nperm)
+    ctrl <- permute::how(blocks = id_vec)
+    permute::setNperm(ctrl) <- nperm
+    ctrl
+  }
+
   # facet 있을 때: facet별 PERMANOVA + 코너 고정 좌표(-Inf, -Inf)
-  .perm_ann_by_facet <- function(ps_obj, pdataframe, mvar, facet, distance_metric, cate.conf, project, name){
+  .perm_ann_by_facet <- function(ps_obj, pdataframe, mvar, facet, distance_metric,
+                                 cate.conf, project, name, strata_var = NULL) {  # <<< strata aware
     distance_metric <- as.character(distance_metric)
 
     levs <- if (is.factor(pdataframe[[facet]])) {
@@ -107,15 +108,22 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
       x <- stats::as.dist(dist_list[[distance_metric]])
 
       map_sub2 <- base::data.frame(phyloseq::sample_data(ps_sub))
+      # ----- strata-aware permutations (facet subset용) -----
+      perm <- 999
+      if (!is.null(strata_var) && strata_var %in% names(map_sub2)) {
+        perm <- .mk_perm_block(map_sub2[[strata_var]], nperm = 999)
+      }
+
       if (!base::is.null(cate.conf) && base::length(cate.conf) > 0) {
         for (conf in cate.conf) map_sub2[[conf]] <- base::factor(map_sub2[[conf]])
         form <- stats::as.formula(base::sprintf("x ~ %s + %s", mvar,
-                                                base::paste(base::setdiff(cate.conf, "SampleType"), collapse = " + ")))
+                                                base::paste(base::setdiff(cate.conf, "SampleType"),
+                                                            collapse = " + ")))
       } else {
         form <- stats::as.formula(base::sprintf("x ~ %s", mvar))
       }
 
-      ad <- vegan::adonis2(form, data = map_sub2, permutations = 999, by = "terms")
+      ad <- vegan::adonis2(form, data = map_sub2, permutations = perm, by = "terms")
       base::data.frame(
         facet_val = flv,
         R2 = base::suppressWarnings(base::round(ad[1,"R2"], 3)),
@@ -124,9 +132,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
       )
     })
 
-    # ✅ 여기! rbind 말고 bind_rows (열 불일치/리스트 섞여도 안정)
-    stat_df <- dplyr::bind_rows(stat_list)
 
+    stat_df <- dplyr::bind_rows(stat_list)
     stat_df$padj <- stats::p.adjust(stat_df$p, method = "bonferroni")
 
     ann_df <- dplyr::mutate(
@@ -143,7 +150,6 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
 
     ann_df[[facet]] <- ann_df$facet_val
     ann_df[[facet]] <- base::factor(ann_df[[facet]], levels = base::levels(pdataframe[[facet]]))
-
     ann_df
   }
   # -----------------------------
@@ -169,7 +175,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
       group_comparisons <- lapply(seq_len(ncol(group.cbn)), function(i) group.cbn[,i])
 
       ord_meths = plot
-      pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
+      pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
                   ord_meths, "distance_metric", project, mvar,
                   ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
                   ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
@@ -178,6 +184,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                   ifelse(is.null(name), "", paste(name, ".", sep = "")),
                   ifelse(ellipse == FALSE, "ellipse_FALSE.",
                          ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
+                  ifelse(is.null(strata_var), "", paste("(strata=", strata_var, ").", sep = "")),
                   format(Sys.Date(), "%y%m%d")), height = height, width = width)
 
       for(i in seq_along(group_comparisons)){
@@ -204,6 +211,13 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           mapping.sel.na.rem <- data.frame(sample_data(psIN.cbn.na ))
           mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
 
+          # ===== NEW: make a global perm object for this subset (facet X 경로에서 사용) =====
+          perm_global <- 999
+          if (!is.null(strata_var) && strata_var %in% names(mapping.sel.na.rem)) {
+            perm_global <- .mk_perm_block(mapping.sel.na.rem[[strata_var]], nperm = 999)
+          }
+          # ================================================================================
+
           # ordination
           ord_meths = plot
           plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
@@ -220,20 +234,14 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           names(plist) <- ord_meths
           pdataframe = plyr::ldply(plist, identity); names(pdataframe)[1] = "method"
 
-
-
           if (!is.null(facet) && facet %in% names(pdataframe)) {
             pdataframe[, facet] <- factor(pdataframe[, facet],
-                                    levels = intersect(orders, unique(pdataframe[, facet])))
+                                          levels = intersect(orders, unique(pdataframe[, facet])))
           }
 
-
-
           pdataframe[, mvar] <- factor(pdataframe[, mvar],
-                                        levels = intersect(orders, unique(pdataframe[, mvar])))
+                                       levels = intersect(orders, unique(pdataframe[, mvar])))
 
-
-          # n 표시(전체 기준; facet별 n표시가 필요하면 말해줘서 바꿀 수 있음)
           if(addnumber==TRUE){
             for (Name in unique(pdataframe[,mvar])) {
               total <- sum(pdataframe[,mvar] == Name, na.rm=TRUE)
@@ -257,7 +265,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           p = p +
             labs(x = paste0("Axis 1 (", sprintf("%.2f", axis1_percent_avg),"%)"),
                  y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)")) +
-            ggtitle(sprintf("%s (%s)", mvar, distance_metric)) +
+            ggtitle(sprintf("%s (%s)%s", mvar, distance_metric, title_suffix)) +
             facet_wrap(~ method, scales="free") + theme_bw() +
             theme(strip.background = element_blank(),
                   legend.position = "bottom",
@@ -269,21 +277,18 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           if(!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
           if (!is.null(ID) && ID %in% names(pdataframe)) p <- p + ggrepel::geom_text_repel(aes_string(label = ID), size = 2)
 
-          # ellipse
           if (ellipse == TRUE) p <- p + stat_ellipse(type="norm", linetype=2)
           else if (!is.null(ellipse) && ellipse != TRUE) p <- p + stat_ellipse(aes_string(group=ellipse, color=ellipse), type="norm", linetype=2)
 
           # ======= PERMANOVA (코너 고정) ======= #
           if (statistics){
             if (!is.null(facet) && facet %in% names(pdataframe)) {
-              print(1)
-
               ann_df <- .perm_ann_by_facet(ps_obj = psIN.cbn.na, pdataframe = pdataframe,
                                            mvar = mvar, facet = facet,
                                            distance_metric = distance_metric,
                                            cate.conf = cate.conf,
-                                           project = project, name = name)
-
+                                           project = project, name = name,
+                                           strata_var = strata_var)   # <<< pass strata
               p <- p + ggplot2::geom_text(
                 data = ann_df,
                 mapping = aes(x = x, y = y, label = label),
@@ -298,16 +303,18 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
               factors <- mapping.sel.na.rem[,mvar]
               x1 <- as.matrix(x)[factors %in% unique(factors), factors %in% unique(factors)]
               map.pair <- subset(mapping.sel.na.rem, mapping.sel.na.rem[,mvar] %in% unique(factors))
+
+              # NEW: global restricted permutation if requested
+              perm_use <- perm_global
+
               if (!is.null(cate.conf) && length(cate.conf)>0) {
                 for(conf in cate.conf) map.pair[,conf] <- factor(map.pair[,conf])
                 form <- as.formula(sprintf("x1 ~ %s + %s", mvar, paste(setdiff(cate.conf,"SampleType"), collapse="+")))
               } else {
                 form <- as.formula(sprintf("x1 ~ %s", mvar))
               }
-              ad <- vegan::adonis2(form, data = map.pair, permutations=999, by="terms")
+              ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
               R2 <- round(ad[1,3], 3); padj <- ad[1,5]
-
-              print(2)
 
               ann_df <- data.frame(
                 x = -Inf,
@@ -338,7 +345,6 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                                arrow = arrow(type="closed", length=unit(0.025,"inches")))
           }
 
-          # 코너 고정 텍스트가 잘 보이도록 여백
           p <- p +
             scale_x_continuous(expand = expansion(mult = c(0.03, 0.03))) +
             scale_y_continuous(expand = expansion(mult = c(0.06, 0.03))) +
@@ -363,6 +369,13 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         mapping.sel.na.rem <- data.frame(sample_data(psIN.na ))
         mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
 
+        # ===== NEW: make a global perm object for this subset (facet X 경로에서 사용) =====
+        perm_global <- 999
+        if (!is.null(strata_var) && strata_var %in% names(mapping.sel.na.rem)) {
+          perm_global <- .mk_perm_block(mapping.sel.na.rem[[strata_var]], nperm = 999)
+        }
+        # ================================================================================
+
         ord_meths = plot
         plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
           ordi = ordinate(psIN.na, method=i, distance=distance_metric)
@@ -378,14 +391,10 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         names(plist) <- ord_meths
         pdataframe = plyr::ldply(plist, identity); names(pdataframe)[1] = "method"
 
-        ## ---- FORCE facet order by `orders` (robust) ----
-
         if (!is.null(facet) && facet %in% names(pdataframe)) {
           pdataframe[, facet] <- factor(pdataframe[, facet],
                                         levels = intersect(orders, unique(pdataframe[, facet])))
         }
-
-
 
         pdataframe[, mvar] <- factor(pdataframe[, mvar],
                                      levels = intersect(orders, unique(pdataframe[, mvar])))
@@ -413,7 +422,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         p = p +
           labs(x = paste0("Axis 1 (", sprintf("%.2f", axis1_percent_avg),"%)"),
                y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)")) +
-          ggtitle(sprintf("%s (%s)", mvar, distance_metric)) +
+          ggtitle(sprintf("%s (%s)%s", mvar, distance_metric, title_suffix)) +
           facet_wrap(~ method, scales="free") + theme_bw() +
           theme(strip.background = element_blank(),
                 legend.position = "bottom",
@@ -432,14 +441,12 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         # ======= PERMANOVA (코너 고정) ======= #
         if (statistics){
           if (!is.null(facet) && facet %in% names(pdataframe)) {
-
-            print(3)
-
             ann_df <- .perm_ann_by_facet(ps_obj = psIN.na, pdataframe = pdataframe,
                                          mvar = mvar, facet = facet,
                                          distance_metric = distance_metric,
                                          cate.conf = cate.conf,
-                                         project = project, name = name)
+                                         project = project, name = name,
+                                         strata_var = strata_var)   # <<< pass strata
             p <- p + ggplot2::geom_text(
               data = ann_df,
               mapping = aes(x = x, y = y, label = label),
@@ -454,16 +461,18 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             factors <- mapping.sel.na.rem[,mvar]
             x1 <- as.matrix(x)[factors %in% unique(factors), factors %in% unique(factors)]
             map.pair <- subset(mapping.sel.na.rem, mapping.sel.na.rem[,mvar] %in% unique(factors))
+
+            # NEW: global restricted permutation if requested
+            perm_use <- perm_global
+
             if (!is.null(cate.conf) && length(cate.conf)>0) {
               for(conf in cate.conf) map.pair[,conf] <- factor(map.pair[,conf])
               form <- as.formula(sprintf("x1 ~ %s + %s", mvar, paste(setdiff(cate.conf,"SampleType"), collapse="+")))
             } else {
               form <- as.formula(sprintf("x1 ~ %s", mvar))
             }
-            ad <- vegan::adonis2(form, data = map.pair, permutations=999, by="terms")
+            ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
             R2 <- round(ad[1,3], 3); padj <- ad[1,5]
-
-            print(4)
 
             ann_df <- data.frame(
               x = -Inf,
@@ -490,7 +499,6 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         if (!is.null(facet) && facet %in% names(pdataframe)) {
           ncol <- length(unique(mapping.sel.na.rem[,facet]))
           mapping.sel.na.rem[[facet]] <- factor(mapping.sel.na.rem[[facet]], levels = orders)
-
           p <- p + facet_wrap(as.formula(sprintf("~ %s", facet)), scales="free_x", ncol = ncol)
         }
 
@@ -499,7 +507,6 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                              arrow = arrow(type="closed", length=unit(0.025,"inches")))
         }
 
-        # 코너 고정 텍스트가 잘 보이도록 여백
         p <- p +
           scale_x_continuous(expand = expansion(mult = c(0.03, 0.03))) +
           scale_y_continuous(expand = expansion(mult = c(0.06, 0.03))) +
@@ -509,7 +516,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                 aspect.ratio = 1) +
           geom_vline(xintercept = 0, size = 0.1) + geom_hline(yintercept = 0, size = 0.1)
 
-        pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
+        pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
                     ord_meths, distance_metric, project, mvar,
                     ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
                     ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
@@ -518,6 +525,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                     ifelse(is.null(name), "", paste(name, ".", sep = "")),
                     ifelse(ellipse == FALSE, "ellipse_FALSE.",
                            ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
+                    ifelse(is.null(strata_var), "", paste("(strata=", strata_var, ").", sep = "")),
                     format(Sys.Date(), "%y%m%d")), height = height, width = width)
         print(p)
         dev.off()
@@ -525,4 +533,3 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
     }
   }
 }
-
