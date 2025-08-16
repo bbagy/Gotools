@@ -74,6 +74,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
   emmeans::emm_options(lmer.df = "asymptotic")
   use_lmm_pairwise    <- !is.null(paired)  # paired 있으면 LMM만
   use_ggpubr_pairwise <-  is.null(paired)  # paired 없으면 ggpubr만
+  .lmm_summary_mode   <- "compact"
+  .lmm_adjust_method  <- "BH"   # 다중비교 보정(BH)
 
   # --------------------------------------------
   # LMM 보조 함수들 (최소 침습 추가)
@@ -151,6 +153,78 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
     } else {
       cat("\n[emmeans] failed to compute marginal means.\n")
     }
+    invisible(NULL)
+  }
+  # ---- dispatcher: 모드에 따라 compact/full/none 선택 ----
+  .print_lmm <- function(DAT, mvar, oc, id_col, digits = 3) {
+    if (identical(.lmm_summary_mode, "compact")) {
+      .print_lmm_compact(DAT, mvar, oc, id_col,
+                         adjust = .lmm_adjust_method,
+                         digits = digits)
+    } else if (identical(.lmm_summary_mode, "full")) {
+      .print_lmm_emm(DAT, mvar, oc, id_col,
+                     emm_adjust = "none",
+                     digits = max(4, digits))
+    } else {
+      invisible(NULL)
+    }
+  }
+
+  # ---- LMM compact printer: one concise table per plot ----
+  # contrast_mode: "trt.vs.ctrl" (baseline vs others) | "pairwise" (모든 페어)
+  .print_lmm_compact <- function(DAT, mvar, oc, id_col,
+                                 adjust = "BH",
+                                 digits = 3) {
+    if (!all(c(mvar, oc, id_col) %in% names(DAT))) return(invisible(NULL))
+    keep <- stats::complete.cases(DAT[, c(mvar, oc, id_col)])
+    DAT  <- DAT[keep, , drop = FALSE]
+    if (!nrow(DAT)) return(invisible(NULL))
+
+    # (n=) 제거
+    DAT[[mvar]] <- sub(" \\(n=.*\\)$", "", as.character(DAT[[mvar]]))
+    DAT[[mvar]] <- droplevels(factor(DAT[[mvar]]))
+    if (nlevels(DAT[[mvar]]) < 2) return(invisible(NULL))
+
+    # LMM 적합
+    fm  <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, mvar, id_col))
+    mod <- try(lme4::lmer(fm, data = DAT), silent = TRUE)
+    if (inherits(mod, "try-error")) return(invisible(NULL))
+
+    # Omnibus p
+    atab <- suppressMessages(stats::anova(mod))
+    p_omni <- NA_real_
+    if ("Pr(>F)" %in% colnames(atab)) {
+      rn <- rownames(atab)
+      hit <- which(rn == mvar)
+      if (length(hit) >= 1) p_omni <- as.numeric(atab[hit[1], "Pr(>F)"])
+    }
+
+    # emmeans & 모든 pairwise 대비
+    emm <- try(emmeans::emmeans(mod, stats::as.formula(paste0("~ ", mvar)), lmer.df = "asymptotic"), silent = TRUE)
+    if (inherits(emm, "try-error")) return(invisible(NULL))
+    contr <- try(emmeans::contrast(emm, method = "pairwise", adjust = "none"), silent = TRUE)
+    if (inherits(contr, "try-error")) return(invisible(NULL))
+    cdf <- as.data.frame(contr)
+    parts <- strsplit(cdf$contrast, " - ", fixed = TRUE)
+    g1 <- vapply(parts, `[`, character(1), 1)
+    g2 <- vapply(parts, `[`, character(1), 2)
+    cdf$padj <- stats::p.adjust(cdf$p.value, method = adjust)
+
+    out <- data.frame(
+      outcome  = oc,
+      group1   = g1,
+      group2   = g2,
+      estimate = round(cdf$estimate, digits),
+      p        = signif(cdf$p.value, digits),
+      padj     = signif(cdf$padj, digits),
+      stringsAsFactors = FALSE
+    )
+
+    cat(sprintf("\n[LMM compact] %s ~ %s + (1|%s) | omnibus p = %s | adjust=%s | mode=pairwise\n",
+                oc, mvar, id_col,
+                ifelse(is.na(p_omni), "NA", signif(p_omni, digits)),
+                adjust))
+    print(out, row.names = FALSE)
     invisible(NULL)
   }
 
@@ -426,6 +500,12 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         }
 
         for(oc in outcomes){
+          df_full <- df.na
+          df_full[[mvar]] <- sub(" \\(n=.*\\)$", "", as.character(df_full[[mvar]]))
+          df_full[[mvar]] <- droplevels(factor(df_full[[mvar]]))
+          if (!is.null(orders) && length(orders) > 0) {
+            df_full[[mvar]] <- factor(df_full[[mvar]], levels = intersect(orders, levels(df_full[[mvar]])))
+          }
           # remove NA for facet
           if (length(facet) >= 1) {
             for (fc in facet){
@@ -605,18 +685,18 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                 # 2) 표기 라벨: star 또는 숫자 포맷
                 if (isTRUE(star)) {
                   # cutpoints는 필요 시 조정 가능
-                  ann$label <- ifelse(is.na(ann$padj), "NA",
-                                      ifelse(ann$padj < 0.001, "***",
-                                             ifelse(ann$padj < 0.01, "**",
-                                                    ifelse(ann$padj < 0.05, "*",
+                  ann$label <- ifelse(is.na(ann$p), "NA",
+                                      ifelse(ann$p < 0.001, "***",
+                                             ifelse(ann$p < 0.01, "**",
+                                                    ifelse(ann$p < 0.05, "*",
                                                            "ns"))))
                 } else {
-                  ann$label <- ifelse(is.na(ann$padj), "NA",
-                                      sprintf("adj p=%.3g (BH)", ann$padj))
+                  ann$label <- ifelse(is.na(ann$p), "NA",
+                                      sprintf("%.3g", ann$p))
                 }
 
                 # 3) cutoff 적용: 유의한 것만 남김 (겹침 방지)
-                ann <- ann[!is.na(ann$padj) & ann$padj < cutoff, , drop = FALSE]
+                ann <- ann[!is.na(ann$p) & ann$p < cutoff, , drop = FALSE]
 
                 # 유의한 게 하나도 없으면 주석 스킵
                 if (nrow(ann) > 0) {
@@ -675,7 +755,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               }
 
               # 5) 콘솔 요약
-              .print_lmm_emm(DAT = tmp_lmm, mvar = mvar, oc = oc, id_col = paired)
+              .print_lmm(DAT = df_full, mvar = mvar, oc = oc, id_col = paired, digits = 3)
             }
 
           }  else{
@@ -745,6 +825,12 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
       };my_comparisons
 
       for(oc in outcomes){
+        df_full <- df.na
+        df_full[[mvar]] <- sub(" \\(n=.*\\)$", "", as.character(df_full[[mvar]]))
+        df_full[[mvar]] <- droplevels(factor(df_full[[mvar]]))
+        if (!is.null(orders) && length(orders) > 0) {
+          df_full[[mvar]] <- factor(df_full[[mvar]], levels = intersect(orders, levels(df_full[[mvar]])))
+        }
         # remove NA for facet
         if (!is.null(facet)) {
           for (fc in facet){
@@ -858,18 +944,18 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               # 2) 표기 라벨: star 또는 숫자 포맷
               if (isTRUE(star)) {
                 # cutpoints는 필요 시 조정 가능
-                ann$label <- ifelse(is.na(ann$padj), "NA",
-                                    ifelse(ann$padj < 0.001, "***",
-                                           ifelse(ann$padj < 0.01, "**",
-                                                  ifelse(ann$padj < 0.05, "*",
+                ann$label <- ifelse(is.na(ann$p), "NA",
+                                    ifelse(ann$p < 0.001, "***",
+                                           ifelse(ann$p < 0.01, "**",
+                                                  ifelse(ann$p < 0.05, "*",
                                                          "ns"))))
               } else {
-                ann$label <- ifelse(is.na(ann$padj), "NA",
-                                    sprintf("adj p=%.3g (BH)", ann$padj))
+                ann$label <- ifelse(is.na(ann$p), "NA",
+                                    sprintf("%.3g", ann$p))
               }
 
               # 3) cutoff 적용: 유의한 것만 남김 (겹침 방지)
-              ann <- ann[!is.na(ann$padj) & ann$padj < cutoff, , drop = FALSE]
+              ann <- ann[!is.na(ann$p) & ann$p < cutoff, , drop = FALSE]
 
               # 유의한 게 하나도 없으면 주석 스킵
               if (nrow(ann) > 0) {
@@ -928,7 +1014,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             }
 
             # 5) 콘솔 요약
-            .print_lmm_emm(DAT = tmp_lmm, mvar = mvar, oc = oc, id_col = paired)
+            .print_lmm(DAT = df_full, mvar = mvar, oc = oc, id_col = paired, digits = 3)
           }
 
         } else{
