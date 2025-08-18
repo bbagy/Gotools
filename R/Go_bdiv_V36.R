@@ -19,21 +19,11 @@
 #' @param addnumber Logical indicating whether to add sample numbers to groups.
 #' @param height Height of the plot.
 #' @param width Width of the plot.
-#' @param strata_var (NEW) Column name to use as permutation blocks for PERMANOVA
-#'        (e.g., subject ID / UID). If NULL, standard unrestricted permutations.
+#' @param strata_var (NEW) Column name to use as permutation blocks for PERMANOVA.
 #'
-#' @details
-#' This function creates biodiversity plots such as PCoA for microbiome data,
-#' facilitating comparisons across different conditions or factors. It supports
-#' various distance metrics and provides options for customization. When
-#' `strata_var` is provided, PERMANOVA is run with *restricted permutations*
-#' (within-block shuffles) to guard random effects like repeated measures.
-#'
-#' @return
-#' A PDF file containing the biodiversity plot(s).
-#'
+#' @return PDF(s) and CSV tables on disk.
 #' @export
-Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
+Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                     cate.conf=NULL,
                     plot="PCoA",
                     ellipse=TRUE,
@@ -47,7 +37,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                     name=NULL,
                     addnumber=TRUE,
                     height, width,
-                    strata_var = NULL) {   # <<< NEW
+                    strata_var = NULL) {
 
   if(!is.null(dev.list())) dev.off()
 
@@ -59,8 +49,11 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
   out_dist <- file.path(sprintf("%s_%s/table/dist",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_dist)) dir.create(out_dist)
 
-  title_suffix <- if (!is.null(strata_var)) sprintf(" | strata=%s", strata_var) else ""
+  # NEW: perm dir (PERMANOVA 결과 저장 경로)  # <<< NEW
+  out_perm <- file.path(sprintf("%s_%s/table/perm",project, format(Sys.Date(), "%y%m%d")))
+  if(!file_test("-d", out_perm)) dir.create(out_perm)
 
+  title_suffix <- if (!is.null(strata_var)) sprintf(" | strata=%s", strata_var) else ""
 
   # ---------- helpers ----------
   .safe_levels <- function(x, levs) {
@@ -70,9 +63,8 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
     factor(x, levels = keep)
   }
 
-  # NEW: make restricted permutation object if strata_var is available
+  # permutation blocks
   .mk_perm_block <- function(id_vec, nperm = 999) {
-    # id_vec: vector (may include NAs). If invalid -> return integer nperm
     ok <- !is.null(id_vec)
     if (ok) {
       id_vec <- as.vector(id_vec)
@@ -84,9 +76,9 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
     ctrl
   }
 
-  # facet 있을 때: facet별 PERMANOVA + 코너 고정 좌표(-Inf, -Inf)
+  # facet 있을 때: facet별 PERMANOVA + 코너 고정 주석
   .perm_ann_by_facet <- function(ps_obj, pdataframe, mvar, facet, distance_metric,
-                                 cate.conf, project, name, strata_var = NULL) {  # <<< strata aware
+                                 cate.conf, project, name, strata_var = NULL) {
     distance_metric <- as.character(distance_metric)
 
     levs <- if (is.factor(pdataframe[[facet]])) {
@@ -108,7 +100,6 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
       x <- stats::as.dist(dist_list[[distance_metric]])
 
       map_sub2 <- base::data.frame(phyloseq::sample_data(ps_sub))
-      # ----- strata-aware permutations (facet subset용) -----
       perm <- 999
       if (!is.null(strata_var) && strata_var %in% names(map_sub2)) {
         perm <- .mk_perm_block(map_sub2[[strata_var]], nperm = 999)
@@ -117,13 +108,22 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
       if (!base::is.null(cate.conf) && base::length(cate.conf) > 0) {
         for (conf in cate.conf) map_sub2[[conf]] <- base::factor(map_sub2[[conf]])
         form <- stats::as.formula(base::sprintf("x ~ %s + %s", mvar,
-                                                base::paste(base::setdiff(cate.conf, "SampleType"),
-                                                            collapse = " + ")))
+                                                base::paste(base::setdiff(cate.conf, "SampleType"), collapse = " + ")))
       } else {
         form <- stats::as.formula(base::sprintf("x ~ %s", mvar))
       }
-
+      set.seed(123)
       ad <- vegan::adonis2(form, data = map_sub2, permutations = perm, by = "terms")
+
+      # SAVE facet PERMANOVA table   # <<< NEW
+      fn <- file.path(
+        out_perm,
+        sprintf("PERMANOVA.%s.%s.%s.facet=%s%s.csv",
+                distance_metric, project, mvar, flv,
+                ifelse(is.null(strata_var), "", paste0(".strata=", strata_var)))
+      )
+      utils::write.csv(as.data.frame(ad), fn, row.names = TRUE)
+
       base::data.frame(
         facet_val = flv,
         R2 = base::suppressWarnings(base::round(ad[1,"R2"], 3)),
@@ -131,7 +131,6 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         stringsAsFactors = FALSE
       )
     })
-
 
     stat_df <- dplyr::bind_rows(stat_list)
     stat_df$padj <- stats::p.adjust(stat_df$p, method = "bonferroni")
@@ -211,12 +210,11 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
           mapping.sel.na.rem <- data.frame(sample_data(psIN.cbn.na ))
           mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
 
-          # ===== NEW: make a global perm object for this subset (facet X 경로에서 사용) =====
+          # global perm for this subset
           perm_global <- 999
           if (!is.null(strata_var) && strata_var %in% names(mapping.sel.na.rem)) {
             perm_global <- .mk_perm_block(mapping.sel.na.rem[[strata_var]], nperm = 999)
           }
-          # ================================================================================
 
           # ordination
           ord_meths = plot
@@ -288,7 +286,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                                            distance_metric = distance_metric,
                                            cate.conf = cate.conf,
                                            project = project, name = name,
-                                           strata_var = strata_var)   # <<< pass strata
+                                           strata_var = strata_var)
               p <- p + ggplot2::geom_text(
                 data = ann_df,
                 mapping = aes(x = x, y = y, label = label),
@@ -304,7 +302,6 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
               x1 <- as.matrix(x)[factors %in% unique(factors), factors %in% unique(factors)]
               map.pair <- subset(mapping.sel.na.rem, mapping.sel.na.rem[,mvar] %in% unique(factors))
 
-              # NEW: global restricted permutation if requested
               perm_use <- perm_global
 
               if (!is.null(cate.conf) && length(cate.conf)>0) {
@@ -315,6 +312,15 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
               }
               ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
               R2 <- round(ad[1,3], 3); padj <- ad[1,5]
+
+              # SAVE non-facet PERMANOVA table   # <<< NEW
+              fn <- file.path(
+                out_perm,
+                sprintf("PERMANOVA.%s.%s.%s%s.csv",
+                        distance_metric, project, mvar,
+                        ifelse(is.null(strata_var), "", paste0(".strata=", strata_var)))
+              )
+              utils::write.csv(as.data.frame(ad), fn, row.names = TRUE)
 
               ann_df <- data.frame(
                 x = -Inf,
@@ -369,12 +375,10 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
         mapping.sel.na.rem <- data.frame(sample_data(psIN.na ))
         mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
 
-        # ===== NEW: make a global perm object for this subset (facet X 경로에서 사용) =====
         perm_global <- 999
         if (!is.null(strata_var) && strata_var %in% names(mapping.sel.na.rem)) {
           perm_global <- .mk_perm_block(mapping.sel.na.rem[[strata_var]], nperm = 999)
         }
-        # ================================================================================
 
         ord_meths = plot
         plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
@@ -446,7 +450,7 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
                                          distance_metric = distance_metric,
                                          cate.conf = cate.conf,
                                          project = project, name = name,
-                                         strata_var = strata_var)   # <<< pass strata
+                                         strata_var = strata_var)
             p <- p + ggplot2::geom_text(
               data = ann_df,
               mapping = aes(x = x, y = y, label = label),
@@ -462,7 +466,6 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             x1 <- as.matrix(x)[factors %in% unique(factors), factors %in% unique(factors)]
             map.pair <- subset(mapping.sel.na.rem, mapping.sel.na.rem[,mvar] %in% unique(factors))
 
-            # NEW: global restricted permutation if requested
             perm_use <- perm_global
 
             if (!is.null(cate.conf) && length(cate.conf)>0) {
@@ -473,6 +476,15 @@ Go_bdiv <- function(psIN, cate.vars, project, orders, distance_metrics,
             }
             ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
             R2 <- round(ad[1,3], 3); padj <- ad[1,5]
+
+            # SAVE non-facet PERMANOVA table   # <<< NEW
+            fn <- file.path(
+              out_perm,
+              sprintf("PERMANOVA.%s.%s.%s%s.csv",
+                      distance_metric, project, mvar,
+                      ifelse(is.null(strata_var), "", paste0(".strata=", strata_var)))
+            )
+            utils::write.csv(as.data.frame(ad), fn, row.names = TRUE)
 
             ann_df <- data.frame(
               x = -Inf,
