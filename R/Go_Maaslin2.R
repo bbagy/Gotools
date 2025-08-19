@@ -69,7 +69,8 @@ Go_Maaslin2 <- function(psIN,
                         transform = TRUE,        # 상대 abundance면 median depth 곱해 정수화
                         orders = NULL,           # 예: list(Timepoint=c("Pre","Post"))
                         out_dir = NULL,
-                        name = NULL) {           # <- 새 옵션 추가
+                        name = NULL,             # 결과 하위 폴더 태그
+                        data = NULL) {           # <- NEW: species 라벨링 옵션 ("ASVs"일 때만 변경)
 
   ## ---- 0) 패키지 로드/설치 ----
   if (!requireNamespace("Maaslin2", quietly = TRUE)) {
@@ -79,7 +80,6 @@ Go_Maaslin2 <- function(psIN,
   for (pkg in c("methods","stats")) {
     if (!requireNamespace(pkg, quietly = TRUE)) stop(sprintf("Install %s first.", pkg))
   }
-
   suppressPackageStartupMessages({
     library(Maaslin2)
   })
@@ -95,10 +95,8 @@ Go_Maaslin2 <- function(psIN,
   } else {
     subdir <- sprintf("MaAsLin2.%s", name)
   }
-
   out_dir_final <- file.path(out_DA, subdir)
   if (!file_test("-d", out_dir_final)) dir.create(out_dir_final, recursive = TRUE)
-
   if (is.null(out_dir)) out_dir <- out_dir_final
 
   message(sprintf("[INFO] MaAsLin2 outputs -> %s", out_dir))
@@ -108,12 +106,39 @@ Go_Maaslin2 <- function(psIN,
   otu_mat <- if (taxa_are_rows(psIN)) as.matrix(otu_table(psIN)) else t(as.matrix(otu_table(psIN)))
   otu_mat <- as.data.frame(otu_mat)
 
+  # --- species 라벨로 바꾸기 (옵션) ---
+  run_asv_label <- !is.null(data) && toupper(data) %in% c("ASV","ASVS","AVS","AVSS")
+  if (run_asv_label) {
+    if (!is.null(tax_table(psIN, errorIfNULL = FALSE))) {
+      tax <- as.data.frame(tax_table(psIN))
+      taxa_ids <- rownames(otu_mat)
+      tax <- tax[taxa_ids, , drop = FALSE]
+
+      sp_col <- intersect(c("Species","species","Species_name","Species.name"), colnames(tax))
+      if (length(sp_col) == 0) sp_col <- tail(colnames(tax), 1)
+      genus_col <- intersect(c("Genus","genus"), colnames(tax))
+      genus_vec <- if (length(genus_col)) as.character(tax[[genus_col[1]]]) else NA_character_
+
+      species_vec <- as.character(tax[[sp_col[1]]])
+      species_vec[is.na(species_vec) | species_vec == ""] <- genus_vec[is.na(species_vec) | species_vec == ""]
+      species_vec[is.na(species_vec) | species_vec == ""] <- "Unclassified"
+
+      rownames(otu_mat) <- make.unique(species_vec)
+      message("[INFO] Row names relabeled to Species (no aggregation): e.g., 'E.coli', 'E.coli.1', ...")
+    } else {
+      message("[WARN] tax_table가 없어 라벨 치환을 건너뜀 (ASV ID 유지).")
+    }
+  } else {
+    message("[INFO] data=NULL → 원래 ASV rownames 유지하고 실행합니다.")
+  }
+
+  ## ---- 3) 샘플 동기화 ----
   common_samples <- intersect(colnames(otu_mat), rownames(metadata_df))
   if (length(common_samples) < 2) stop("[ERROR] Not enough overlapping samples between OTU and metadata.")
   otu_mat     <- otu_mat[, common_samples, drop = FALSE]
   metadata_df <- metadata_df[ common_samples, , drop = FALSE]
 
-  ## ---- 3) 상대 abundance → 정수 (옵션) ----
+  ## ---- 4) 상대 abundance → 정수 (옵션) ----
   detect_abundance_type <- function(physeq) {
     lib_sizes <- sample_sums(physeq)
     mean_lib <- mean(lib_sizes)
@@ -127,7 +152,7 @@ Go_Maaslin2 <- function(psIN,
     message("[INFO] Skip integer transform (absolute data or transform=FALSE).")
   }
 
-  ## ---- 4) metadata 전처리 & orders 적용 ----
+  ## ---- 5) metadata 전처리 & orders 적용 ----
   rn <- rownames(metadata_df)
   metadata_df <- as.data.frame(lapply(metadata_df, function(x) {
     if (is.character(x)) {
@@ -158,7 +183,7 @@ Go_Maaslin2 <- function(psIN,
   }
   metadata_df <- metadata_df[colnames(otu_mat), , drop = FALSE]
 
-  ## ---- 5) 효과 항목 확인 ----
+  ## ---- 6) 효과 항목 확인 ----
   missing_fx <- setdiff(fixed_effects, colnames(metadata_df))
   if (length(missing_fx)) stop("[ERROR] Missing fixed_effects in metadata: ", paste(missing_fx, collapse=", "))
 
@@ -171,7 +196,7 @@ Go_Maaslin2 <- function(psIN,
     }
   }
 
-  ## ---- 6) MaAsLin2 실행 ----
+  ## ---- 7) MaAsLin2 실행 ----
   fit <- Maaslin2::Maaslin2(
     input_data     = otu_mat,
     input_metadata = metadata_df,
