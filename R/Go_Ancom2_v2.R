@@ -316,9 +316,20 @@ Go_Ancom2 <- function(psIN, project,
           message(" [INFO] Final successful cutoff: ", cutoff)
         }
       }
-
       # 에러 없이 ancom.out 만들었다면 결과 처리
       res.ancom <- ancom.out$res
+
+      qcols <- grep("^q_", colnames(res), value = TRUE)
+      if (length(qcols)) {
+        qmin  <- sapply(qcols, function(cc) suppressWarnings(min(res[[cc]], na.rm = TRUE)))
+        cat("[DEBUG] global.p =", ancom.out$global$global_p, "\n")
+        cat("[DEBUG] min q by contrast:\n"); print(sort(qmin))
+        for (thr in c(0.05, 0.10, 0.25)) {
+          k <- sum(sapply(qcols, function(cc) sum(res[[cc]] < thr, na.rm=TRUE)))
+          cat(sprintf("[DEBUG] #features with q<%.2f: %d\n", thr, k))
+        }
+      }
+
 
       # (1) lfc_* 중 Intercept를 빼고 실제 효과 열을 자동으로 하나 잡음
       lfc_cols <- grep("^lfc_", colnames(res.ancom), value = TRUE)
