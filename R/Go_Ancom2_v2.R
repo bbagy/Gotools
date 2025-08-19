@@ -158,10 +158,8 @@ Go_Ancom2 <- function(psIN, project,
   psIN <- remove_zero_variance(psIN)
 
   ########################################################
-  # 6. Go_filter : 저빈도 ASV 필터(함수 미정 - 기존 코드에 있다고 가정)
+  # 6. Go_filter :
   ########################################################
-  # Go_filter 함수가 이미 존재한다고 가정.
-  # 이 함수는 cutoff에 따라 저빈도 ASV를 제거하는 것으로 추정.
 
   ########################################################
   # 7. ANCOM-BC2 실행 함수 정의
@@ -170,15 +168,17 @@ Go_Ancom2 <- function(psIN, project,
     ancombc2(
       data = data,
       p_adj_method = "BH",
-      lib_cut = 1000,  # 필요시 500 등으로 조정 가능
+      lib_cut = 0,  # 필요시 500 등으로 조정 가능
       fix_formula = fixed_formula,
       rand_formula = rand_formula,
       group = mvar,
       tax_level = taxanames,
-      struc_zero = TRUE,
+      struc_zero = FALSE,
       neg_lb = TRUE,
       alpha = 0.05,
-      global = TRUE,
+      global = FALSE,
+      s0_perc      = 0.05,
+      prv_cut      = 0.05,
       em_control = list(tol = 1e-5, max_iter = 100),
       verbose = FALSE  # 불필요한 출력 줄이기
     )
@@ -237,7 +237,8 @@ Go_Ancom2 <- function(psIN, project,
       smvar <- combination[2]
 
       mapping.sel.cb <- subset(mapping.sel, mapping.sel[[mvar]] %in% c(basline, smvar))
-      psIN.cb <- psIN.na
+      keep_ids <- rownames(mapping.sel.cb)
+      psIN.cb  <- prune_samples(keep_ids, psIN.na)
       sample_data(psIN.cb) <- mapping.sel.cb
 
 
