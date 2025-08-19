@@ -65,150 +65,227 @@ Go_Maaslin2 <- function(psIN,
                         project,
                         fixed_effects,
                         random_effects = NULL,
-                        normalization = "TSS",   # "TSS","CLR","CSS","NONE"
-                        transform = TRUE,        # 상대 abundance면 median depth 곱해 정수화
-                        orders = NULL,           # 예: list(Timepoint=c("Pre","Post"))
+                        normalization = "TSS",
+                        transform = TRUE,
+                        orders = NULL,           # c("wk1_Post","mo1_Post",...)
                         out_dir = NULL,
-                        name = NULL,             # 결과 하위 폴더 태그
-                        data = NULL) {           # <- NEW: species 라벨링 옵션 ("ASVs"일 때만 변경)
-
-  ## ---- 0) 패키지 로드/설치 ----
-  if (!requireNamespace("Maaslin2", quietly = TRUE)) {
-    if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
-    BiocManager::install("Maaslin2")
+                        name = NULL,             # 상위 태그 (예: "Case"/"Control")
+                        data = NULL,             # "ASV"면 taxa 기반 라벨 치환
+                        combination = NULL,      # 2 => 모든 페어, >2 => 그 레벨들만 서브셋
+                        min_per_level = 3,       # 레벨별 최소 샘플수 안전장치
+                        seed = 123)              # 재현성
+{
+  ## ---------------- helpers ----------------
+  .safe_tag <- function(x){
+    x <- gsub("[^A-Za-z0-9+._-]", "_", x); gsub("__+", "_", x)
   }
-  for (pkg in c("methods","stats")) {
-    if (!requireNamespace(pkg, quietly = TRUE)) stop(sprintf("Install %s first.", pkg))
+  .tag_FE <- function(fx) sprintf("(FE=%s)", .safe_tag(paste(fx, collapse="+")))
+  .tag_RE <- function(re) if (is.null(re) || length(re)==0) "(RE=None)" else sprintf("(RE=%s)", .safe_tag(paste(re, collapse="+")))
+  .write_settings <- function(dir_path, meta, args){
+    fn <- file.path(dir_path, "settings.txt")
+    lines <- c(
+      sprintf("date: %s", format(Sys.time(), "%Y-%m-%d %H:%M:%S")),
+      sprintf("n_samples: %d", nrow(meta)),
+      sprintf("fixed_effects: %s", paste(args$fixed_effects, collapse = " + ")),
+      sprintf("random_effects: %s", ifelse(is.null(args$random_effects),"None", paste(args$random_effects, collapse = " + "))),
+      sprintf("normalization: %s", args$normalization),
+      sprintf("transform(LOG inside MaAsLin2): TRUE"),
+      sprintf("integerize_relative_by_median_depth: %s", isTRUE(args$transform)),
+      sprintf("orders: %s", ifelse(is.null(args$orders),"NULL", paste(args$orders, collapse = ", "))),
+      sprintf("data_label_mode: %s", ifelse(is.null(args$data),"ASV_id", toupper(args$data))),
+      sprintf("combination: %s", ifelse(is.null(args$combination),"NULL", as.character(args$combination))),
+      sprintf("min_per_level: %s", args$min_per_level),
+      sprintf("seed: %s", args$seed)
+    )
+    writeLines(lines, fn, useBytes = TRUE)
   }
-  suppressPackageStartupMessages({
-    library(Maaslin2)
-  })
-
-  ## ---- 1) 출력 경로 ----
-  out_root  <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
-  if (!file_test("-d", out_root)) dir.create(out_root)
-  out_table <- file.path(out_root, "table"); if (!file_test("-d", out_table)) dir.create(out_table)
-  out_DA    <- file.path(out_table, "MaAsLin2"); if (!file_test("-d", out_DA)) dir.create(out_DA, recursive = TRUE)
-
-  if (is.null(name)) {
-    subdir <- "MaAsLin2.Base"
-  } else {
-    subdir <- sprintf("MaAsLin2.%s", name)
-  }
-  out_dir_final <- file.path(out_DA, subdir)
-  if (!file_test("-d", out_dir_final)) dir.create(out_dir_final, recursive = TRUE)
-  if (is.null(out_dir)) out_dir <- out_dir_final
-
-  message(sprintf("[INFO] MaAsLin2 outputs -> %s", out_dir))
-
-  ## ---- 2) 데이터 추출/정렬 ----
-  metadata_df <- as.data.frame(sample_data(psIN))
-  otu_mat <- if (taxa_are_rows(psIN)) as.matrix(otu_table(psIN)) else t(as.matrix(otu_table(psIN)))
-  otu_mat <- as.data.frame(otu_mat)
-
-  # --- species 라벨로 바꾸기 (옵션) ---
-  run_asv_label <- !is.null(data) && toupper(data) %in% c("ASV","ASVS","AVS","AVSS")
-  if (run_asv_label) {
-    if (!is.null(tax_table(psIN, errorIfNULL = FALSE))) {
-      tax <- as.data.frame(tax_table(psIN))
-      taxa_ids <- rownames(otu_mat)
-      tax <- tax[taxa_ids, , drop = FALSE]
-
-      sp_col <- intersect(c("Species","species","Species_name","Species.name"), colnames(tax))
-      if (length(sp_col) == 0) sp_col <- tail(colnames(tax), 1)
-      genus_col <- intersect(c("Genus","genus"), colnames(tax))
-      genus_vec <- if (length(genus_col)) as.character(tax[[genus_col[1]]]) else NA_character_
-
-      species_vec <- as.character(tax[[sp_col[1]]])
-      species_vec[is.na(species_vec) | species_vec == ""] <- genus_vec[is.na(species_vec) | species_vec == ""]
-      species_vec[is.na(species_vec) | species_vec == ""] <- "Unclassified"
-
-      rownames(otu_mat) <- make.unique(species_vec)
-      message("[INFO] Row names relabeled to Species (no aggregation): e.g., 'E.coli', 'E.coli.1', ...")
-    } else {
-      message("[WARN] tax_table가 없어 라벨 치환을 건너뜀 (ASV ID 유지).")
-    }
-  } else {
-    message("[INFO] data=NULL → 원래 ASV rownames 유지하고 실행합니다.")
-  }
-
-  ## ---- 3) 샘플 동기화 ----
-  common_samples <- intersect(colnames(otu_mat), rownames(metadata_df))
-  if (length(common_samples) < 2) stop("[ERROR] Not enough overlapping samples between OTU and metadata.")
-  otu_mat     <- otu_mat[, common_samples, drop = FALSE]
-  metadata_df <- metadata_df[ common_samples, , drop = FALSE]
-
-  ## ---- 4) 상대 abundance → 정수 (옵션) ----
-  detect_abundance_type <- function(physeq) {
-    lib_sizes <- sample_sums(physeq)
-    mean_lib <- mean(lib_sizes)
-    if (abs(mean_lib - 100) < 0.1) "relative" else if (mean_lib > 1000) "absolute" else "unknown"
-  }
-  if (detect_abundance_type(psIN) == "relative" && isTRUE(transform)) {
-    total_reads <- median(sample_sums(psIN))
-    message(sprintf("[INFO] Relative abundance detected. Multiplying by median depth (%s) and rounding.", total_reads))
-    otu_mat <- round(otu_mat * total_reads)
-  } else {
-    message("[INFO] Skip integer transform (absolute data or transform=FALSE).")
-  }
-
-  ## ---- 5) metadata 전처리 & orders 적용 ----
-  rn <- rownames(metadata_df)
-  metadata_df <- as.data.frame(lapply(metadata_df, function(x) {
-    if (is.character(x)) {
-      if (all(grepl("^[-+]?[0-9]*\\.?[0-9]+$", x[!is.na(x)]))) as.numeric(x) else as.factor(x)
-    } else if (is.logical(x)) {
-      as.factor(x)
-    } else {
-      x
-    }
-  }), stringsAsFactors = FALSE)
-  rownames(metadata_df) <- rn
-
-  if (!is.null(orders) && length(orders) > 0 && length(fixed_effects) > 0) {
-    for (fx in fixed_effects) {
-      if (fx %in% names(orders) && fx %in% colnames(metadata_df)) {
-        levs <- orders[[fx]]
-        if (is.factor(metadata_df[[fx]]) || is.character(metadata_df[[fx]])) {
-          cur <- as.factor(metadata_df[[fx]])
-          keep <- levs[levs %in% levels(cur)]
-          if (length(keep) >= 2) metadata_df[[fx]] <- factor(cur, levels = keep)
+  .save_tsv_as_csv <- function(out_dir_run){
+    for (f in c("all_results.tsv","significant_results.tsv")) {
+      fp <- file.path(out_dir_run, f)
+      if (file.exists(fp)) {
+        df <- try(read.table(fp, header = TRUE, sep = "\t", check.names = FALSE), silent = TRUE)
+        if (!inherits(df, "try-error")) {
+          utils::write.csv(df, file = file.path(out_dir_run, sub("\\.tsv$", ".csv", f)), row.names = FALSE)
         }
       }
     }
   }
 
-  if (is.null(rownames(metadata_df)) || any(is.na(rownames(metadata_df)))) {
-    stop("[ERROR] metadata must have valid rownames matching sample IDs.")
+  ## ---------------- packages ----------------
+  if (!requireNamespace("Maaslin2", quietly = TRUE)) {
+    if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager", repos = "https://cloud.r-project.org")
+    BiocManager::install("Maaslin2", ask = FALSE, update = FALSE)
+  }
+  suppressPackageStartupMessages(library(Maaslin2))
+
+  ## ---------------- outputs ----------------
+  out_root  <- sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d"))
+  if (!file_test("-d", out_root)) dir.create(out_root)
+  out_table <- file.path(out_root, "table"); if (!file_test("-d", out_table)) dir.create(out_table)
+  out_DA    <- file.path(out_table, "MaAsLin2"); if (!file_test("-d", out_DA)) dir.create(out_DA, recursive = TRUE)
+
+  FE_tag <- .tag_FE(fixed_effects)
+  RE_tag <- .tag_RE(random_effects)
+  base_tag <- if (is.null(name) || !nzchar(name)) "MaAsLin2.Base" else sprintf("MaAsLin2.%s", .safe_tag(name))
+  subdir <- sprintf("%s.%s.%s", base_tag, FE_tag, RE_tag)
+
+  out_dir_default <- file.path(out_DA, subdir)
+  if (is.null(out_dir)) out_dir <- out_dir_default
+  if (!file_test("-d", out_dir)) dir.create(out_dir, recursive = TRUE)
+  message(sprintf("[INFO] MaAsLin2 base output -> %s", out_dir))
+
+  ## ---------------- data ----------------
+  metadata_df <- as.data.frame(sample_data(psIN))
+  otu_mat <- if (taxa_are_rows(psIN)) as.matrix(otu_table(psIN)) else t(as.matrix(otu_table(psIN)))
+  otu_mat <- as.data.frame(otu_mat)
+
+  # ASV → taxa 라벨 치환 (원하면)
+  if (!is.null(data) && toupper(data) == "ASV" && !is.null(tax_table(psIN, errorIfNULL = FALSE))) {
+    tt <- as.data.frame(tax_table(psIN))
+    label_vec <- if ("Species" %in% colnames(tt)) as.character(tt$Species) else rownames(tt)
+    if (!("Species" %in% colnames(tt)) || all(is.na(label_vec) | label_vec == "")) {
+      genus <- if ("Genus" %in% colnames(tt)) as.character(tt$Genus) else NA
+      sp    <- if ("Species" %in% colnames(tt)) as.character(tt$Species) else NA
+      label_vec <- ifelse(!is.na(genus) & nzchar(genus),
+                          ifelse(!is.na(sp) & nzchar(sp), paste0(genus, "_", sp), genus),
+                          NA)
+    }
+    if (all(is.na(label_vec) | label_vec == "")) {
+      for (col in c("Genus","Family","Order","Class","Phylum","Kingdom")) {
+        if (col %in% colnames(tt)) {
+          fill <- as.character(tt[[col]])
+          idx <- (is.na(label_vec) | label_vec == "")
+          label_vec[idx] <- fill[idx]
+        }
+        if (!all(is.na(label_vec) | label_vec == "")) break
+      }
+    }
+    old_ids <- rownames(otu_mat)
+    label_vec[is.na(label_vec) | label_vec == ""] <- old_ids[is.na(label_vec) | label_vec == ""]
+    rownames(otu_mat) <- make.unique(label_vec)
+  }
+
+  # 샘플 동기화
+  common_samples <- intersect(colnames(otu_mat), rownames(metadata_df))
+  if (length(common_samples) < 2) stop("[ERROR] Not enough overlapping samples between OTU and metadata.")
+  otu_mat     <- otu_mat[, common_samples, drop = FALSE]
+  metadata_df <- metadata_df[ common_samples, , drop = FALSE]
+
+  # 상대 abundance면 정수화(선택)
+  detect_abundance_type <- function(physeq) {
+    lib_sizes <- sample_sums(physeq); mean_lib <- mean(lib_sizes)
+    if (abs(mean_lib - 100) < 0.2) "relative" else if (mean_lib > 1000) "absolute" else "unknown"
+  }
+  if (detect_abundance_type(psIN) == "relative" && isTRUE(transform)) {
+    total_reads <- median(sample_sums(psIN))
+    message(sprintf("[INFO] Relative abundance detected. Multiply by median depth (%.0f) & round.", total_reads))
+    otu_mat <- round(otu_mat * total_reads)
+  } else {
+    message("[INFO] Skip integer transform (absolute data or transform=FALSE).")
+  }
+
+  # 메타데이터 정리 + orders
+  rn <- rownames(metadata_df)
+  metadata_df <- as.data.frame(lapply(metadata_df, function(x){
+    if (is.character(x)) {
+      if (all(grepl("^[-+]?[0-9]*\\.?[0-9]+$", x[!is.na(x)]))) as.numeric(x) else as.factor(x)
+    } else if (is.logical(x)) as.factor(x) else x
+  }), stringsAsFactors = FALSE)
+  rownames(metadata_df) <- rn
+
+  if (length(fixed_effects) == 0) stop("[ERROR] fixed_effects must be provided.")
+  fx <- fixed_effects[1]
+  if (!fx %in% colnames(metadata_df)) stop("[ERROR] Missing fixed_effect in metadata: ", fx)
+  if (!is.factor(metadata_df[[fx]])) metadata_df[[fx]] <- as.factor(metadata_df[[fx]])
+
+  if (!is.null(orders) && length(orders) > 0 && is.vector(orders)) {
+    keep <- intersect(orders, levels(metadata_df[[fx]]))
+    if (length(keep) >= 2) metadata_df[[fx]] <- factor(metadata_df[[fx]], levels = keep)
+  }
+  if (!is.null(random_effects)) {
+    for (re in random_effects) if (re %in% colnames(metadata_df) && !is.factor(metadata_df[[re]]))
+      metadata_df[[re]] <- factor(metadata_df[[re]])
   }
   metadata_df <- metadata_df[colnames(otu_mat), , drop = FALSE]
 
-  ## ---- 6) 효과 항목 확인 ----
-  missing_fx <- setdiff(fixed_effects, colnames(metadata_df))
-  if (length(missing_fx)) stop("[ERROR] Missing fixed_effects in metadata: ", paste(missing_fx, collapse=", "))
-
-  if (!is.null(random_effects)) {
-    missing_re <- setdiff(random_effects, colnames(metadata_df))
-    if (length(missing_re)) {
-      warning("[WARN] Some random_effects not found and will be dropped: ", paste(missing_re, collapse=", "))
-      random_effects <- setdiff(random_effects, missing_re)
-      if (length(random_effects) == 0) random_effects <- NULL
-    }
+  # 공통 러너
+  .run_one <- function(otu_df, meta_df, fx, out_dir_run){
+    if (!file_test("-d", out_dir_run)) dir.create(out_dir_run, recursive = TRUE)
+    set.seed(seed)
+    fit <- Maaslin2::Maaslin2(
+      input_data     = otu_df,
+      input_metadata = meta_df,
+      output         = out_dir_run,
+      fixed_effects  = fx,
+      random_effects = random_effects,
+      normalization  = normalization,
+      transform      = "LOG",
+      plot_heatmap   = TRUE,
+      plot_scatter   = TRUE
+    )
+    .write_settings(out_dir_run, meta_df, as.list(environment()))
+    .save_tsv_as_csv(out_dir_run)
+    invisible(fit)
   }
 
-  ## ---- 7) MaAsLin2 실행 ----
-  fit <- Maaslin2::Maaslin2(
-    input_data     = otu_mat,
-    input_metadata = metadata_df,
-    output         = out_dir,
-    fixed_effects  = fixed_effects,
-    random_effects = random_effects,
-    normalization  = normalization,
-    transform      = "LOG",
-    plot_heatmap   = TRUE,
-    plot_scatter   = TRUE
-  )
+  ## ---------------- run: single / combination ----------------
+  levs_all <- levels(metadata_df[[fx]])
 
-  message("[INFO] MaAsLin2 finished. Plots/results saved in: ", out_dir)
-  invisible(fit)
+  if (is.null(combination)) {
+    message("[INFO] Running single model (no combination).")
+    .run_one(otu_mat, metadata_df, fx, out_dir)
+
+  } else if (is.numeric(combination) && combination == 2) {
+    message("[INFO] Pairwise mode: running ALL pairs.")
+    # 모든 조합 (A–B, A–C, B–C, ...)
+    pairs <- t(combn(levs_all, 2))
+    for (i in seq_len(nrow(pairs))) {
+      a <- pairs[i, 1]; b <- pairs[i, 2]
+      keep_idx <- metadata_df[[fx]] %in% c(a, b)
+      meta_sub <- droplevels(metadata_df[keep_idx, , drop = FALSE])
+      otu_sub  <- otu_mat[, rownames(meta_sub), drop = FALSE]
+
+      tbl <- table(meta_sub[[fx]])
+      if (any(tbl < min_per_level)) {
+        message(sprintf("[SKIP] Too few samples: %s vs %s (counts: %s)",
+                        a, b, paste(names(tbl), tbl, sep="=", collapse=", ")))
+        next
+      }
+      # 페어 수준에서 레벨 순서 고정
+      meta_sub[[fx]] <- factor(meta_sub[[fx]], levels = c(a, b))
+
+      pair_core <- sprintf("MaAsLin2.%s.%s_vs_%s", fx, .safe_tag(a), .safe_tag(b))
+      out_dir_pair <- file.path(out_dir, sprintf("%s.%s", pair_core, RE_tag))  # RE=... 반영
+      message(sprintf("[INFO] Running %s ...", basename(out_dir_pair)))
+      .run_one(otu_sub, meta_sub, fx, out_dir_pair)
+    }
+
+  } else if (is.numeric(combination) && combination > 2) {
+    message(sprintf("[INFO] k-level subset mode: combination = %d", combination))
+    sets <- combn(levs_all, combination, simplify = FALSE)
+    for (levset in sets) {
+      keep_idx <- metadata_df[[fx]] %in% levset
+      meta_sub <- droplevels(metadata_df[keep_idx, , drop = FALSE])
+      otu_sub  <- otu_mat[, rownames(meta_sub), drop = FALSE]
+      # 안전장치
+      tbl <- table(meta_sub[[fx]])
+      if (any(tbl < min_per_level)) {
+        message(sprintf("[SKIP] Too few samples for levels: %s (counts: %s)",
+                        paste(levset, collapse="+"),
+                        paste(names(tbl), tbl, sep="=", collapse=", ")))
+        next
+      }
+      meta_sub[[fx]] <- factor(meta_sub[[fx]], levels = levset)
+      tag_set <- paste(.safe_tag(levset), collapse = "+")
+      out_dir_set <- file.path(out_dir, sprintf("MaAsLin2.%s.%s.%s", fx, tag_set, RE_tag))
+      message(sprintf("[INFO] Running %s ...", basename(out_dir_set)))
+      .run_one(otu_sub, meta_sub, fx, out_dir_set)
+    }
+
+  } else {
+    stop("[ERROR] 'combination' must be NULL, 2, or >2 (numeric).")
+  }
+
+  message("[INFO] Done.")
+  invisible(TRUE)
 }
