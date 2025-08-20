@@ -233,12 +233,13 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
           pdataframe = plyr::ldply(plist, identity); names(pdataframe)[1] = "method"
 
           if (!is.null(facet) && facet %in% names(pdataframe)) {
-            pdataframe[, facet] <- factor(pdataframe[, facet],
-                                          levels = intersect(orders, unique(pdataframe[, facet])))
+            pdataframe[, facet] <- factor(pdataframe[, facet], levels = intersect(orders, unique(pdataframe[, facet])))
           }
 
-          pdataframe[, mvar] <- factor(pdataframe[, mvar],
-                                       levels = intersect(orders, unique(pdataframe[, mvar])))
+          pdataframe[, mvar] <- factor(pdataframe[, mvar], levels = intersect(orders, unique(pdataframe[, mvar])))
+
+
+
 
           if(addnumber==TRUE){
             for (Name in unique(pdataframe[,mvar])) {
