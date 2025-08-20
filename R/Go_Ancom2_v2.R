@@ -167,7 +167,7 @@ Go_Ancom2 <- function(psIN, project,
   # 7. ANCOM-BC2 실행 함수 정의
   ########################################################
   run_ancombc2 <- function(data, fixed_formula, mvar, rand_formula, taxanames) {
-    ancombc2::ancombc2(
+    ancombc2(
       data = data,
       p_adj_method = "BH",
       lib_cut = 1000,  # 필요시 500 등으로 조정 가능
@@ -381,4 +381,3 @@ Go_Ancom2 <- function(psIN, project,
     }
   }
 }
-
