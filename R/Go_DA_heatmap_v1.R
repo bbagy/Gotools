@@ -64,7 +64,7 @@ Go_DA_heat <- function(df, project, data_type, font,
   } else if("ancom2.P" %in% colnames(df)){
     tool <- "ancom2"
   } else {
-    tool <- NA  # or some default value or error handling
+    tool <- "others"  # or some default value or error handling
   }
 
   print(tool)
@@ -83,6 +83,11 @@ Go_DA_heat <- function(df, project, data_type, font,
     p.value <- "wi.ep"
     fdr <- "wi.eBH"
     lfc <- "diff.btw"
+  }else if (tool == "others"){
+    asvs <- "feature"
+    p.value <- "pval"
+    fdr <- "qval"
+    lfc <- "coef"
   }
 
 
@@ -99,47 +104,67 @@ colnames(df)
               paste("(",tool,"_heatmap",")",sep=""),
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
 
+  resSig <- df[df[[p.value]] < pval, ]
 
-  resSig <- subset(df, df[,p.value] < pval)
+
   resSig <- resSig[order(resSig[[lfc]]),]
   resSig <- as.data.frame(resSig)
 
   print(sprintf("p < %s (n = %s) and padj < 0.05 (n = %s)",pval, length(resSig[,p.value]),dim(subset(resSig, resSig[,fdr] < 0.05))[1]))
   resSig.top <- as.data.frame(subset(resSig, abs(resSig[,lfc]) > fc))
-  resSig.top <- subset(resSig.top, resSig.top[,p.value] < pval)
+
+  resSig.top <- resSig.top[resSig.top[[p.value]] < pval, ]
+
   resSig.top$Significance <-cut(resSig.top[,fdr], breaks=c(-Inf, 0.01, 0.05, 0.08, Inf), label=c("**", "*", ".", ""))
-  resSig.top$smvar
+
 
 
   if (dim(resSig)[1] >= 1) {
     # re-order
-    if (!is.null(orders)) {
-      resSig.top$smvar <- factor(resSig.top$smvar, levels = intersect(orders, resSig.top$smvar))
-      resSig.top[,facet] <- factor(resSig.top[,facet], levels = intersect(orders, resSig.top[,facet]))
-    } else {
-      resSig.top$smvar <- factor(resSig.top$smvar)
-      resSig.top[,facet] <- factor(resSig.top[,facet])
+    if(tool == "others"){
+      if (!is.null(orders)) {
+        resSig.top$smvar <- factor(resSig.top$value, levels = intersect(orders, resSig.top$value))
+        resSig.top[,facet] <- factor(resSig.top[,facet], levels = intersect(orders, resSig.top[,facet]))
+      } else {
+        resSig.top$value <- factor(resSig.top$value)
+        resSig.top[,facet] <- factor(resSig.top[,facet])
+      }
+
+      new.orders <- orders
+
+      resSig.top$value <- factor(resSig.top$value, levels = new.orders)
+    }else{
+      if (!is.null(orders)) {
+        resSig.top$smvar <- factor(resSig.top$smvar, levels = intersect(orders, resSig.top$smvar))
+        resSig.top[,facet] <- factor(resSig.top[,facet], levels = intersect(orders, resSig.top[,facet]))
+      } else {
+        resSig.top$smvar <- factor(resSig.top$smvar)
+        resSig.top[,facet] <- factor(resSig.top[,facet])
+      }
+      resSig.top$basline <- paste(resSig.top$basline," (n=",resSig.top$bas.count, ")",sep="")
+
+      # Create formatted labels
+      formatted_labels <- paste(resSig.top$smvar, " (n=", resSig.top$smvar.count, ")", sep="")
+      unique(formatted_labels)
+
+      formatted_orders <- paste(orders, " (n=", resSig.top$smvar.count[match(orders, resSig.top$smvar)], ")", sep="")
+
+      print(formatted_orders)
+
+      new.orders <- unique(c(formatted_orders, orders,formatted_labels))
+      print(new.orders)
+
+      resSig.top$smvar <- factor(formatted_labels, levels = new.orders)
     }
 
-    resSig.top$basline <- paste(resSig.top$basline," (n=",resSig.top$bas.count, ")",sep="")
-
-    # Create formatted labels
-    formatted_labels <- paste(resSig.top$smvar, " (n=", resSig.top$smvar.count, ")", sep="")
-    unique(formatted_labels)
-
-    formatted_orders <- paste(orders, " (n=", resSig.top$smvar.count[match(orders, resSig.top$smvar)], ")", sep="")
-
-    print(formatted_orders)
 
 
 
-    new.orders <- unique(c(formatted_orders, orders,formatted_labels))
-    print(new.orders)
 
 
     # resSig.top$smvar  <- factor(resSig.top$smvar, levels = intersect(new.orders, resSig.top$smvar))
     # Convert formatted labels back into a factor with the specified order
-    resSig.top$smvar <- factor(formatted_labels, levels = new.orders)
+
 
 
     if(tool == "deseq2"){
@@ -148,37 +173,62 @@ colnames(df)
       p <- ggplot(resSig.top, aes(x=reorder(ASV, lfc_ancombc), y=smvar, color=smvar))
     }else if(tool == "aldex2"){
       p <- ggplot(resSig.top, aes(x=reorder(ASV, diff.btw), y=smvar, color=smvar))
+    } else if(tool == "others"){
+      p <- ggplot(resSig.top, aes(x=reorder(feature, coef), y=value, color=value))
     }
-
 
     p <- p + labs(y = "Comparison Group") + theme_classic() + coord_flip() +
       geom_tile(aes_string(fill = lfc), colour = "white") +
       scale_fill_gradient2(low = "#149BEDFF", mid = "white", high = "#FA6B09FF") +
-      ggtitle(sprintf("%s baseline %s vs All group (pvalue < %s, cutoff=%s) ", unique(resSig$mvar), unique(resSig.top$basline), pval, fc)) +
       theme(plot.title = element_text(hjust = 0.5), legend.position = "right") +
-      facet_wrap(~ smvar, scales="free_x", ncol = 10) +
       theme(axis.text.x = element_blank(), axis.ticks = element_blank(), text = element_text(size=12), plot.title = element_text(hjust=1),
             axis.text.y = element_text(angle=0, vjust=0.5, hjust=1, size=font,face = "italic"))
 
-
-    if (data_type == "dada2" | data_type == "DADA2") {
-      p1 = p + scale_x_discrete(breaks = as.character(resSig[,asvs]), labels = as.character(paste(resSig$Phylum, resSig$Species)))
-    } else if (data_type == "Other" | data_type == "other") {
-      p1 = p + scale_x_discrete(breaks = as.character(resSig$taxa), labels = as.character(paste(resSig$KOName)))
+    if(tool == "others"){
+      p <- p + ggtitle(sprintf("baseline vs All group Features with raw p < %s & |LFC| > %s\n(* marks FDR < 0.05) ",  pval, fc)) +
+        facet_wrap(~ value, scales="free_x", ncol = 10)
+    }else{
+      p <- p +  ggtitle(sprintf("%s baseline %s vs All group Features with raw p < %s & |LFC| > %s (* marks FDR < 0.05) ",
+                      unique(resSig$mvar), unique(resSig.top$basline), pval, fc)) +
+        facet_wrap(~ smvar, scales="free_x", ncol = 10)
     }
+
+
+
+    if(tool == "others"){
+      p1 = p
+    }else{
+      if (data_type == "dada2" | data_type == "DADA2") {
+        p1 = p + scale_x_discrete(breaks = as.character(resSig[,asvs]), labels = as.character(paste(resSig$Phylum, resSig$Species)))
+      } else if (data_type == "Other" | data_type == "other") {
+        p1 = p + scale_x_discrete(breaks = as.character(resSig$taxa), labels = as.character(paste(resSig$KOName)))
+      }
+    }
+
 
     # Assuming groupby is always 'smvar' and there is no facet variable
 
-
-    if (!is.null(facet)) {
-      ncol <- length(unique(resSig.top[,facet]))*length(unique(resSig.top$smvar))
-      p2 = p1 + facet_wrap(as.formula(sprintf("~ %s+%s", facet,  "smvar")), scales="free_x", ncol = ncol) +
-        geom_text(aes_string(label="Significance"), color="black", size=3)
-    } else {
-
-      p2 = p1 + facet_wrap(~ smvar, scales="free_x", ncol = 10) +
-        geom_text(aes_string(label="Significance"), color="black", size=3)
+    if(tool == "others"){
+      if (!is.null(facet)) {
+        ncol <- length(unique(resSig.top[,facet]))*length(unique(resSig.top$value))
+        p2 = p1 + facet_wrap(as.formula(sprintf("~ %s+%s", facet,  "value")), scales="free_x", ncol = ncol) +
+          geom_text(aes_string(label="Significance"), color="black", size=3)
+      } else {
+        p2 = p1 + facet_wrap(~ value, scales="free_x", ncol = 10) +
+          geom_text(aes_string(label="Significance"), color="black", size=3)
+      }
+    }else{
+      if (!is.null(facet)) {
+        ncol <- length(unique(resSig.top[,facet]))*length(unique(resSig.top$smvar))
+        p2 = p1 + facet_wrap(as.formula(sprintf("~ %s+%s", facet,  "smvar")), scales="free_x", ncol = ncol) +
+          geom_text(aes_string(label="Significance"), color="black", size=3)
+      } else {
+        p2 = p1 + facet_wrap(~ smvar, scales="free_x", ncol = 10) +
+          geom_text(aes_string(label="Significance"), color="black", size=3)
+      }
     }
+
+
     p3 <- p2 + theme(
       axis.text.x = element_blank(),
       axis.ticks = element_blank(),
@@ -187,15 +237,18 @@ colnames(df)
       strip.background = element_blank()
     )
 
-
-
   } else{
     next
   }
 
+
+
   p4 <- ggplotGrob(p3)
+
   id <- which(p4$layout$name == "title")
+
   p4$layout[id, c("l","r")] <- c(1, ncol(p4))
+
   #grid.newpage()
   grid.draw(p4)
   dev.off()
