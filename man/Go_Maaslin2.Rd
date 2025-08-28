@@ -13,7 +13,11 @@ Go_Maaslin2(
   transform = TRUE,
   orders = NULL,
   out_dir = NULL,
-  name = NULL
+  name = NULL,
+  data = NULL,
+  combination = NULL,
+  min_per_level = 3,
+  seed = 123
 )
 }
 \arguments{
