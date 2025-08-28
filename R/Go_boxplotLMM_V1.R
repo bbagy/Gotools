@@ -43,7 +43,7 @@
 #'
 #' @export
 
-Go_boxplot <- function(df, cate.vars, project, outcomes,
+Go_boxplotLMM <- function(df, cate.vars, project, outcomes,
                        orders=NULL,
                        mycols=NULL,
                        combination=NULL,
