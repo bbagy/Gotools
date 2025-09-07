@@ -96,16 +96,7 @@
 #' @importFrom grDevices png dev.off
 #' @export
 
-suppressPackageStartupMessages({
-  library(phyloseq)
-  library(xgboost)
-  library(pROC)
-  library(PRROC)
-  library(ggplot2)
-  library(dplyr)
-  library(tidyr)
-  library(stringr)
-})
+
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b
 
