@@ -96,10 +96,6 @@
 #' @importFrom grDevices png dev.off
 #' @export
 
-
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b
-
 Go_xgboost <- function(
     psIN,
     project,
@@ -632,3 +628,6 @@ Go_xgboost <- function(
   cat(sprintf("[Holdout] AUC(train)=%.3f | AUC(test)=%.3f | AUPRC(test)=%.3f\n", auc_tr, auc_te, pr_te$auc.integral))
   invisible(results)
 }
+
+# 작은 유틸: NULL coalescing
+`%||%` <- function(a, b) if (!is.null(a)) a else b
