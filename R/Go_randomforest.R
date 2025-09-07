@@ -91,16 +91,6 @@
 #' @importFrom grDevices png dev.off
 #' @export
 
-suppressPackageStartupMessages({
-  library(phyloseq)
-  library(ranger)     # fast random forest
-  library(pROC)
-  library(PRROC)
-  library(ggplot2)
-  library(dplyr)
-  library(tidyr)
-  library(stringr)
-})
 
 Go_randomforest <- function(
     psIN,
