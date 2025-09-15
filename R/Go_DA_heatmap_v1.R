@@ -39,7 +39,7 @@
 #' @export
 
 Go_DA_heat <- function(df, project, data_type, font,
-                       addnumber=TRUE, facet=NULL,
+                       addnumber=TRUE, facet=NULL, mycols = NULL,
                        pval,fc, orders, name, height, width){
 
   if(!is.null(dev.list())) dev.off()
@@ -49,6 +49,19 @@ Go_DA_heat <- function(df, project, data_type, font,
   if(!file_test("-d", out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_path)) dir.create(out_path)
+
+  tt <- try(mycols,T)
+  if(class(tt) == "try-error"){
+    print("mycols is not defined.")
+    mycols <- NULL
+  }
+
+
+  if(!is.null(mycols)){
+    mycols.heatmap = mycols
+  }else{
+    mycols.heatmap = c("#149BEDFF", "#FA6B09FF")
+  }
 
   # out file
   # "name" definition
@@ -177,9 +190,10 @@ colnames(df)
       p <- ggplot(resSig.top, aes(x=reorder(feature, coef), y=value, color=value))
     }
 
+
     p <- p + labs(y = "Comparison Group") + theme_classic() + coord_flip() +
       geom_tile(aes_string(fill = lfc), colour = "white") +
-      scale_fill_gradient2(low = "#149BEDFF", mid = "white", high = "#FA6B09FF") +
+      scale_fill_gradient2(low = mycols.heatmap[1], mid = "white", high = mycols.heatmap[2]) +
       theme(plot.title = element_text(hjust = 0.5), legend.position = "right") +
       theme(axis.text.x = element_blank(), axis.ticks = element_blank(), text = element_text(size=12), plot.title = element_text(hjust=1),
             axis.text.y = element_text(angle=0, vjust=0.5, hjust=1, size=font,face = "italic"))
