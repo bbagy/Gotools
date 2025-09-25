@@ -69,7 +69,6 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Use both microbiome and clinical features with Random Forest
 #' res <- Go_prediction(
 #'   psIN = ps, project = "IBD", outcome = "Status",
 #'   method = "randomforest", bacteriaSet = TRUE,
@@ -78,27 +77,11 @@
 #'   orders = c("Control","Case")
 #' )
 #' res$AUC
-#'
-#' # Clinical-only XGBoost
-#' res2 <- Go_prediction(
-#'   psIN = ps, project = "IBD", outcome = "Status",
-#'   method = "xgboost", bacteriaSet = FALSE,
-#'   clinical_vari = c("Age","BMI","Sex"),
-#'   StudyID_col = "SubjectID", orders = c("Control","Case")
-#' )
 #' }
 #'
 #' @seealso \code{\link{Go_randomforest}}, \code{\link{Go_xgboost}}
 #'
-#' @importFrom phyloseq sample_data tax_table taxa_are_rows otu_table tax_glom
-#' @importFrom ranger ranger importance
-#' @importFrom xgboost xgb.cv xgb.train xgb.importance xgb.DMatrix
-#' @importFrom pROC roc auc plot.roc
-#' @importFrom PRROC pr.curve
-#' @importFrom dplyr group_by summarise arrange
-#' @importFrom stats model.matrix median cor as.formula
-#' @importFrom utils write.csv
-#' @importFrom grDevices png dev.off
+#' @name Go_prediction          # <-- ★ 명시적으로 이름 부여(안전)
 #' @export
 
 suppressPackageStartupMessages({
