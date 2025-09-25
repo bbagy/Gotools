@@ -81,7 +81,7 @@
 #'
 #' @seealso \code{\link{Go_randomforest}}, \code{\link{Go_xgboost}}
 #'
-#' @name Go_prediction          # <-- ★ 명시적으로 이름 부여(안전)
+#' @name Go_prediction
 #' @export
 
 suppressPackageStartupMessages({
