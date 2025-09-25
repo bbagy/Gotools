@@ -11,6 +11,7 @@ Go_DA_heat(
   font,
   addnumber = TRUE,
   facet = NULL,
+  mycols = NULL,
   pval,
   fc,
   orders,
