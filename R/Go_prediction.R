@@ -173,6 +173,39 @@ Go_prediction <- function(
     lapply(1:max(ff), function(k) which(ff == k))
   }
 
+
+
+  # ---- CV vs OOF 요약 저장 ----
+  log_cv_oof_summary <- function(outdir, model_name,
+                                 CV_best_AUC, CV_best_iter = NA_integer_,
+                                 oof_prob, yfac, positive_class, orders) {
+    if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
+    # OOF 성능
+    AUC_oof <- get_auc(yfac, oof_prob, orders)
+    pr <- PRROC::pr.curve(scores.class0 = oof_prob[yfac==positive_class],
+                          scores.class1 = oof_prob[yfac!=positive_class], curve=TRUE)
+    AUPRC_oof <- pr$auc.integral
+
+    # 저장
+    sum_df <- data.frame(
+      Model        = model_name,
+      CV_best_AUC  = CV_best_AUC,
+      CV_best_iter = CV_best_iter,
+      OOF_AUC      = AUC_oof,
+      OOF_AUPRC    = AUPRC_oof
+    )
+    write.csv(sum_df, file.path(outdir, paste0(model_name, "_cv_oof_summary.csv")), row.names = FALSE)
+
+    # 그림(선택)
+    png(file.path(outdir, paste0("ROC_OOF_", model_name, ".png")), width=900, height=900, res=130)
+    plot.roc(pROC::roc(yfac, oof_prob, levels=orders, direction="<", quiet=TRUE),
+             main=sprintf("%s OOF ROC (AUC=%.3f)", model_name, AUC_oof), lwd=2); abline(0,1,lty=2); dev.off()
+    png(file.path(outdir, paste0("PR_OOF_", model_name, ".png")), width=900, height=900, res=130)
+    plot(pr, main=sprintf("%s OOF PR (AUPRC=%.3f)", model_name, AUPRC_oof)); dev.off()
+
+    invisible(list(CV_best_AUC=CV_best_AUC, CV_best_iter=CV_best_iter,
+                   OOF_AUC=AUC_oof, OOF_AUPRC=AUPRC_oof))
+  }
   ## --- 0) 메타 준비: 레벨/StudyID 고정 --------------------------------------
   meta0 <- data.frame(sample_data(psIN), check.names = FALSE, stringsAsFactors = FALSE)
   stopifnot(outcome %in% names(meta0))
@@ -278,7 +311,7 @@ Go_prediction <- function(
   ## --- 6) 탐색공간 -----------------------------------------------------------
   sample_grid_rf <- function(n, p){
     data.frame(
-      mtry            = pmax(1, round(runif(n, 0.05, 0.5) * p)),
+      mtry            = pmax(1, round(runif(n, 0.1, 0.5) * p)),
       min.node.size   = sample(c(1,2,3,5,10), n, replace=TRUE),
       sample.fraction = runif(n, 0.6, 0.95),
       stringsAsFactors = FALSE
@@ -540,6 +573,7 @@ Go_prediction <- function(
          esr = par$early_stopping_rounds)
   }
 
+  set.seed(seed)
   grid <- sample_grid_xgb(n_candidates)
   cat(sprintf("[TUNE] random search (XGB): %d candidates\n", nrow(grid)))
   best <- list(auc=-Inf)
@@ -555,6 +589,8 @@ Go_prediction <- function(
   res_df <- do.call(rbind, res_list); res_df <- res_df[order(-res_df$AUC), ]
   write.csv(res_df, file.path(root, "random_search_results.csv"), row.names = FALSE)
   cat(sprintf("[Best CV] AUC=%.3f | best_iter=%d (XGB)\n", best$auc, best$best_iter))
+
+
 
   ## OOF 예측
   oof <- rep(NA_real_, length(ybin))
@@ -580,6 +616,18 @@ Go_prediction <- function(
 
   write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", pred=oof),
             file.path(root, "predictions.csv"), row.names = FALSE)
+
+
+
+
+  CV_best_AUC  <- best$auc
+  CV_best_iter <- best$best_iter
+  log_cv_oof_summary(outdir = root, model_name = "xgb",
+                     CV_best_AUC = CV_best_AUC, CV_best_iter = CV_best_iter,
+                     oof_prob = oof, yfac = yfac,
+                     positive_class = positive_class, orders = orders)
+
+
 
   ## 중요도 + 방향성 (SHAP 우선, 실패시 Spearman) — 안전 매핑
   shap_ok <- TRUE

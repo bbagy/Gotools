@@ -91,7 +91,7 @@ Go_kmplot <- function(df,
                       group_labels = NULL,
                       height       = 5,
                       width        = 6) {
-  
+
   # 필요한 패키지 자동 설치 & 로드
   pkgs <- c("dplyr", "survival", "survminer", "ggplot2")
   for (p in pkgs) {
@@ -100,38 +100,61 @@ Go_kmplot <- function(df,
     }
     suppressPackageStartupMessages(library(p, character.only = TRUE))
   }
-  
+
   # 출력 경로 (항상 생성)
   out <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
   if (!file_test("-d", out)) dir.create(out, recursive = TRUE)
   out_path <- file.path(sprintf("%s_%s/pdf", project, format(Sys.Date(), "%y%m%d")))
   if (!file_test("-d", out_path)) dir.create(out_path, recursive = TRUE)
-  
+
   # 데이터 준비
   df <- df %>%
     dplyr::transmute(
       time    = .data[[time_col]],
       feature = .data[[feature_col]],
       raw_ev  = .data[[event_col]]
-    ) %>%
-    dplyr::filter(is.finite(time), is.finite(feature), time > 0)
-  
+    ) #%>%
+    #dplyr::filter(is.finite(time), is.finite(feature), time > 0)
+
+  if (is.numeric(df[[time_col]])) {
+    df <- df %>%
+      dplyr::filter(
+        is.finite(.data[[time_col]]),
+        is.finite(.data[[feature_col]]),
+        .data[[time_col]] > 0
+      )
+  } else {
+    warning(glue::glue("`{time_col}` is not numeric, skipping numeric filtering."))
+  }
+
+  # timepoint변환 V1, V2, V3 to 1,2,3
+  df <- df %>%
+    dplyr::mutate(
+      time = if (all(grepl("^V[0-9]+$", time))) {
+        as.numeric(gsub("V", "", time))
+      } else {
+        time
+      }
+    )
+
+
+
   # 이벤트 → status (1=이벤트, 0=검열)
   if (is.numeric(df$raw_ev)) {
     df$status <- ifelse(df$raw_ev > 0, 1L, 0L)
   } else {
     df$status <- ifelse(toupper(trimws(df$raw_ev)) %in% toupper(event_positive), 1L, 0L)
   }
-  
+
   # feature 기반 그룹 (분위수 n_group개)
   if (is.null(group_labels)) group_labels <- paste0("G", seq_len(n_group))
   df <- df %>%
     dplyr::mutate(feature_group = ggplot2::cut_number(feature, n_group, labels = group_labels)) %>%
     droplevels()
-  
+
   # KM 적합
   fit <- survfit(Surv(time, status) ~ feature_group, data = df)
-  
+
   # Log-rank p 계산 및 라벨 포맷
   lr  <- survdiff(Surv(time, status) ~ feature_group, data = df)
   df_chi <- length(lr$n) - 1
@@ -143,11 +166,11 @@ Go_kmplot <- function(df,
   } else {
     paste0("Log-rank p = ", signif(p_raw, 3))
   }
-  
+
   # 팔레트(그룹 수에 맞춰 확장)
   base_pal <- c("#2ca02c", "#1f77b4", "#ff7f0e", "#9467bd", "#8c564b", "#e377c2")
   pal <- base_pal[seq_len(min(n_group, length(base_pal)))]
-  
+
   # KM 플롯
   p <- ggsurvplot(
     fit, data = df,
@@ -162,7 +185,7 @@ Go_kmplot <- function(df,
     xlim          = c(0, max(df$time, na.rm = TRUE)),
     palette       = pal
   )
-  
+
   # 파일명: feature, project, (name), 날짜
   pdf_file <- sprintf(
     "%s/Kaplan.Meier.plot.%s.%s.%s%s.pdf",
@@ -172,15 +195,15 @@ Go_kmplot <- function(df,
     ifelse(is.null(name), "", paste0(name, ".")),
     format(Sys.Date(), "%y%m%d")
   )
-  
+
   # 항상 PDF 저장
   grDevices::pdf(pdf_file, height = height, width = width)
   print(p$plot)
   grDevices::dev.off()
   message("PDF saved: ", pdf_file)
-  
+
   # 화면 출력(원하면 유지)
   print(p)
-  
+
   invisible(list(fit = fit, data = df, plot = p, pdf = pdf_file, p_value = p_raw))
 }
