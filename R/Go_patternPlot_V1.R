@@ -188,7 +188,7 @@ Go_patternPlot <- function(
   outfile <- file.path(pdf_dir, sprintf("pattern_plot.%s.%s.%s.pdf", fillinfor, project, stamp))
   ggsave(outfile, plot = p_final, device = cairo_pdf, width = width, height = height, units = "in", limitsize = FALSE)
 
-  write.csv(pattern, sprintf("%s/pattern_plot.%s.%s.%s.pdf", pattern_dir, fillinfor, project, stamp))
+  write.csv(pattern, sprintf("%s/pattern_plot.%s.%s.%s.csv", pattern_dir, fillinfor, project, stamp))
 
   invisible(list(plot = p_final, pattern_table = unique_patterns, long_data = data_long, file = outfile))
 }
