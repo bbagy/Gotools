@@ -148,6 +148,7 @@ Go_kmplot <- function(df,
 
   # feature 기반 그룹 (분위수 n_group개)
   if (is.null(group_labels)) group_labels <- paste0("G", seq_len(n_group))
+  set.seed(1)
   df <- df %>%
     dplyr::mutate(feature_group = ggplot2::cut_number(feature, n_group, labels = group_labels)) %>%
     droplevels()

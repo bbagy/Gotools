@@ -92,6 +92,7 @@ Go_patternPlot <- function(
     StudyID,                # 환자/샘플 ID 변수명 (문자열)
     yinfor.order,           # x축 순서 (문자 벡터)
     mycols = NULL,          # 색상 팔레트 (선택)
+    name = NULL,
     width = 6,              # 저장 폭(inch)
     height = 15             # 저장 높이(inch)
 ){
@@ -102,6 +103,7 @@ Go_patternPlot <- function(
   require(rlang)
 
   # 날짜 폴더 자동 생성
+  name <- ifelse(is.null(name), "", paste(name, ".", sep = ""))
   stamp <- format(Sys.Date(), "%y%m%d")
   base <- sprintf("%s_%s", project, stamp)
   pdf_dir  <- file.path(base, "pdf")
@@ -185,10 +187,13 @@ Go_patternPlot <- function(
                     theme = theme(plot.title = element_text(hjust = 0.5, face = "bold")))
 
   # 저장 (PDF)
-  outfile <- file.path(pdf_dir, sprintf("pattern_plot.%s.%s.%s.pdf", fillinfor, project, stamp))
+  outfile <- file.path(pdf_dir, sprintf("pattern_plot.%s.%s.%s%s.pdf", fillinfor, project, name,stamp))
   ggsave(outfile, plot = p_final, device = cairo_pdf, width = width, height = height, units = "in", limitsize = FALSE)
 
-  write.csv(pattern, sprintf("%s/pattern_plot.%s.%s.%s.csv", pattern_dir, fillinfor, project, stamp))
+  write.csv(unique_patterns, sprintf("%s/pattern_table.%s.%s.%s%s.csv", pattern_dir, fillinfor, project, name,stamp))
+  write.csv(data_wide, sprintf("%s/pattern_wide.%s.%s.%s%s.csv", pattern_dir, fillinfor, project, name,stamp))
 
   invisible(list(plot = p_final, pattern_table = unique_patterns, long_data = data_long, file = outfile))
 }
+
+
