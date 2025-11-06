@@ -10,47 +10,73 @@ Go_pairedperm(
   project,
   distance_metrics,
   cate.conf = NULL,
-  des,
-  name = NULL
+  des = NULL,
+  name = NULL,
+  strata_by = NULL
 )
 }
 \arguments{
 \item{psIN}{A \code{phyloseq} object containing the microbiome data.}
 
-\item{cate.vars}{A vector of categorical variables to be tested.}
+\item{cate.vars}{A character vector specifying the categorical variables to test.}
 
-\item{project}{A string indicating the project name for directory and file naming.}
+\item{project}{A string indicating the project name (used for directory and file naming).}
 
-\item{distance_metrics}{A vector of distance metrics to use for the PERMANOVA.}
+\item{distance_metrics}{A character vector of distance metrics to use for PERMANOVA
+(e.g., \code{"bray"}, \code{"unifrac"}, \code{"jaccard"}, etc.).}
 
-\item{cate.conf}{(Optional) A vector of confounding variables to adjust for in the model.}
+\item{cate.conf}{(Optional) A character vector of confounding variables to adjust for in the model.}
 
-\item{des}{A description or label for the PERMANOVA run.}
+\item{des}{(Optional) A short description or label for the PERMANOVA run (used in messages and filenames).}
 
-\item{name}{(Optional) A name for the analysis for labeling and file naming.}
+\item{name}{(Optional) A name string for labeling and output file naming.}
 
-\item{distance}{A \code{phyloseq::distance} object or the method to calculate distances.}
+\item{strata_by}{(Optional) A string specifying a column name in the metadata that defines
+paired or repeated-measure structures. When provided, permutations are restricted within each
+level of this variable via the \code{strata} argument in \code{adonis2()}.}
 }
 \value{
-Outputs the results as CSV files in a specified directory. The function also returns the results as
-a data frame.
+A \code{data.frame} containing pairwise PERMANOVA results across all tested variables and distance metrics.
+The same results are also saved as a CSV file in the project output directory.
 }
 \description{
-This function conducts a paired PERMANOVA to assess differences in microbial community composition
-between groups, taking into account paired samples or repeated measures.
+This function performs pairwise PERMANOVA tests to assess differences in microbial community composition
+between groups while optionally accounting for paired or repeated measures using stratified permutations.
 }
 \details{
-The function performs a PERMANOVA analysis on each pair of levels within each categorical variable.
-It can adjust for confounding variables and allows for multiple distance metrics.
+This function performs \strong{pairwise PERMANOVA} tests between all combinations of group levels
+within each categorical variable listed in \code{cate.vars}.
+The distance matrices are computed via \code{Go_dist()} for each metric in \code{distance_metrics},
+and then pairwise \code{adonis2()} tests are applied to all two-group comparisons.
+\itemize{
+\item If \code{cate.conf} is specified, those variables are included as covariates in the model formula.
+\item If \code{strata_by} is provided, permutations are stratified within that variable (e.g., subject ID),
+allowing paired or repeated-measures analysis.
+\item Adjusted p-values (Bonferroni correction) are computed and included in the output table.
+}
+
+Each test produces a data frame summarizing:
+\itemize{
+\item \code{pairs} – the compared group pair (e.g., "Control vs Treatment")
+\item \code{Df}, \code{SumsOfSqs}, \code{R2}, \code{F.Model}, \code{p.value}, and \code{padj} (Bonferroni-adjusted)
+\item \code{distance_metric}, \code{mvar}, and \code{adjusted} (confounder info)
+}
+
+Results are saved as CSV files under:
+\code{<project>_<YYMMDD>/table/perm/pair_permanova.<project>.<des>.<name>.csv}
 }
 \examples{
-Go_pairedperm(psIN = ps,
-              cate.vars = c("TreatmentGroup"),
-              project = "MicrobiomeStudy",
-              distance = "bray",
-              distance_metrics = c("bray", "unifrac"),
-              cate.conf = c("Age", "BMI"),
-              des = "TreatmentComparison",
-              name = "TreatmentAnalysis")
+\dontrun{
+Go_pairedperm(
+  psIN = ps,
+  cate.vars = c("TreatmentGroup"),
+  project = "MicrobiomeStudy",
+  distance_metrics = c("bray", "unifrac"),
+  cate.conf = c("Age", "BMI"),
+  des = "TreatmentComparison",
+  name = "TreatmentAnalysis",
+  strata_by = "SubjectID"   # Restrict permutations within subjects
+)
+}
 
 }
