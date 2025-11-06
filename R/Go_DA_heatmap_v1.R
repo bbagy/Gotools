@@ -202,9 +202,13 @@ colnames(df)
       p <- p + ggtitle(sprintf("baseline vs All group Features with raw p < %s & |LFC| > %s\n(* marks FDR < 0.05) ",  pval, fc)) +
         facet_wrap(~ value, scales="free_x", ncol = 10)
     }else{
-      p <- p +  ggtitle(sprintf("%s baseline %s vs All group Features with raw p < %s & |LFC| > %s (* marks FDR < 0.05) ",
-                      unique(resSig$mvar), unique(resSig.top$basline), pval, fc)) +
-        facet_wrap(~ smvar, scales="free_x", ncol = 10)
+      p + ggtitle(sprintf("%s baseline %s vs %s Features with raw p < %s & |LFC| > %s (* marks FDR < 0.05)",
+                          paste(unique(resSig$mvar), collapse = ", "),
+                          paste(unique(resSig.top$basline), collapse = ", "),
+                          paste(unique(resSig.top$smvar), collapse = ", "),
+                          pval,
+                          fc))
+
     }
 
 
