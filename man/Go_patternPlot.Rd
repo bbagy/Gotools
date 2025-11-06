@@ -12,6 +12,7 @@ Go_patternPlot(
   StudyID,
   yinfor.order,
   mycols = NULL,
+  name = NULL,
   width = 6,
   height = 15
 )
