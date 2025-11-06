@@ -17,64 +17,124 @@ Go_groupBoxTimepoint(
   title = NULL,
   x.axis = NULL,
   height = NULL,
-  width = NULL
+  width = NULL,
+  baseline = NULL,
+  paired = NULL
 )
 }
 \arguments{
-\item{df}{A dataframe containing the data to be plotted.}
+\item{df}{A data frame containing the data to be plotted.}
 
-\item{project}{A character string specifying the project name, used for file naming and directory structure.}
+\item{project}{A character string specifying the project name. Used for
+file naming and directory structure.}
 
 \item{name}{An optional character string for additional naming in the output file.}
 
-\item{maingroup}{A character string specifying the column name in \code{df} that defines the main groups.}
+\item{maingroup}{A character string specifying the column in \code{df} defining
+the main grouping variable (e.g., treatment or condition).}
 
-\item{timepoint}{A character string specifying the column name in \code{df} that defines the timepoints.}
+\item{timepoint}{A character string specifying the column in \code{df} defining
+the timepoints.}
 
-\item{outcomes}{A character vector specifying the names of the outcomes to be plotted.}
+\item{outcomes}{A character vector specifying the outcome variables to be plotted.
+These columns must exist in \code{df}. If \code{baseline} and \code{paired} are specified,
+subtraction is automatically applied to all existing outcomes.}
 
-\item{mycols}{An optional character vector of colors to be used for the main groups; if NULL, default colors are used.}
+\item{mycols}{An optional named character vector of colors to be used for
+different groups in \code{maingroup}. If NULL, default ggplot colors are used.}
 
-\item{orders}{An optional character vector specifying the order of groups and/or timepoints; if NULL, the default order is used.}
+\item{orders}{An optional character vector specifying the order of timepoints
+and/or groups in the plots. If NULL, the default order in the data is used.}
 
-\item{fill_labels}{An optional character vector providing labels for the legend corresponding to \code{mycols}.}
+\item{fill_labels}{An optional character vector providing legend labels
+corresponding to \code{mycols}.}
 
-\item{title}{An optional character string specifying the title of the plot; if NULL, the main group name is used as the title.}
+\item{title}{An optional character string specifying the plot title.
+If NULL, the main group name and test method are used as the title.}
 
-\item{x.axis}{An optional character string specifying the label for the x-axis; if NULL, timepoint names are used.}
+\item{x.axis}{An optional character string specifying the x-axis label.
+If NULL, the \code{timepoint} names are used.}
 
-\item{height}{An optional numeric value specifying the height of the output PDF in inches; default is 3.5 inches.}
+\item{height}{Numeric value specifying the height (in inches) of the output PDF.
+Default is 3.5.}
 
-\item{width}{An optional numeric value specifying the width of the output PDF in inches; default is 5 inches.}
+\item{width}{Numeric value specifying the width (in inches) of the output PDF.
+Default is 5.}
+
+\item{baseline}{An optional character string specifying the baseline
+timepoint (e.g., "Baseline"). If provided together with \code{paired},
+outcome values at this baseline are subtracted from all corresponding
+values in the same paired subject.}
+
+\item{paired}{An optional character string specifying the subject ID column
+used to match baseline values (e.g., "SubjectID"). Required for
+baseline subtraction.}
 }
 \value{
-Saves the box plots as PDF files in the specified directory and prints each plot to the R graphical device.
+Saves box plots for each outcome variable as PDF files in the directory
+returned by \code{Go_path(project, pdf="yes")}. Each plot is also printed
+to the R graphical device.
 }
 \description{
-This function creates grouped box plots with overlaid points and lines representing averages for different timepoints and main groups. It allows customization of plot appearance, including colors and dimensions.
+Create grouped box plots across timepoints with optional baseline subtraction.
 }
 \details{
-The function iteratively processes each outcome specified in \code{outcomes}, creating a box plot for each. The box plots display data distribution across different groups and timepoints. Lines and points on the plots represent the average values for each group and timepoint. Statistical comparisons are made using the Wilcoxon test, and p-values are displayed on the plots.
+This function generates grouped box plots with overlaid lines and points
+representing group means across multiple timepoints. It supports baseline
+subtraction for paired data, allowing visualization of changes relative
+to a specified baseline timepoint.
+
+For each variable in \code{outcomes}, the function:
+\itemize{
+\item Creates box plots grouped by \code{maingroup} and \code{timepoint}.
+\item Overlays mean values with connecting lines and points.
+\item Performs Wilcoxon tests between groups and annotates p-values.
+\item (If \code{baseline} and \code{paired} are specified) Calculates difference-from-baseline
+values for each outcome. New columns are created in the format:
+\code{<outcome>_D0} for baseline values and
+\code{Sub0_<outcome>} for subtracted values.
+}
+
+Only existing outcomes in the dataframe are processed; missing outcomes
+are automatically skipped.
 }
 \examples{
 \dontrun{
 df <- data.frame(
-  Time = rep(c("T1", "T2", "T3"), each = 20),
-  Group = rep(c("Control", "Treatment"), each = 30),
-  Measurement = rnorm(60)
+  SubjectID = rep(1:10, each = 3),
+  Time = rep(c("Baseline", "Day5", "Day10"), times = 10),
+  Group = rep(c("Control", "Treatment"), each = 15),
+  Chao1 = rnorm(30, 50, 10),
+  Shannon = rnorm(30, 3, 0.5)
 )
+
+# Without baseline subtraction
 Go_groupBoxTimepoint(
   df = df,
-  project = "ExampleProject",
-  name = "ExamplePlot",
+  project = "IBS_Study",
+  name = "AlphaDiversity",
   maingroup = "Group",
   timepoint = "Time",
-  outcomes = c("Measurement"),
-  mycols = c("Control" = "blue", "Treatment" = "red"),
-  orders = c("T1", "T2", "T3"),
-  title = "Example Group Box Plot",
-  height = 4,
-  width = 6
+  outcomes = c("Chao1", "Shannon"),
+  mycols = c("Control" = "#1f77b4", "Treatment" = "#d62728"),
+  orders = c("Baseline", "Day5", "Day10"),
+  title = "Alpha Diversity"
+)
+
+# With baseline subtraction (e.g., delta from Baseline)
+Go_groupBoxTimepoint(
+  df = df,
+  project = "IBS_Study",
+  name = "AlphaDiversity_Delta",
+  maingroup = "Group",
+  timepoint = "Time",
+  outcomes = c("Chao1", "Shannon"),
+  mycols = c("Control" = "#1f77b4", "Treatment" = "#d62728"),
+  orders = c("Baseline", "Day5", "Day10"),
+  baseline = "Baseline",
+  paired = "SubjectID",
+  title = "Alpha Diversity (Δ from Baseline)"
 )
 }
+
 }
