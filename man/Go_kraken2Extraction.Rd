@@ -27,6 +27,11 @@ outputs and converts them into a standardized phyloseq object.
 \details{
 Parse Kraken2 (and optional Bracken) MPA output into a phyloseq object
 with unified taxonomy for Bacteria, Virus, and Fungi.
+
+Personal signature:
+Heekuk Park, Columbia University Medical Center
+Email: hp2523@cumc.columbia.edu
+Date: 2025-11-01
 }
 \author{
 Heekuk Park \href{mailto:hp2523@cumc.columbia.edu}{hp2523@cumc.columbia.edu}
