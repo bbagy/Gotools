@@ -127,8 +127,6 @@ Go_kraken2Extraction <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Vi
     otu <- otu_table(otu_mat, taxa_are_rows=TRUE)
     tax <- tax_table(as.matrix(taxonomy))
 
-    View(otu)
-
     return(phyloseq(otu,tax))
   }
 
@@ -180,7 +178,13 @@ Go_kraken2Extraction <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Vi
       else x
     })
 
-    merged[, ranks] <- lapply(merged[, ranks], function(x) ifelse(is.na(x),"Unknown",x))
+    # safe rank selection
+    safe_ranks <- intersect(ranks, colnames(merged))
+
+    # only fill NA in the ranks that actually exist
+    merged[, safe_ranks] <- lapply(merged[, safe_ranks, drop=FALSE], function(x) {
+      ifelse(is.na(x), "Unknown", x)
+    })
 
     otu_cols <- setdiff(colnames(merged), c("ID","Phylum","Class","Order","Family","Genus","Species"))
     otu_mat <- as.matrix(merged[, otu_cols])
