@@ -11,28 +11,73 @@ Go_kraken2Extraction(
 )
 }
 \arguments{
-\item{kraken2}{Path to Kraken2 MPA file}
+\item{kraken2}{Path to Kraken2 MPA file.}
 
-\item{bracken}{Optional Bracken file (required for Bacteria)}
+\item{bracken}{Optional Bracken MPA file (required when kingdom = "Bacteria").}
 
-\item{kingdom}{One of "Bacteria", "Virus", "Fungi"}
+\item{kingdom}{One of "Bacteria", "Virus", or "Fungi".}
 }
 \value{
-A phyloseq object
+A phyloseq object containing OTU + taxonomy tables.
 }
 \description{
-This function extracts taxonomy and abundance tables from Kraken2/Bracken
-outputs and converts them into a standardized phyloseq object.
+This function extracts taxonomy and abundance tables from Kraken2 and
+optionally Bracken outputs, then converts them into a standardized
+phyloseq object with harmonized taxonomic ranks.
+
+Supported kingdoms:
+\itemize{
+\item "Bacteria": Requires Bracken; merges taxonomy with refined abundance.
+\item "Virus": Kraken-only; missing taxonomic ranks are filled with "Unknown".
+\item "Fungi": Kraken-only; missing ranks also filled with "Unknown".
+}
+
+The final taxonomy table always uses the rank order:
+Rank1, Phylum, Class, Order, Family, Genus, Species.
 }
 \details{
 Parse Kraken2 (and optional Bracken) MPA output into a phyloseq object
 with unified taxonomy for Bacteria, Virus, and Fungi.
+}
+\examples{
+\dontrun{
 
-Personal signature:
-Heekuk Park, Columbia University Medical Center
-Email: hp2523@cumc.columbia.edu
-Date: 2025-11-01
+# -----------------------
+# Example 1: Bacteria
+# Requires both Kraken2 and Bracken MPA files
+# -----------------------
+ps_bac <- Go_kraken2Extraction(
+  kraken2 = "1_out/20251111_kraken2_mpa.txt",
+  bracken = "1_out/20251111_bracken_mpa.txt",
+  kingdom = "Bacteria"
+)
+print(ps_bac)
+
+
+# -----------------------
+# Example 2: Virus
+# Kraken2 only (Bracken not needed)
+# -----------------------
+ps_vir <- Go_kraken2Extraction(
+  kraken2 = "1_out/20251111_kraken2_mpa.txt",
+  kingdom = "Virus"
+)
+print(ps_vir)
+
+
+# -----------------------
+# Example 3: Fungi
+# Kraken2 only (Bracken not needed)
+# -----------------------
+ps_fun <- Go_kraken2Extraction(
+  kraken2 = "1_out/20251111_kraken2_mpa.txt",
+  kingdom = "Fungi"
+)
+print(ps_fun)
+
+}
+
 }
 \author{
-Heekuk Park \href{mailto:hp2523@cumc.columbia.edu}{hp2523@cumc.columbia.edu}
+Heekuk Park (hp2523@cumc.columbia.edu)
 }
