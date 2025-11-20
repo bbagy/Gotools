@@ -53,44 +53,44 @@
 
 
 
-Go_clme <- function(psIN, cate.vars, project, paired, 
-                    mycols=NULL, 
+Go_clme <- function(psIN, cate.vars, project, paired,
+                    mycols=NULL,
                     addnumber=TRUE,
                     standardsize=TRUE,
-                    node, 
-                    decreasing, 
+                    node,
+                    decreasing,
                     timepoint,
-                    ID, 
+                    ID,
                     orders,
-                    xangle, 
-                    name, 
+                    xangle,
+                    name,
                     height,
-                    width, 
-                    plotCols, 
+                    width,
+                    plotCols,
                     plotRows){
-    
+
   if(!is.null(dev.list())) dev.off()
-    
+
   alpha_metrics = c("Chao1","Shannon")
-  
+
   # Descriptions 분석 하고자 하는 variation에 subgroup
   # paired 환자나 같은 사람 ID
-  # node 전반적인 패턴을 보고 가장 높은 time point 에 node를 설정  
+  # node 전반적인 패턴을 보고 가장 높은 time point 에 node를 설정
   # decreasing 패턴에 증가 하는지 감소 하는지 판단 하고 decreazing = true and false 를 판단, mean and median 으로 판단
-  
+
   # out dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
+  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
-  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d"))) 
+  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_path)) dir.create(out_path)
-  
-  
+
+
   # out file
   # "name" definition
   if (class(name) == "function"){
     name <- NULL
   }
-  
+
   tt <- try(mycols,T)
   if(class(tt) == "try-error"){
     print("mycols is not defined.")
@@ -103,13 +103,13 @@ Go_clme <- function(psIN, cate.vars, project, paired,
     orders <- NULL
   }
 
-  pdf(sprintf("%s/clme.%s.%s(%s.%s).%s.pdf", out_path, 
-              project, 
-              ifelse(is.null(name), "", paste(name, ".", sep = "")), 
+  pdf(sprintf("%s/clme.%s.%s(%s.%s).%s.pdf", out_path,
+              project,
+              ifelse(is.null(name), "", paste(name, ".", sep = "")),
               node,
               decreasing,
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
-  
+
   # adiv
   adiv <- estimate_richness(psIN, measures=alpha_metrics)
   mapping <-data.frame(sample_data(psIN))
@@ -122,35 +122,35 @@ Go_clme <- function(psIN, cate.vars, project, paired,
     adiv[,timepoint] <- factor(adiv[,timepoint], levels = orders)
   }
 
-  
+
   # clme
-  cons <- list(order = "umbrella" , node=node, decreasing = decreasing) 
-  # 전반적인 패턴을 보고 가장 높은 time point 에 node를 설정  
+  cons <- list(order = "umbrella" , node=node, decreasing = decreasing)
+  # 전반적인 패턴을 보고 가장 높은 time point 에 node를 설정
   # 패턴에 증가 하는지 감소 하는지 판단 하고 decreazing = true and false 를 판단, mean and median 으로 판단
-  
+
   print(cons)
-  
+
   plotlist <- list()
   for (mvar in cate.vars) {
     print(mvar)
-    
+
     if (length(unique(adiv[,mvar])) < 2){
       next
     }
-    
-    
-    
+
+
+
     # Na 제거
 
     adiv[,mvar] <- data.frame(adiv[,mvar]);adiv[,mvar]
     adiv[,mvar][adiv[,mvar]==""] <- "NA";adiv[,mvar]
     adiv[,mvar]<- as.factor(adiv[,mvar]);adiv[,mvar]
-    
-    
-    # adiv.na <- adiv[!(is.na(adiv[,mvar])), ];adiv.na[,mvar] 틀린건 없는 거 같은데 지워지지 않는다. 
+
+
+    # adiv.na <- adiv[!(is.na(adiv[,mvar])), ];adiv.na[,mvar] 틀린건 없는 거 같은데 지워지지 않는다.
     adiv.na <- subset(adiv, adiv[,mvar] != "NA");adiv.na[,mvar]  # subset 를 사용한 NA 삭제
     adiv <- adiv.na
-    
+
 
 
     # Add number of samples in the group
@@ -176,18 +176,18 @@ Go_clme <- function(psIN, cate.vars, project, paired,
     if (mvar == timepoint){
       for (am in alpha_metrics){
         form <-as.formula(sprintf("%s ~ %s + (1|%s)" , am, timepoint, paired))
-        
-        clme.mod <- clme(form, data = adiv, constraints = cons, seed = 2, nsim = 1000)
+
+        clme.mod <- clme(form, data = adiv, constraints = cons, seed = 2, nsim = 200) #
         clme.sum <- summary(clme.mod, seed=2)
         clme.globalp <- function(model) { label <- substitute(
           italic(p) == globalp,
           list(globalp <- model$p.value) )
-        as.character(as.expression(format(globalp, nsmall=3))) 
+        as.character(as.expression(format(globalp, nsmall=3)))
         }
-        
+
         clme.globalp <- paste("CLME P=",clme.globalp(clme.sum))
-        
-        
+
+
         # plot design
         if (height*width <= 6){
           dot.size = 0.6
@@ -199,17 +199,17 @@ Go_clme <- function(psIN, cate.vars, project, paired,
           dot.size = 1.3
           line.tickness = 0.5
         }
-        
+
         # plot
-        p <- ggplot(adiv, mapping = aes_string(x=timepoint, y=am, color=paired, group=paired)) + 
-          geom_line(color="grey",size=line.tickness,position = position_dodge(0.3)) + 
-          geom_point(alpha = 0.8, size = dot.size,position = position_dodge(0.3)) + ylab(sprintf("%s Index\n", am)) + 
-          ggtitle(sprintf("%s \n (%s) ", mvar, clme.globalp))  + 
-          theme_bw() + theme(strip.background = element_blank()) + 
+        p <- ggplot(adiv, mapping = aes_string(x=timepoint, y=am, color=paired, group=paired)) +
+          geom_line(color="grey",size=line.tickness,position = position_dodge(0.3)) +
+          geom_point(alpha = 0.8, size = dot.size,position = position_dodge(0.3)) + ylab(sprintf("%s Index\n", am)) +
+          ggtitle(sprintf("%s \n (%s) ", mvar, clme.globalp))  +
+          theme_bw() + theme(strip.background = element_blank()) +
           theme(title=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5)) + theme(legend.position= "NONE" )+ theme(aspect.ratio = 1)+
-          theme(panel.background = element_rect(fill = "white", colour = "grey50"))        
-          
-          
+          theme(panel.background = element_rect(fill = "white", colour = "grey50"))
+
+
           if(!is.null(mycols)){
            p <- p + scale_color_manual(values = mycols)
            }else{
@@ -217,7 +217,7 @@ Go_clme <- function(psIN, cate.vars, project, paired,
            }
 
 
-        
+
         if (length(ID) == 1) {
           p= p + geom_text_repel(aes_string(label = ID), size = 2)
         }
@@ -234,15 +234,15 @@ Go_clme <- function(psIN, cate.vars, project, paired,
         print(des)
         for (am in alpha_metrics){
           form <-as.formula(sprintf("%s ~ %s + (1|%s)" , am, timepoint, paired))
-          
+
           clme.mod <- clme(form, data = adiv[adiv[,mvar] == des,], constraints = cons, seed = 2, nsim = 1000)
           clme.sum <- summary(clme.mod, seed=2)
           clme.globalp <- function(model) { label <- substitute(
             italic(p) == globalp,
             list(globalp <- model$p.value) )
-          as.character(as.expression(format(globalp, nsmall=3))) 
+          as.character(as.expression(format(globalp, nsmall=3)))
           }
-          
+
           clme.globalp <- paste("CLME P=",clme.globalp(clme.sum))
 
 
@@ -257,12 +257,12 @@ Go_clme <- function(psIN, cate.vars, project, paired,
           dot.size = 1.3
           line.tickness = 0.5
         }
-          
+
           # plot
-          p <- ggplot(adiv[adiv[,mvar]==des,], mapping = aes_string(x=timepoint, y=am, color=paired, group=paired)) + 
-            geom_line(color="grey",size=line.tickness,position = position_dodge(0.3)) + 
-            geom_point(alpha = 0.8, size = dot.size,position = position_dodge(0.3)) + 
-            xlab(timepoint) + ylab(sprintf("%s Index\n", am)) + 
+          p <- ggplot(adiv[adiv[,mvar]==des,], mapping = aes_string(x=timepoint, y=am, color=paired, group=paired)) +
+            geom_line(color="grey",size=line.tickness,position = position_dodge(0.3)) +
+            geom_point(alpha = 0.8, size = dot.size,position = position_dodge(0.3)) +
+            xlab(timepoint) + ylab(sprintf("%s Index\n", am)) +
             ggtitle(sprintf("%s-%s \n (%s) ", mvar, des, clme.globalp))   + #theme_bw() +
             theme(title=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5)) + theme(legend.position= "NONE" )
 
@@ -274,7 +274,7 @@ Go_clme <- function(psIN, cate.vars, project, paired,
            }
 
 
-          
+
           # plot size ratio
           if (length(unique(adiv[,mvar])) < 5){
             if(standardsize==TRUE){
@@ -285,16 +285,16 @@ Go_clme <- function(psIN, cate.vars, project, paired,
           }else{
             num.subgroup <- length(unique(adiv[,mvar]))*0.2
           }
-          
-          
+
+
           p  <- p  + theme(panel.grid = element_blank(),
-                           panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"), 
+                           panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),
                            aspect.ratio = 1/num.subgroup)
           plotlist[[length(plotlist)+1]] <- p
         }
       }
     }
-    
+
 
   }
   multiplot(plotlist=plotlist, cols=plotCols, rows=plotRows)
