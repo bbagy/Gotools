@@ -103,7 +103,7 @@ Go_clme <- function(psIN, cate.vars, project, paired,
     orders <- NULL
   }
 
-  pdf(sprintf("%s/clme.%s.%s(%s.%s).%s.pdf", out_path,
+  pdf(sprintf("%s/clme.%s.%s.%s.%s.%s.pdf", out_path,
               project,
               ifelse(is.null(name), "", paste(name, ".", sep = "")),
               node,
