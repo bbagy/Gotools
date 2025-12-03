@@ -2,13 +2,16 @@
 #'
 #' Wrapper around \code{Maaslin2::Maaslin2()} for differential abundance analysis
 #' from a \code{phyloseq} object. Handles output foldering/naming, optional
-#' relative→integer conversion, factor level ordering, and passes fixed/random
-#' effects to MaAsLin2.
+#' relative→integer conversion, ASV→taxon relabeling, factor level ordering,
+#' and passes fixed/random effects to MaAsLin2. Supports both a single global
+#' multilevel model and pairwise / k-level subset modes.
 #'
 #' @param psIN A \code{phyloseq} object with OTU/ASV table and sample metadata.
 #' @param project Character. Project prefix for dated output folders/files
 #'   (e.g., \code{"MyProj"} → \code{"MyProj_250818/"}).
-#' @param fixed_effects Character vector of metadata column names used as fixed effects.
+#' @param fixed_effects Character vector of metadata column names used as fixed
+#'   effects. Currently the first element (\code{fixed_effects[1]}) is used as
+#'   the primary factor for level ordering and combination logic.
 #' @param random_effects Optional character vector of metadata column names used
 #'   as random effects (not all analyses require this). Default \code{NULL}.
 #' @param normalization Character scalar passed to MaAsLin2. One of
@@ -16,47 +19,125 @@
 #' @param transform Logical. If \code{TRUE} and the input looks like relative
 #'   abundance, multiply by median library size and round to integers before
 #'   running MaAsLin2. Default \code{TRUE}.
-#' @param orders Optional named list of factor orders for metadata variables.
-#'   Names should match columns in sample metadata; values are character vectors
-#'   giving the desired levels (e.g., \code{list(Timepoint = c("Pre","Post"))}).
-#' @param out_dir Optional output directory to write MaAsLin2 results. If \code{NULL},
-#'   a dated project path is created (e.g., \code{<project_YYMMDD>/table/MaAsLin2/MaAsLin2.<name>}).
-#' @param name Optional character suffix to distinguish runs (e.g., \code{"AdjBMI"}).
+#' @param orders Optional character vector specifying the desired level order
+#'   for the primary fixed effect (\code{fixed_effects[1]}), e.g.
+#'   \code{c("Pre","wk1_Post","mo1_Post")}. Levels not present in the data are
+#'   ignored. If \code{NULL}, the existing factor order is kept.
+#' @param out_dir Optional output directory to write MaAsLin2 results. If
+#'   \code{NULL}, a dated project path is created under
+#'   \code{<project_YYMMDD>/table/MaAsLin2/}.
+#' @param name Optional character suffix to distinguish runs (e.g.,
+#'   \code{"AdjBMI"}). Used in output subdirectory naming
+#'   (\code{MaAsLin2.<name>.(FE=... ).(RE=...) }).
+#' @param data Optional character flag for relabeling features. If set to
+#'   \code{"ASV"}, the function attempts to replace OTU/ASV IDs by taxonomic
+#'   labels (Species → Genus_Species → Genus → higher ranks) using
+#'   \code{tax_table(psIN)} and \code{make.unique()} to ensure uniqueness.
+#'   Any other value or \code{NULL} keeps the original rownames.
+#' @param combination Numeric or \code{NULL}. Controls how the primary fixed
+#'   effect levels are compared when \code{global = FALSE}:
+#'   \itemize{
+#'     \item \code{NULL}: Single model using all available levels (no subsetting).
+#'     \item \code{2}: Run MaAsLin2 for all pairwise combinations of levels
+#'       (A–B, A–C, B–C, ...). Each pair is analyzed as a two-level factor with
+#'       a separate output folder.
+#'     \item \code{>2}: For a given \code{k}, run MaAsLin2 on all k-level subsets
+#'       of the factor levels (e.g., A+B+C, A+B+D, ...), skipping subsets where
+#'       the per-level sample size is too small.
+#'   }
+#'   Ignored when \code{global = TRUE}.
+#' @param min_per_level Integer. Minimum number of samples required per level
+#'   of the primary fixed effect when running pairwise or k-level subset
+#'   analyses (\code{combination = 2} or \code{> 2}). Subsets not meeting this
+#'   requirement are skipped with a message. Default \code{3}.
+#' @param global Logical. If \code{TRUE}, run a single global multilevel model
+#'   including all levels of \code{fixed_effects[1]} in one MaAsLin2 call
+#'   (omnibus-style). In this mode, \code{combination} is ignored. If
+#'   \code{FALSE}, the behavior is controlled by \code{combination} as described
+#'   above. Default \code{FALSE}.
+#' @param max_sig Numeric scalar passed to MaAsLin2 as \code{max_significance}.
+#'   Controls the q-value threshold used for selecting features to plot in
+#'   MaAsLin2's heatmap and scatter plots (and for defining "significant"
+#'   features). The default \code{0.25} corresponds to MaAsLin2's original
+#'   default. Increasing this value (e.g., \code{0.4}–\code{0.5}) can be useful
+#'   when you want plots even when few features pass a strict FDR cutoff.
+#' @param seed Integer random seed for reproducibility. Passed to
+#'   \code{set.seed()} inside each MaAsLin2 run. Default \code{123}.
 #'
 #' @details
-#' \strong{Relative→integer transform:} The helper detects relative abundance
-#' heuristically by the mean of \code{sample_sums(psIN)} (≈100 implies relative).
-#' If detected and \code{transform=TRUE}, counts are reconstructed by multiplying
-#' the feature table by the median library size and rounding. Set \code{transform=FALSE}
-#' to skip this step.
+#' \strong{Relative→integer transform:}
+#' The helper heuristically detects relative abundance by the mean of
+#' \code{sample_sums(psIN)} (≈100 implies relative). If detected and
+#' \code{transform=TRUE}, counts are reconstructed by multiplying the feature
+#' table by the median library size and rounding. Set \code{transform=FALSE}
+#' to skip this step and use the original counts.
 #'
-#' \strong{Ordering factors:} If \code{orders} is supplied, matching metadata
-#' columns are refactored to the provided level order (levels not present are ignored).
+#' \strong{Global multilevel vs. combination modes:}
+#' When \code{global = TRUE}, the function runs exactly one MaAsLin2 model
+#' using all samples and all levels of \code{fixed_effects[1]} together. This
+#' preserves MaAsLin2's multilevel global (omnibus) testing behavior and is
+#' typically recommended when you are interested in an overall association
+#' across multiple groups (e.g., CP class A/B/C, multiple timepoints, etc.).
+#'
+#' When \code{global = FALSE}, two types of analyses are supported:
+#' \itemize{
+#'   \item Single-model mode (\code{combination = NULL}): one MaAsLin2 run
+#'     including all levels, similar to the global mode but without any special
+#'     handling.
+#'   \item Pairwise / k-level subset mode (\code{combination = 2} or \code{> 2}):
+#'     MaAsLin2 is run on each level pair or subset separately. This is useful
+#'     for detailed pairwise contrasts, but does not provide a single omnibus
+#'     global p-value across all levels.
+#' }
+#'
+#' \strong{Ordering factor levels:}
+#' If \code{orders} is supplied, the primary fixed effect
+#' (\code{fixed_effects[1]}) is refactored to the specified level order. Levels
+#' not present in the data are dropped. This affects both the modeling and the
+#' interpretation of coefficients/contrasts.
 #'
 #' Outputs are written under a dated project directory; MaAsLin2’s heatmap and
-#' scatter plots are enabled by default.
+#' scatter plots are enabled by default, with plotting significance controlled
+#' via \code{max_sig}.
 #'
-#' @return (Invisibly) the \code{Maaslin2} result object (list). Side effect:
-#'   writes tables/plots to \code{out_dir}.
+#' @return (Invisibly) the \code{Maaslin2} result object (list) from the last
+#'   MaAsLin2 run. Side effects: writes tables (TSV+CSV), settings, and plots
+#'   to \code{out_dir} and its subdirectories.
 #'
 #' @seealso \code{\link[Maaslin2]{Maaslin2}}
 #'
 #' @examples
 #' \dontrun{
-#' # Suppose ps is a phyloseq object with metadata columns Group and Subject
-#' res <- Go_Maaslin2(
-#'   psIN = ps,
-#'   project = "IBD",
+#' # Basic global multilevel model (recommended when multiple groups)
+#' res_global <- Go_Maaslin2(
+#'   psIN          = ps,
+#'   project       = "IBD",
 #'   fixed_effects = c("Group"),
 #'   random_effects = c("Subject"),
 #'   normalization = "TSS",
-#'   transform = TRUE,
-#'   orders = list(Group = c("Control","Case")),
-#'   name = "BaseModel"
+#'   transform     = TRUE,
+#'   orders        = c("Control","Case"),
+#'   name          = "GlobalModel",
+#'   global        = TRUE
+#' )
+#'
+#' # Pairwise comparisons between all Group levels, with a relaxed plotting cutoff
+#' res_pairwise <- Go_Maaslin2(
+#'   psIN          = ps,
+#'   project       = "IBD",
+#'   fixed_effects = c("Group"),
+#'   random_effects = c("Subject"),
+#'   normalization = "TSS",
+#'   transform     = TRUE,
+#'   orders        = c("Control","Case"),
+#'   name          = "Pairwise",
+#'   combination   = 2,
+#'   global        = FALSE,
+#'   max_sig       = 0.5
 #' )
 #' }
 #'
-#' @importFrom phyloseq sample_data taxa_are_rows otu_table sample_sums
+#' @importFrom phyloseq sample_data taxa_are_rows otu_table sample_sums tax_table
 #' @importFrom stats median
 #' @importFrom utils file_test
 #' @export
@@ -73,6 +154,8 @@ Go_Maaslin2 <- function(psIN,
                         data = NULL,             # "ASV"면 taxa 기반 라벨 치환
                         combination = NULL,      # 2 => 모든 페어, >2 => 그 레벨들만 서브셋
                         min_per_level = 3,       # 레벨별 최소 샘플수 안전장치
+                        global = FALSE,
+                        max_sig = 0.25, # NEW: TRUE면 full multilevel model 1번만 실행
                         seed = 123)              # 재현성
 {
   ## ---------------- helpers ----------------
@@ -81,6 +164,7 @@ Go_Maaslin2 <- function(psIN,
   }
   .tag_FE <- function(fx) sprintf("(FE=%s)", .safe_tag(paste(fx, collapse="+")))
   .tag_RE <- function(re) if (is.null(re) || length(re)==0) "(RE=None)" else sprintf("(RE=%s)", .safe_tag(paste(re, collapse="+")))
+
   .write_settings <- function(dir_path, meta, args){
     fn <- file.path(dir_path, "settings.txt")
     lines <- c(
@@ -94,11 +178,13 @@ Go_Maaslin2 <- function(psIN,
       sprintf("orders: %s", ifelse(is.null(args$orders),"NULL", paste(args$orders, collapse = ", "))),
       sprintf("data_label_mode: %s", ifelse(is.null(args$data),"ASV_id", toupper(args$data))),
       sprintf("combination: %s", ifelse(is.null(args$combination),"NULL", as.character(args$combination))),
+      sprintf("global_full_model: %s", ifelse(isTRUE(args$global), "TRUE", "FALSE")),
       sprintf("min_per_level: %s", args$min_per_level),
       sprintf("seed: %s", args$seed)
     )
     writeLines(lines, fn, useBytes = TRUE)
   }
+
   .save_tsv_as_csv <- function(out_dir_run){
     for (f in c("all_results.tsv","significant_results.tsv")) {
       fp <- file.path(out_dir_run, f)
@@ -221,16 +307,39 @@ Go_Maaslin2 <- function(psIN,
       normalization  = normalization,
       transform      = "LOG",
       plot_heatmap   = TRUE,
-      plot_scatter   = TRUE
+      plot_scatter   = TRUE,
+      max_significance = max_sig
     )
-    .write_settings(out_dir_run, meta_df, as.list(environment()))
+    # settings 기록용 인자 패키징
+    args <- list(
+      fixed_effects = fx,
+      random_effects = random_effects,
+      normalization = normalization,
+      transform = transform,
+      orders = orders,
+      data = data,
+      combination = combination,
+      global = global,
+      min_per_level = min_per_level,
+      seed = seed
+    )
+    .write_settings(out_dir_run, meta_df, args)
     .save_tsv_as_csv(out_dir_run)
     invisible(fit)
   }
 
-  ## ---------------- run: single / combination ----------------
+  ## ---------------- run: global / single / combination ----------------
   levs_all <- levels(metadata_df[[fx]])
 
+  ## 1) Global full-model mode (multilevel factor, omnibus p-value)
+  if (isTRUE(global)) {
+    message("[INFO] Global mode enabled: running ONE full multilevel model (all levels) for omnibus test.")
+    .run_one(otu_mat, metadata_df, fx, out_dir)
+    message("[INFO] Global model finished. Omnibus p-values are in all_results.tsv / significant_results.tsv.")
+    return(invisible(TRUE))
+  }
+
+  ## 2) 기존 모드들 (global = FALSE일 때만)
   if (is.null(combination)) {
     message("[INFO] Running single model (no combination).")
     .run_one(otu_mat, metadata_df, fx, out_dir)

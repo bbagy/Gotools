@@ -17,6 +17,8 @@ Go_Maaslin2(
   data = NULL,
   combination = NULL,
   min_per_level = 3,
+  global = FALSE,
+  max_sig = 0.25,
   seed = 123
 )
 }
@@ -26,7 +28,9 @@ Go_Maaslin2(
 \item{project}{Character. Project prefix for dated output folders/files
 (e.g., \code{"MyProj"} → \code{"MyProj_250818/"}).}
 
-\item{fixed_effects}{Character vector of metadata column names used as fixed effects.}
+\item{fixed_effects}{Character vector of metadata column names used as fixed
+effects. Currently the first element (\code{fixed_effects[1]}) is used as
+the primary factor for level ordering and combination logic.}
 
 \item{random_effects}{Optional character vector of metadata column names used
 as random effects (not all analyses require this). Default \code{NULL}.}
@@ -38,50 +42,135 @@ as random effects (not all analyses require this). Default \code{NULL}.}
 abundance, multiply by median library size and round to integers before
 running MaAsLin2. Default \code{TRUE}.}
 
-\item{orders}{Optional named list of factor orders for metadata variables.
-Names should match columns in sample metadata; values are character vectors
-giving the desired levels (e.g., \code{list(Timepoint = c("Pre","Post"))}).}
+\item{orders}{Optional character vector specifying the desired level order
+for the primary fixed effect (\code{fixed_effects[1]}), e.g.
+\code{c("Pre","wk1_Post","mo1_Post")}. Levels not present in the data are
+ignored. If \code{NULL}, the existing factor order is kept.}
 
-\item{out_dir}{Optional output directory to write MaAsLin2 results. If \code{NULL},
-a dated project path is created (e.g., \code{<project_YYMMDD>/table/MaAsLin2/MaAsLin2.<name>}).}
+\item{out_dir}{Optional output directory to write MaAsLin2 results. If
+\code{NULL}, a dated project path is created under
+\code{<project_YYMMDD>/table/MaAsLin2/}.}
 
-\item{name}{Optional character suffix to distinguish runs (e.g., \code{"AdjBMI"}).}
+\item{name}{Optional character suffix to distinguish runs (e.g.,
+\code{"AdjBMI"}). Used in output subdirectory naming
+(\code{MaAsLin2.<name>.(FE=... ).(RE=...) }).}
+
+\item{data}{Optional character flag for relabeling features. If set to
+\code{"ASV"}, the function attempts to replace OTU/ASV IDs by taxonomic
+labels (Species → Genus_Species → Genus → higher ranks) using
+\code{tax_table(psIN)} and \code{make.unique()} to ensure uniqueness.
+Any other value or \code{NULL} keeps the original rownames.}
+
+\item{combination}{Numeric or \code{NULL}. Controls how the primary fixed
+effect levels are compared when \code{global = FALSE}:
+\itemize{
+\item \code{NULL}: Single model using all available levels (no subsetting).
+\item \code{2}: Run MaAsLin2 for all pairwise combinations of levels
+(A–B, A–C, B–C, ...). Each pair is analyzed as a two-level factor with
+a separate output folder.
+\item \code{>2}: For a given \code{k}, run MaAsLin2 on all k-level subsets
+of the factor levels (e.g., A+B+C, A+B+D, ...), skipping subsets where
+the per-level sample size is too small.
+}
+Ignored when \code{global = TRUE}.}
+
+\item{min_per_level}{Integer. Minimum number of samples required per level
+of the primary fixed effect when running pairwise or k-level subset
+analyses (\code{combination = 2} or \code{> 2}). Subsets not meeting this
+requirement are skipped with a message. Default \code{3}.}
+
+\item{global}{Logical. If \code{TRUE}, run a single global multilevel model
+including all levels of \code{fixed_effects[1]} in one MaAsLin2 call
+(omnibus-style). In this mode, \code{combination} is ignored. If
+\code{FALSE}, the behavior is controlled by \code{combination} as described
+above. Default \code{FALSE}.}
+
+\item{max_sig}{Numeric scalar passed to MaAsLin2 as \code{max_significance}.
+Controls the q-value threshold used for selecting features to plot in
+MaAsLin2's heatmap and scatter plots (and for defining "significant"
+features). The default \code{0.25} corresponds to MaAsLin2's original
+default. Increasing this value (e.g., \code{0.4}–\code{0.5}) can be useful
+when you want plots even when few features pass a strict FDR cutoff.}
+
+\item{seed}{Integer random seed for reproducibility. Passed to
+\code{set.seed()} inside each MaAsLin2 run. Default \code{123}.}
 }
 \value{
-(Invisibly) the \code{Maaslin2} result object (list). Side effect:
-writes tables/plots to \code{out_dir}.
+(Invisibly) the \code{Maaslin2} result object (list) from the last
+MaAsLin2 run. Side effects: writes tables (TSV+CSV), settings, and plots
+to \code{out_dir} and its subdirectories.
 }
 \description{
 Wrapper around \code{Maaslin2::Maaslin2()} for differential abundance analysis
 from a \code{phyloseq} object. Handles output foldering/naming, optional
-relative→integer conversion, factor level ordering, and passes fixed/random
-effects to MaAsLin2.
+relative→integer conversion, ASV→taxon relabeling, factor level ordering,
+and passes fixed/random effects to MaAsLin2. Supports both a single global
+multilevel model and pairwise / k-level subset modes.
 }
 \details{
-\strong{Relative→integer transform:} The helper detects relative abundance
-heuristically by the mean of \code{sample_sums(psIN)} (≈100 implies relative).
-If detected and \code{transform=TRUE}, counts are reconstructed by multiplying
-the feature table by the median library size and rounding. Set \code{transform=FALSE}
-to skip this step.
+\strong{Relative→integer transform:}
+The helper heuristically detects relative abundance by the mean of
+\code{sample_sums(psIN)} (≈100 implies relative). If detected and
+\code{transform=TRUE}, counts are reconstructed by multiplying the feature
+table by the median library size and rounding. Set \code{transform=FALSE}
+to skip this step and use the original counts.
 
-\strong{Ordering factors:} If \code{orders} is supplied, matching metadata
-columns are refactored to the provided level order (levels not present are ignored).
+\strong{Global multilevel vs. combination modes:}
+When \code{global = TRUE}, the function runs exactly one MaAsLin2 model
+using all samples and all levels of \code{fixed_effects[1]} together. This
+preserves MaAsLin2's multilevel global (omnibus) testing behavior and is
+typically recommended when you are interested in an overall association
+across multiple groups (e.g., CP class A/B/C, multiple timepoints, etc.).
+
+When \code{global = FALSE}, two types of analyses are supported:
+\itemize{
+\item Single-model mode (\code{combination = NULL}): one MaAsLin2 run
+including all levels, similar to the global mode but without any special
+handling.
+\item Pairwise / k-level subset mode (\code{combination = 2} or \code{> 2}):
+MaAsLin2 is run on each level pair or subset separately. This is useful
+for detailed pairwise contrasts, but does not provide a single omnibus
+global p-value across all levels.
+}
+
+\strong{Ordering factor levels:}
+If \code{orders} is supplied, the primary fixed effect
+(\code{fixed_effects[1]}) is refactored to the specified level order. Levels
+not present in the data are dropped. This affects both the modeling and the
+interpretation of coefficients/contrasts.
 
 Outputs are written under a dated project directory; MaAsLin2’s heatmap and
-scatter plots are enabled by default.
+scatter plots are enabled by default, with plotting significance controlled
+via \code{max_sig}.
 }
 \examples{
 \dontrun{
-# Suppose ps is a phyloseq object with metadata columns Group and Subject
-res <- Go_Maaslin2(
-  psIN = ps,
-  project = "IBD",
+# Basic global multilevel model (recommended when multiple groups)
+res_global <- Go_Maaslin2(
+  psIN          = ps,
+  project       = "IBD",
   fixed_effects = c("Group"),
   random_effects = c("Subject"),
   normalization = "TSS",
-  transform = TRUE,
-  orders = list(Group = c("Control","Case")),
-  name = "BaseModel"
+  transform     = TRUE,
+  orders        = c("Control","Case"),
+  name          = "GlobalModel",
+  global        = TRUE
+)
+
+# Pairwise comparisons between all Group levels, with a relaxed plotting cutoff
+res_pairwise <- Go_Maaslin2(
+  psIN          = ps,
+  project       = "IBD",
+  fixed_effects = c("Group"),
+  random_effects = c("Subject"),
+  normalization = "TSS",
+  transform     = TRUE,
+  orders        = c("Control","Case"),
+  name          = "Pairwise",
+  combination   = 2,
+  global        = FALSE,
+  max_sig       = 0.5
 )
 }
 
