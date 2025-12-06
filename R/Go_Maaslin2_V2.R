@@ -148,22 +148,28 @@ Go_Maaslin2 <- function(psIN,
                         random_effects = NULL,
                         normalization = "TSS",
                         transform = TRUE,
-                        orders = NULL,           # c("wk1_Post","mo1_Post",...)
+                        orders = NULL,
                         out_dir = NULL,
-                        name = NULL,             # 상위 태그 (예: "Case"/"Control")
-                        data = NULL,             # "ASV"면 taxa 기반 라벨 치환
-                        combination = NULL,      # 2 => 모든 페어, >2 => 그 레벨들만 서브셋
-                        min_per_level = 3,       # 레벨별 최소 샘플수 안전장치
+                        name = NULL,
+                        data = NULL,
+                        combination = NULL,
+                        min_per_level = 3,
                         global = FALSE,
-                        max_sig = 0.25, # NEW: TRUE면 full multilevel model 1번만 실행
-                        seed = 123)              # 재현성
+                        max_sig = 0.25,
+                        seed = 123)
 {
   ## ---------------- helpers ----------------
   .safe_tag <- function(x){
-    x <- gsub("[^A-Za-z0-9+._-]", "_", x); gsub("__+", "_", x)
+    x <- gsub("[^A-Za-z0-9+._-]", "_", x)
+    gsub("__+", "_", x)
   }
   .tag_FE <- function(fx) sprintf("(FE=%s)", .safe_tag(paste(fx, collapse="+")))
   .tag_RE <- function(re) if (is.null(re) || length(re)==0) "(RE=None)" else sprintf("(RE=%s)", .safe_tag(paste(re, collapse="+")))
+
+  ## continuous variable 판단 함수
+  .is_continuous <- function(v) {
+    is.numeric(v) && length(unique(na.omit(v))) > 5
+  }
 
   .write_settings <- function(dir_path, meta, args){
     fn <- file.path(dir_path, "settings.txt")
@@ -180,7 +186,9 @@ Go_Maaslin2 <- function(psIN,
       sprintf("combination: %s", ifelse(is.null(args$combination),"NULL", as.character(args$combination))),
       sprintf("global_full_model: %s", ifelse(isTRUE(args$global), "TRUE", "FALSE")),
       sprintf("min_per_level: %s", args$min_per_level),
-      sprintf("seed: %s", args$seed)
+      sprintf("seed: %s", args$seed),
+      sprintf("max_significance: %s", args$max_sig),
+      sprintf("continuous_detected: %s", paste(args$continuous_vars, collapse=","))
     )
     writeLines(lines, fn, useBytes = TRUE)
   }
@@ -210,10 +218,12 @@ Go_Maaslin2 <- function(psIN,
   out_table <- file.path(out_root, "table"); if (!file_test("-d", out_table)) dir.create(out_table)
   out_DA    <- file.path(out_table, "MaAsLin2"); if (!file_test("-d", out_DA)) dir.create(out_DA, recursive = TRUE)
 
-  FE_tag <- .tag_FE(fixed_effects)
+  FE_all <- fixed_effects
+  FE_tag <- .tag_FE(FE_all)
   RE_tag <- .tag_RE(random_effects)
+
   base_tag <- if (is.null(name) || !nzchar(name)) "MaAsLin2.Base" else sprintf("MaAsLin2.%s", .safe_tag(name))
-  subdir <- sprintf("%s.%s.%s", base_tag, FE_tag, RE_tag)
+  subdir   <- sprintf("%s.%s.%s", base_tag, FE_tag, RE_tag)
 
   out_dir_default <- file.path(out_DA, subdir)
   if (is.null(out_dir)) out_dir <- out_dir_default
@@ -225,10 +235,11 @@ Go_Maaslin2 <- function(psIN,
   otu_mat <- if (taxa_are_rows(psIN)) as.matrix(otu_table(psIN)) else t(as.matrix(otu_table(psIN)))
   otu_mat <- as.data.frame(otu_mat)
 
-  # ASV → taxa 라벨 치환 (원하면)
+  ## --- ASV → taxa 이름 치환
   if (!is.null(data) && toupper(data) == "ASV" && !is.null(tax_table(psIN, errorIfNULL = FALSE))) {
     tt <- as.data.frame(tax_table(psIN))
     label_vec <- if ("Species" %in% colnames(tt)) as.character(tt$Species) else rownames(tt)
+
     if (!("Species" %in% colnames(tt)) || all(is.na(label_vec) | label_vec == "")) {
       genus <- if ("Genus" %in% colnames(tt)) as.character(tt$Genus) else NA
       sp    <- if ("Species" %in% colnames(tt)) as.character(tt$Species) else NA
@@ -236,6 +247,7 @@ Go_Maaslin2 <- function(psIN,
                           ifelse(!is.na(sp) & nzchar(sp), paste0(genus, "_", sp), genus),
                           NA)
     }
+
     if (all(is.na(label_vec) | label_vec == "")) {
       for (col in c("Genus","Family","Order","Class","Phylum","Kingdom")) {
         if (col %in% colnames(tt)) {
@@ -246,22 +258,26 @@ Go_Maaslin2 <- function(psIN,
         if (!all(is.na(label_vec) | label_vec == "")) break
       }
     }
+
     old_ids <- rownames(otu_mat)
     label_vec[is.na(label_vec) | label_vec == ""] <- old_ids[is.na(label_vec) | label_vec == ""]
     rownames(otu_mat) <- make.unique(label_vec)
   }
 
-  # 샘플 동기화
+  ## --- 샘플 동기화
   common_samples <- intersect(colnames(otu_mat), rownames(metadata_df))
   if (length(common_samples) < 2) stop("[ERROR] Not enough overlapping samples between OTU and metadata.")
   otu_mat     <- otu_mat[, common_samples, drop = FALSE]
   metadata_df <- metadata_df[ common_samples, , drop = FALSE]
 
-  # 상대 abundance면 정수화(선택)
+  ## --- 상대 abundance → 정수화
   detect_abundance_type <- function(physeq) {
     lib_sizes <- sample_sums(physeq); mean_lib <- mean(lib_sizes)
-    if (abs(mean_lib - 100) < 0.2) "relative" else if (mean_lib > 1000) "absolute" else "unknown"
+    if (abs(mean_lib - 100) < 0.2) "relative"
+    else if (mean_lib > 1000) "absolute"
+    else "unknown"
   }
+
   if (detect_abundance_type(psIN) == "relative" && isTRUE(transform)) {
     total_reads <- median(sample_sums(psIN))
     message(sprintf("[INFO] Relative abundance detected. Multiply by median depth (%.0f) & round.", total_reads))
@@ -270,131 +286,155 @@ Go_Maaslin2 <- function(psIN,
     message("[INFO] Skip integer transform (absolute data or transform=FALSE).")
   }
 
-  # 메타데이터 정리 + orders
+  ## --- 메타데이터 정리
   rn <- rownames(metadata_df)
   metadata_df <- as.data.frame(lapply(metadata_df, function(x){
     if (is.character(x)) {
-      if (all(grepl("^[-+]?[0-9]*\\.?[0-9]+$", x[!is.na(x)]))) as.numeric(x) else as.factor(x)
-    } else if (is.logical(x)) as.factor(x) else x
+      if (all(grepl("^[-+]?[0-9]*\\.?[0-9]+$", x[!is.na(x)]))) as.numeric(x)
+      else as.factor(x)
+    } else if (is.logical(x)) as.factor(x)
+    else x
   }), stringsAsFactors = FALSE)
   rownames(metadata_df) <- rn
 
-  if (length(fixed_effects) == 0) stop("[ERROR] fixed_effects must be provided.")
-  fx <- fixed_effects[1]
-  if (!fx %in% colnames(metadata_df)) stop("[ERROR] Missing fixed_effect in metadata: ", fx)
-  if (!is.factor(metadata_df[[fx]])) metadata_df[[fx]] <- as.factor(metadata_df[[fx]])
+  ## ---------------- fixed effects 처리 ----------------
+  if (length(FE_all) == 0) stop("[ERROR] fixed_effects must be provided.")
 
-  if (!is.null(orders) && length(orders) > 0 && is.vector(orders)) {
-    keep <- intersect(orders, levels(metadata_df[[fx]]))
-    if (length(keep) >= 2) metadata_df[[fx]] <- factor(metadata_df[[fx]], levels = keep)
+  main_fx <- FE_all[1]   # 예: Timepoint
+  if (!main_fx %in% colnames(metadata_df)) stop("[ERROR] Missing fixed_effect in metadata: ", main_fx)
+  if (!is.factor(metadata_df[[main_fx]])) metadata_df[[main_fx]] <- as.factor(metadata_df[[main_fx]])
+
+  ## orders 적용 (main factor에만)
+  if (!is.null(orders) && length(orders) > 0) {
+    keep <- intersect(orders, levels(metadata_df[[main_fx]]))
+    if (length(keep) >= 2) {
+      metadata_df[[main_fx]] <- factor(metadata_df[[main_fx]], levels = keep)
+    }
   }
+
+  ## random effects factor 변환
   if (!is.null(random_effects)) {
-    for (re in random_effects) if (re %in% colnames(metadata_df) && !is.factor(metadata_df[[re]]))
-      metadata_df[[re]] <- factor(metadata_df[[re]])
+    for (re in random_effects) {
+      if (re %in% colnames(metadata_df) && !is.factor(metadata_df[[re]])) {
+        metadata_df[[re]] <- factor(metadata_df[[re]])
+      }
+    }
   }
-  metadata_df <- metadata_df[colnames(otu_mat), , drop = FALSE]
 
-  # 공통 러너
-  .run_one <- function(otu_df, meta_df, fx, out_dir_run){
+  ## ----- continuous covariate 자동 감지 -----
+  continuous_vars <- FE_all[
+    sapply(FE_all, function(fe){
+      fe %in% colnames(metadata_df) && .is_continuous(metadata_df[[fe]])
+    })
+  ]
+
+  has_continuous <- length(continuous_vars) > 0
+  plot_scatter_auto <- if (has_continuous) FALSE else TRUE
+
+  ## ----------------------------------------
+  ## 공통 실행 함수(.run_one)
+  ## ----------------------------------------
+  .run_one <- function(otu_df, meta_df, FE_all, out_dir_run){
+
     if (!file_test("-d", out_dir_run)) dir.create(out_dir_run, recursive = TRUE)
     set.seed(seed)
+
     fit <- Maaslin2::Maaslin2(
       input_data     = otu_df,
       input_metadata = meta_df,
       output         = out_dir_run,
-      fixed_effects  = fx,
+      fixed_effects  = FE_all,
       random_effects = random_effects,
       normalization  = normalization,
       transform      = "LOG",
       plot_heatmap   = TRUE,
-      plot_scatter   = TRUE,
+      plot_scatter   = plot_scatter_auto,   # ★ 자동 설정
       max_significance = max_sig
     )
-    # settings 기록용 인자 패키징
+
     args <- list(
-      fixed_effects = fx,
+      fixed_effects  = FE_all,
       random_effects = random_effects,
-      normalization = normalization,
-      transform = transform,
-      orders = orders,
-      data = data,
-      combination = combination,
-      global = global,
-      min_per_level = min_per_level,
-      seed = seed
+      normalization  = normalization,
+      transform      = transform,
+      orders         = orders,
+      data           = data,
+      combination    = combination,
+      global         = global,
+      min_per_level  = min_per_level,
+      seed           = seed,
+      max_sig        = max_sig,
+      continuous_vars = continuous_vars
     )
+
     .write_settings(out_dir_run, meta_df, args)
     .save_tsv_as_csv(out_dir_run)
+
     invisible(fit)
   }
 
-  ## ---------------- run: global / single / combination ----------------
-  levs_all <- levels(metadata_df[[fx]])
+  ## ---------------- Run Mode ----------------
 
-  ## 1) Global full-model mode (multilevel factor, omnibus p-value)
+  levs_all <- levels(metadata_df[[main_fx]])
+
+  ## --- Global mode
   if (isTRUE(global)) {
-    message("[INFO] Global mode enabled: running ONE full multilevel model (all levels) for omnibus test.")
-    .run_one(otu_mat, metadata_df, fx, out_dir)
-    message("[INFO] Global model finished. Omnibus p-values are in all_results.tsv / significant_results.tsv.")
+    message("[INFO] Global model: full multilevel test")
+    .run_one(otu_mat, metadata_df, FE_all, out_dir)
     return(invisible(TRUE))
   }
 
-  ## 2) 기존 모드들 (global = FALSE일 때만)
+  ## --- Single model
   if (is.null(combination)) {
-    message("[INFO] Running single model (no combination).")
-    .run_one(otu_mat, metadata_df, fx, out_dir)
+    message("[INFO] Running single model")
+    .run_one(otu_mat, metadata_df, FE_all, out_dir)
 
+    ## --- Pairwise model
   } else if (is.numeric(combination) && combination == 2) {
-    message("[INFO] Pairwise mode: running ALL pairs.")
-    # 모든 조합 (A–B, A–C, B–C, ...)
+    message("[INFO] Running all pairwise models")
     pairs <- t(combn(levs_all, 2))
+
     for (i in seq_len(nrow(pairs))) {
       a <- pairs[i, 1]; b <- pairs[i, 2]
-      keep_idx <- metadata_df[[fx]] %in% c(a, b)
-      meta_sub <- droplevels(metadata_df[keep_idx, , drop = FALSE])
-      otu_sub  <- otu_mat[, rownames(meta_sub), drop = FALSE]
+      keep_idx <- metadata_df[[main_fx]] %in% c(a, b)
+      meta_sub <- droplevels(metadata_df[keep_idx, , drop=FALSE])
+      otu_sub  <- otu_mat[, rownames(meta_sub), drop=FALSE]
 
-      tbl <- table(meta_sub[[fx]])
-      if (any(tbl < min_per_level)) {
-        message(sprintf("[SKIP] Too few samples: %s vs %s (counts: %s)",
-                        a, b, paste(names(tbl), tbl, sep="=", collapse=", ")))
-        next
-      }
-      # 페어 수준에서 레벨 순서 고정
-      meta_sub[[fx]] <- factor(meta_sub[[fx]], levels = c(a, b))
+      tbl <- table(meta_sub[[main_fx]])
+      if (any(tbl < min_per_level)) next
 
-      pair_core <- sprintf("MaAsLin2.%s.%s_vs_%s", fx, .safe_tag(a), .safe_tag(b))
-      out_dir_pair <- file.path(out_dir, sprintf("%s.%s", pair_core, RE_tag))  # RE=... 반영
-      message(sprintf("[INFO] Running %s ...", basename(out_dir_pair)))
-      .run_one(otu_sub, meta_sub, fx, out_dir_pair)
+      meta_sub[[main_fx]] <- factor(meta_sub[[main_fx]], levels=c(a,b))
+
+      tag <- sprintf("MaAsLin2.%s.%s_vs_%s", main_fx, .safe_tag(a), .safe_tag(b))
+      out_sub <- file.path(out_dir, sprintf("%s.%s", tag, RE_tag))
+
+      .run_one(otu_sub, meta_sub, FE_all, out_sub)
     }
 
+    ## --- k-level combination
   } else if (is.numeric(combination) && combination > 2) {
-    message(sprintf("[INFO] k-level subset mode: combination = %d", combination))
+    message(sprintf("[INFO] Running %d-level subset models", combination))
     sets <- combn(levs_all, combination, simplify = FALSE)
+
     for (levset in sets) {
-      keep_idx <- metadata_df[[fx]] %in% levset
-      meta_sub <- droplevels(metadata_df[keep_idx, , drop = FALSE])
-      otu_sub  <- otu_mat[, rownames(meta_sub), drop = FALSE]
-      # 안전장치
-      tbl <- table(meta_sub[[fx]])
-      if (any(tbl < min_per_level)) {
-        message(sprintf("[SKIP] Too few samples for levels: %s (counts: %s)",
-                        paste(levset, collapse="+"),
-                        paste(names(tbl), tbl, sep="=", collapse=", ")))
-        next
-      }
-      meta_sub[[fx]] <- factor(meta_sub[[fx]], levels = levset)
-      tag_set <- paste(.safe_tag(levset), collapse = "+")
-      out_dir_set <- file.path(out_dir, sprintf("MaAsLin2.%s.%s.%s", fx, tag_set, RE_tag))
-      message(sprintf("[INFO] Running %s ...", basename(out_dir_set)))
-      .run_one(otu_sub, meta_sub, fx, out_dir_set)
+      keep_idx <- metadata_df[[main_fx]] %in% levset
+      meta_sub <- droplevels(metadata_df[keep_idx, , drop=FALSE])
+      otu_sub  <- otu_mat[, rownames(meta_sub), drop=FALSE]
+
+      tbl <- table(meta_sub[[main_fx]])
+      if (any(tbl < min_per_level)) next
+
+      meta_sub[[main_fx]] <- factor(meta_sub[[main_fx]], levels=levset)
+      tag     <- paste(.safe_tag(levset), collapse="+")
+      out_sub <- file.path(out_dir, sprintf("MaAsLin2.%s.%s.%s", main_fx, tag, RE_tag))
+
+      .run_one(otu_sub, meta_sub, FE_all, out_sub)
     }
 
   } else {
-    stop("[ERROR] 'combination' must be NULL, 2, or >2 (numeric).")
+    stop("[ERROR] 'combination' must be NULL, 2, or >2.")
   }
 
-  message("[INFO] Done.")
+  message("[INFO] DONE MaAsLin2")
   invisible(TRUE)
 }
