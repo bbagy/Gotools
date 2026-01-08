@@ -101,6 +101,7 @@ Go_prediction <- function(
     project,
     outcome,
     method = c("randomforest","xgboost"),
+    name = NULL,
     bacteriaSet = TRUE,             # 마이크로바이옴 피처 포함 여부
     testSet = FALSE,                # TRUE면 75/25 holdout + inner-CV
     clinical_vari = character(0),
@@ -194,6 +195,7 @@ Go_prediction <- function(
       OOF_AUC      = AUC_oof,
       OOF_AUPRC    = AUPRC_oof
     )
+
     write.csv(sum_df, file.path(outdir, paste0(model_name, "_cv_oof_summary.csv")), row.names = FALSE)
 
     # 그림(선택)
@@ -227,8 +229,16 @@ Go_prediction <- function(
 
   ## --- 1) 출력 폴더 ----------------------------------------------------------
   today <- format(Sys.Date(), "%y%m%d")
-  root  <- file.path(sprintf("%s_%s", project, today),
-                     if (method=="randomforest") "Randomforest" else "XGBoost")
+  method_label <- if (method=="randomforest") "randomforest" else "xgboost"
+
+  if (!is.null(name) && nzchar(name)) {
+    method_label <- paste0(method_label, "_", name)
+  }
+
+  root <- file.path(
+    sprintf("%s_%s", project, today),
+    method_label
+  )
   dir.create(root, recursive = TRUE, showWarnings = FALSE)
   message("[OutDir] ", root)
 
