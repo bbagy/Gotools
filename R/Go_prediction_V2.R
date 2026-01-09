@@ -1,27 +1,29 @@
 #' Go_prediction
 #'
-#' Unified predictor for microbiome (+ optional clinical) using Random Forest
-#' or XGBoost with StudyID-aware cross-validation/holdout, random search tuning,
-#' and standardized outputs.
+#' Unified predictor for microbiome (+ optional clinical) using Random Forest,
+#' XGBoost, or LightGBM with StudyID-aware cross-validation/holdout, random search
+#' tuning, and standardized outputs.
 #'
 #' @description
 #' Builds a binary classifier from a \code{phyloseq} object and (optionally)
 #' clinical covariates. You can toggle inclusion of microbiome features via
-#' \code{bacteriaSet}, choose the algorithm (\code{"randomforest"} or \code{"xgboost"}),
+#' \code{bacteriaSet}, choose the algorithm
+#' (\code{"randomforest"}, \code{"xgboost"}, or \code{"lightgbm"}),
 #' perform K-fold CV with subject-aware folds, run a random hyperparameter search,
 #' and (optionally) evaluate a 75/25 holdout split. The function writes dated
-#' output folders mirroring \code{Go_randomforest}/\code{Go_xgboost}.
+#' output folders mirroring \code{Go_randomforest}/\code{Go_xgboost}/\code{Go_lightgbm}.
 #'
 #' @param psIN A \code{phyloseq} object.
 #' @param project Character; project prefix used to create an output directory
-#'   \verb{<project_YYMMDD>/Randomforest} or \verb{<project_YYMMDD>/XGBoost}.
+#'   \verb{<project_YYMMDD>/<method>}.
 #' @param outcome Character; name of the binary outcome column in sample metadata.
 #'   Must contain levels specified in \code{orders}.
-#' @param method Character; one of \code{c("randomforest","xgboost")}.
+#' @param method Character; one of
+#'   \code{c("randomforest","xgboost","lightgbm")}.
 #' @param bacteriaSet Logical; include microbiome features (relative abundances
 #'   after filtering). If \code{FALSE}, only clinical features are used.
 #' @param testSet Logical; if \code{FALSE} (default) runs CV-only. If \code{TRUE},
-#'   performs a 75/25 StudyID-aware holdout split with inner CV on the train set.
+#'   performs a 75/25 StudyID-aware holdout split with inner CV on the training set.
 #' @param clinical_vari Character vector of metadata columns to include as
 #'   covariates (optional). Character/factor covariates are one-hot encoded,
 #'   NAs imputed by column median, then scaled.
@@ -31,55 +33,79 @@
 #'   present in \code{tax_table(psIN)} (e.g., \code{"Genus"}). Default \code{"ASV"}.
 #' @param prev_min Numeric in \([0,1]\); minimum prevalence threshold (presence on
 #'   relative abundance). Default \code{0.01}.
-#' @param relab_min Numeric; minimum mean relative abundance threshold. Default \code{1e-4}.
+#' @param relab_min Numeric; minimum mean relative abundance threshold.
+#'   Default \code{1e-4}.
 #' @param n_folds Integer; number of CV folds. Default \code{5}.
 #' @param seed Integer; random seed. Default \code{123}.
-#' @param n_candidates Integer; random search candidates. Default \code{40}.
-#' @param num.trees Integer; RF trees / XGB max \code{nrounds} (early stopping used
-#'   for XGB). Default \code{1000}.
+#' @param n_candidates Integer; number of random-search candidates.
+#'   Default \code{40}.
+#' @param num.trees Integer; RF trees / maximum boosting iterations.
+#'   Default \code{1000}.
 #' @param orders Character vector of length 2 giving outcome level order
 #'   (e.g., \code{c("Control","Case")}); positive class is \code{orders[2]}.
 #'
 #' @details
-#' \strong{StudyID-aware CV:} When \code{StudyID_col} varies across rows,
-#' folds keep samples from the same subject together and preserve class balance
-#' at the group level when possible; otherwise, standard stratified CV is used.
+#' \strong{StudyID-aware CV:}
+#' When \code{StudyID_col} varies across rows, folds keep samples from the same
+#' subject together and preserve class balance at the group level when possible;
+#' otherwise, standard stratified CV is used.
 #'
-#' \strong{Filtering:} If \code{bacteriaSet=TRUE}, taxa are kept if they pass
+#' \strong{Filtering:}
+#' If \code{bacteriaSet=TRUE}, taxa are kept if they pass
 #' \code{prev_min} OR \code{relab_min}.
 #'
-#' \strong{Tuning:} RF tunes \code{mtry}, \code{min.node.size}, \code{sample.fraction}.
-#' XGB tunes \code{eta}, \code{max_depth}, \code{min_child_weight}, \code{subsample},
-#' \code{colsample_bytree}, \code{gamma}, \code{lambda}, \code{alpha}, and
-#' \code{early_stopping_rounds}.
+#' \strong{Tuning:}
+#' RF tunes \code{mtry}, \code{min.node.size}, and \code{sample.fraction}.
+#' XGBoost tunes \code{eta}, \code{max_depth}, \code{min_child_weight},
+#' \code{subsample}, \code{colsample_bytree}, \code{gamma}, \code{lambda},
+#' \code{alpha}, and uses early stopping.
+#' LightGBM tunes \code{num_leaves}, \code{max_depth}, \code{min_data_in_leaf},
+#' \code{feature_fraction}, \code{bagging_fraction}, \code{lambda_l1},
+#' \code{lambda_l2}, and uses early stopping.
 #'
 #' \strong{Outputs (side effects):}
 #' \itemize{
 #'   \item \code{random_search_results.csv}
-#'   \item \code{predictions.csv} (OOF for CV-only; Train/Test for holdout)
-#'   \item model + metadata: \code{rf_final_model.rds}/\code{xgb_final_model.rds},
-#'         \code{rf_meta.rds}/\code{xgb_meta.rds}
-#'   \item feature importance with direction (\code{importance_feature.csv}) and
-#'         aggregated by taxon (\code{importance_taxon.csv})
-#'   \item ROC/PR PNGs (OOF or Train/Test variants)
+#'   \item \code{predictions.csv}
+#'     (out-of-fold predictions for CV-only;
+#'      Train/Test predictions for Holdout+CV)
+#'   \item Final model and metadata:
+#'     \code{*_final_model.rds}, \code{*_meta.rds}
+#'   \item Feature importance with direction:
+#'     \code{importance_feature.csv} and
+#'     \code{importance_taxon.csv}
+#'   \item ROC/PR PNGs:
+#'     \itemize{
+#'       \item CV-only: standardized OOF ROC/PR
+#'       \item Holdout+CV: separate Train/Test ROC/PR
+#'     }
 #' }
 #'
-#' @return (Invisibly) a list containing mode (\code{"CV-only"} or \code{"Holdout+CV"}),
-#'   metrics (AUC/AUPRC for OOF or Train/Test), \code{best_param}, and \code{outdir}.
+#' @return
+#' (Invisibly) a list containing mode (\code{"CV-only"} or \code{"Holdout+CV"}),
+#' key metrics (OOF AUC/AUPRC for CV-only or Train/Test metrics for holdout),
+#' \code{best_param}, and \code{outdir}. In CV-only mode, a standardized
+#' out-of-fold performance summary is also written to disk.
 #'
 #' @examples
 #' \dontrun{
 #' res <- Go_prediction(
-#'   psIN = ps, project = "IBD", outcome = "Status",
-#'   method = "randomforest", bacteriaSet = TRUE,
-#'   clinical_vari = c("Age","BMI","Sex"),
-#'   StudyID_col = "SubjectID", taxrank = "Genus",
+#'   psIN = ps,
+#'   project = "ACR",
+#'   outcome = "Rejection",
+#'   method = "lightgbm",
+#'   bacteriaSet = TRUE,
+#'   clinical_vari = c("Age","Sex","BMI"),
+#'   StudyID_col = "StudyID",
+#'   taxrank = "Genus",
 #'   orders = c("Control","Case")
 #' )
-#' res$AUC
 #' }
 #'
-#' @seealso \code{\link{Go_randomforest}}, \code{\link{Go_xgboost}}
+#' @seealso
+#' \code{\link{Go_randomforest}},
+#' \code{\link{Go_xgboost}},
+#' \code{\link{Go_lightgbm}}
 #'
 #' @name Go_prediction
 #' @export
