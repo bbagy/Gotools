@@ -423,8 +423,10 @@ Go_prediction <- function(
       folds <- if (!is.null(groups)) make_group_strat_folds(groups, as.integer(yfac==positive_class), n_folds, seed)
       else make_strat_folds(as.integer(yfac==positive_class), n_folds, seed)
       oof <- rep(NA_real_, length(yfac))
+      fold_id <- rep(NA_integer_, length(yfac))
       for (k in seq_along(folds)) {
         te <- folds[[k]]; tr <- setdiff(seq_along(yfac), te)
+        fold_id[te] <- k
         df_tr <- data.frame(X[tr,,drop=FALSE]); df_tr[[outcome]] <- yfac[tr]
         rf <- ranger::ranger(
           formula = as.formula(paste(outcome, "~ .")),
@@ -442,7 +444,12 @@ Go_prediction <- function(
         oof[te] <- predict(rf, data.frame(X[te,,drop=FALSE]))$predictions[, positive_class]
       }
       auc <- get_auc(yfac, oof, orders)
-      list(auc=auc, pred=oof, folds=folds)
+      list(
+        auc     = auc,
+        pred    = oof,
+        fold_id = fold_id,
+        folds   = folds
+      )
     }
 
     grid <- sample_grid_rf(n_candidates, ncol(X))
@@ -463,6 +470,7 @@ Go_prediction <- function(
     # OOF 예측 + PR
     cv <- eval_cv_auc_rf(X, yfac, if (group_mode) gid else NULL, best_param, n_folds, seed)
     oof <- cv$pred
+    fold_id <- cv$fold_id
     AUC_oof <- get_auc(yfac, oof, orders)
     pr <- PRROC::pr.curve(scores.class0 = oof[yfac==positive_class],
                           scores.class1 = oof[yfac!=positive_class], curve=TRUE)
@@ -490,7 +498,7 @@ Go_prediction <- function(
                  seed=seed, levels=orders),
             file.path(root, "rf_meta.rds"))
 
-    write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", pred=oof),
+    write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", fold = fold_id, pred=oof),
               file.path(root, "predictions.csv"), row.names = FALSE)
 
     # 중요도 + 방향성 (OOF 기반) — 안전 매핑
@@ -690,10 +698,12 @@ Go_prediction <- function(
 
 
     ## OOF 예측
+    fold_id <- rep(NA_integer_, length(ybin))
     oof <- rep(NA_real_, length(ybin))
     best_param <- best$param; best_iter <- best$best_iter
     for (k in seq_along(folds_main)) {
       te <- folds_main[[k]]; tr <- setdiff(seq_along(ybin), te)
+      fold_id[te] <- k
       dtr <- xgb.DMatrix(X[tr,,drop=FALSE], label=ybin[tr], missing=NA)
       dte <- xgb.DMatrix(X[te,,drop=FALSE], label=ybin[te], missing=NA)
       bst <- xgb.train(params = best_param, data = dtr, nrounds = best_iter, verbose = 0)
@@ -711,7 +721,7 @@ Go_prediction <- function(
                  levels=orders),
             file.path(root, "xgb_meta.rds"))
 
-    write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", pred=oof),
+    write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", fold = fold_id, pred=oof),
               file.path(root, "predictions.csv"), row.names = FALSE)
 
 
@@ -905,14 +915,16 @@ Go_prediction <- function(
     # ---------- helper: OOF for a given param (folds given) ----------
     eval_oof_lgb <- function(X, ybin, yfac, folds, par, nrounds, orders){
       oof <- rep(NA_real_, length(ybin))
+      fold_id <- rep(NA_integer_, length(ybin))
       for (k in seq_along(folds)) {
         te <- folds[[k]]
         tr <- setdiff(seq_along(ybin), te)
+        fold_id[te] <- k
         mdl <- .lgb_train(X[tr,,drop=FALSE], ybin[tr], par, nrounds)
         oof[te] <- predict(mdl, X[te,,drop=FALSE])
       }
       auc <- get_auc(yfac, oof, orders)
-      list(auc=auc, pred=oof)
+      list(auc = auc, pred = oof, fold_id = fold_id)
     }
 
     # ---------- helper: importance + direction (OOF Spearman + LGB Gain) ----------
@@ -994,6 +1006,7 @@ Go_prediction <- function(
 
       cv <- eval_oof_lgb(X, ybin, yfac, folds_main, best_param, num.trees, orders)
       oof <- cv$pred
+      fold_id <- cv$fold_id
       AUC_oof <- get_auc(yfac, oof, orders)
 
       pr <- PRROC::pr.curve(scores.class0 = oof[yfac==positive_class],
@@ -1008,7 +1021,7 @@ Go_prediction <- function(
                    seed=seed, levels=orders),
               file.path(root, "lgb_meta.rds"))
 
-      write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", pred=oof),
+      write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", fold = fold_id, pred=oof),
                 file.path(root, "predictions.csv"), row.names = FALSE)
 
       # importance + direction
