@@ -190,7 +190,23 @@ Go_patternPlot <- function(
           axis.title.y = element_blank())
 
   # 합성
-  title_txt <- sprintf("%s (n = %s)", fillinfor, sum(unique_patterns$pattern_count, na.rm = TRUE))
+  title_txt <- sprintf(
+    "%s%s (n = %s)",
+    fillinfor,
+    if (!is.null(name) && !is.na(name)) sprintf(" - %s", name) else "",
+    sum(pattern_count, na.rm = TRUE)
+  )
+
+
+
+  title_txt <- sprintf(
+    "%s%s (n = %s)",
+    fillinfor,
+    if (!is.null(name) && !is.na(name)) sprintf(" - %s", name) else "",
+    sum(unique_patterns$pattern_count, na.rm = TRUE)
+  )
+
+
   p_final <- (p1 + p3) +
     plot_layout(widths = c(3, 1), guides = "collect") +
     plot_annotation(title = title_txt,
