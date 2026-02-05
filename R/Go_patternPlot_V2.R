@@ -194,15 +194,6 @@ Go_patternPlot <- function(
     "%s%s (n = %s)",
     fillinfor,
     if (!is.null(name) && !is.na(name)) sprintf(" - %s", name) else "",
-    sum(pattern_count, na.rm = TRUE)
-  )
-
-
-
-  title_txt <- sprintf(
-    "%s%s (n = %s)",
-    fillinfor,
-    if (!is.null(name) && !is.na(name)) sprintf(" - %s", name) else "",
     sum(unique_patterns$pattern_count, na.rm = TRUE)
   )
 
