@@ -113,6 +113,12 @@ Go_patternPlot <- function(
     distinct(across(all_of(c(StudyID, yinfor))), .keep_all = TRUE)
 
   # 날짜 폴더 자동 생성
+  name_tag <- if (!is.null(name) && !is.na(name) && name != "") {
+    paste0(" - ", name)
+  } else {
+    ""
+  }
+
   name <- ifelse(is.null(name), "", paste(name, ".", sep = ""))
   stamp <- format(Sys.Date(), "%y%m%d")
   base <- sprintf("%s_%s", project, stamp)
@@ -193,7 +199,7 @@ Go_patternPlot <- function(
   title_txt <- sprintf(
     "%s%s (n = %s)",
     fillinfor,
-    if (!is.null(name) && !is.na(name)) sprintf(" - %s", name) else "",
+    name_tag,
     sum(unique_patterns$pattern_count, na.rm = TRUE)
   )
 
