@@ -186,9 +186,10 @@ Go_patternPlot <- function(
 
   # p3
   unique_patterns$pattern_count <- as.numeric(unique_patterns$pattern_count)
+  label_pos <- 0.4
   p3 <- ggplot(unique_patterns, aes(x = ID, y = pattern_count)) +
     geom_col(fill = "#149BEDFF", width = 0.85) +
-    geom_text(aes(label = pattern_count), hjust = 1.1, vjust = 0.5, size = 3) +
+    geom_text(aes(y = label_pos, label = pattern_count), hjust = 0, vjust = 0.5, size = 3) +
     coord_flip() +
     labs(y = "Count of Patients", x = NULL) +
     theme_classic(base_size = 11) +
