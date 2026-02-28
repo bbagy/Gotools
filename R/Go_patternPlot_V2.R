@@ -21,6 +21,8 @@
 #' @param fillinfor Character scalar. Column name (string) used for point fill/legend.
 #' @param StudyID Character scalar. Column name (string) for subject/sample ID.
 #' @param yinfor.order Character vector giving the display/order of \code{yinfor} levels (left-to-right on the plot).
+#' @param orders Optional character vector for categorical ordering
+#'   (used for \code{fillinfor} and \code{multi.sites} via \code{intersect()}).
 #' @param multi.sites Optional character scalar. Column name (string) for site subgroup
 #'   (e.g., Nose/Mouth/Stool). If \code{NULL}, default single-point mode is used.
 #'   If provided, each timepoint is shown as side-by-side squares per site:
@@ -101,6 +103,7 @@ Go_patternPlot <- function(
     fillinfor = NULL,       # 점의 채움/범례 변수명 (문자열)
     StudyID,                # 환자/샘플 ID 변수명 (문자열)
     yinfor.order,           # x축 순서 (문자 벡터)
+    orders = NULL,          # 정렬 통합 설정(list: yinfor/fillinfor/site)
     multi.sites = NULL,     # 사이트 서브그룹 변수명 (문자열, 선택)
     pattern = TRUE,         # TRUE: 패턴 집계 / FALSE: StudyID별 직접 표시
     site.compact.step = 0.14, # multi.sites + pattern=TRUE 네모 간격
@@ -115,6 +118,12 @@ Go_patternPlot <- function(
   require(ggplot2)
   require(patchwork)
   require(rlang)
+
+  tt <- try(orders, TRUE)
+  if (class(tt) == "try-error") {
+    print("orders is not defined.")
+    orders <- NULL
+  }
 
   # --- NEW 1: fillinfor = NULL이면 yinfor를 자동 fill로 사용 ---
   fillinfor_user <- fillinfor
@@ -147,14 +156,19 @@ Go_patternPlot <- function(
     df <- df %>%
       distinct(across(all_of(c(StudyID, yinfor))), .keep_all = TRUE)
 
-    # 채움 값: yinfor.order 우선 순서로 legend 정렬
+    # 채움 값 정렬
     fill_vals_raw <- unique(na.omit(as.character(df[[fillinfor]])))
-    fill_vals_in_yorder <- yinfor.order[yinfor.order %in% fill_vals_raw]
-    fill_vals <- c(fill_vals_in_yorder, setdiff(fill_vals_raw, fill_vals_in_yorder))
+    if (!is.null(orders)) {
+      fill_vals_in_user <- intersect(orders, fill_vals_raw)
+      fill_vals <- c(fill_vals_in_user, setdiff(fill_vals_raw, fill_vals_in_user))
+    } else {
+      fill_vals_in_yorder <- yinfor.order[yinfor.order %in% fill_vals_raw]
+      fill_vals <- c(fill_vals_in_yorder, setdiff(fill_vals_raw, fill_vals_in_yorder))
+    }
     if (is.null(mycols)) {
       mycols <- scales::hue_pal()(length(fill_vals))
     } else if (length(mycols) < length(fill_vals)) {
-      stop("mycols 길이가 fill 범주의 개수보다 적습니다.")
+      stop("Length of 'mycols' is smaller than the number of fill categories.")
     }
     fill_map   <- setNames(mycols[seq_along(fill_vals)], fill_vals)
 
@@ -231,7 +245,7 @@ Go_patternPlot <- function(
   } else {
     # --- multi.sites 모드: 시점마다 사이트 네모를 나란히 표시 ---
     if (!multi.sites %in% names(df)) {
-      stop("multi.sites 컬럼이 df에 없습니다: ", multi.sites)
+      stop("The 'multi.sites' column is not found in df: ", multi.sites)
     }
 
     site_vec <- df[[multi.sites]]
@@ -241,8 +255,12 @@ Go_patternPlot <- function(
     } else {
       site_levels <- unique(as.character(na.omit(site_vec)))
     }
+    if (!is.null(orders)) {
+      site_in_user <- intersect(orders, site_levels)
+      site_levels <- c(site_in_user, setdiff(site_levels, site_in_user))
+    }
     if (length(site_levels) == 0) {
-      stop("multi.sites에 유효한(NA 아닌) 값이 없습니다.")
+      stop("No valid (non-NA) values were found in 'multi.sites'.")
     }
     site_levels_for_subtitle <- site_levels
 
@@ -268,7 +286,13 @@ Go_patternPlot <- function(
       )
 
     if (color_by_fill) {
-      fill_levels <- unique(na.omit(df_ms$.COLOR))
+      fill_levels_raw <- unique(na.omit(df_ms$.COLOR))
+      if (!is.null(orders)) {
+        fill_in_user <- intersect(orders, fill_levels_raw)
+        fill_levels <- c(fill_in_user, setdiff(fill_levels_raw, fill_in_user))
+      } else {
+        fill_levels <- fill_levels_raw
+      }
       if (length(fill_levels) == 0) {
         color_by_fill <- FALSE
         fill_levels <- yinfor.order
@@ -279,7 +303,7 @@ Go_patternPlot <- function(
     if (is.null(mycols)) {
       mycols <- scales::hue_pal()(length(fill_levels))
     } else if (length(mycols) < length(fill_levels)) {
-      stop("mycols 길이가 색상 범주 개수보다 적습니다.")
+      stop("Length of 'mycols' is smaller than the number of color categories.")
     }
     fill_cols <- setNames(mycols[seq_along(fill_levels)], fill_levels)
 
