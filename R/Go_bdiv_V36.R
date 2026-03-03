@@ -62,6 +62,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     keep <- levs[levs %in% levels(x)]
     factor(x, levels = keep)
   }
+  .has_any <- function(x, key) !is.null(x) && length(x) >= 1 && any(x %in% key)
 
   # permutation blocks
   .mk_perm_block <- function(id_vec, nperm = 999) {
@@ -162,8 +163,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     mapping[,mvar] <- factor(mapping[,mvar])
     sample_data(psIN) <- mapping
 
-    if (length(facet) >= 1 && facet == mvar) next
-    if (length(shapes) >= 1 && shapes == mvar) next
+    if (.has_any(facet, mvar)) next
+    if (.has_any(shapes, mvar)) next
 
     #------------------------------#
     # for group combination or not #
@@ -175,7 +176,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
 
       ord_meths = plot
       pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
-                  ord_meths, "distance_metric", project, mvar,
+                  ord_meths, paste(distance_metrics, collapse = "+"), project, mvar,
                   ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
                   ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
                   ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
@@ -189,16 +190,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
       for(i in seq_along(group_comparisons)){
         group.combination <- unlist(group_comparisons[i])
 
-        if(combination == 2){
-          basline <- group.combination[1]; smvar <- group.combination[2]
-          mapping.cbn <- subset(mapping, mapping[,mvar] %in% c(basline, smvar))
-        } else if(combination == 3){
-          basline <- group.combination[1]; smvar1 <- group.combination[2]; smvar2 <- group.combination[3]
-          mapping.cbn <- subset(mapping, mapping[,mvar] %in% c(basline, smvar1, smvar2))
-        } else if(combination == 4){
-          basline <- group.combination[1]; smvar1 <- group.combination[2]; smvar2 <- group.combination[3]; smvar3 <- group.combination[4]
-          mapping.cbn <- subset(mapping, mapping[,mvar] %in% c(basline, smvar1, smvar2, smvar3))
-        } else { break }
+        mapping.cbn <- subset(mapping, mapping[,mvar] %in% group.combination[seq_len(combination)])
 
         psIN.cbn <- psIN; sample_data(psIN.cbn) <- mapping.cbn
 
@@ -312,7 +304,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 form <- as.formula(sprintf("x1 ~ %s", mvar))
               }
               ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
-              R2 <- round(ad[1,3], 3); padj <- ad[1,5]
+              R2 <- round(ad[1,3], 3); p_perm <- ad[1,5]
 
               # SAVE non-facet PERMANOVA table   # <<< NEW
               fn <- file.path(
@@ -329,7 +321,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 label = sprintf("%-12s\n%-12s\n%-12s",
                                 distance_metric,
                                 paste0("R2=", formatC(R2, format="f", digits=3)),
-                                paste0("PERMANOVA p=", formatC(padj, format="f", digits=3)))
+                                paste0("PERMANOVA p=", formatC(p_perm, format="f", digits=3)))
               )
               p <- p + ggplot2::geom_text(
                 data = ann_df,
@@ -348,8 +340,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
           }
 
           if(!is.null(paired) && paired %in% names(pdataframe)){
-            p <- p + geom_line(aes_string(group = paired), color="grey", size=0.2,
-                               arrow = arrow(type="closed", length=unit(0.025,"inches")))
+              p <- p + geom_line(aes_string(group = paired), color="grey", linewidth=0.2,
+                                 arrow = arrow(type="closed", length=unit(0.025,"inches")))
           }
 
           p <- p +
@@ -357,10 +349,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
             scale_y_continuous(expand = expansion(mult = c(0.06, 0.03))) +
             theme(panel.grid = element_blank(),
                   legend.key = element_blank(),
-                  panel.background = element_rect(fill = "white", colour = "Black", size = 0.7, linetype = "solid"),
+                  panel.background = element_rect(fill = "white", colour = "Black", linewidth = 0.7, linetype = "solid"),
                   aspect.ratio = 1,
                   plot.title=element_text(size=8,face="bold")) +
-            geom_vline(xintercept = 0, size = 0.1) + geom_hline(yintercept = 0, size = 0.1)
+            geom_vline(xintercept = 0, linewidth = 0.1) + geom_hline(yintercept = 0, linewidth = 0.1)
 
           print(p)
         }
@@ -476,7 +468,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               form <- as.formula(sprintf("x1 ~ %s", mvar))
             }
             ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
-            R2 <- round(ad[1,3], 3); padj <- ad[1,5]
+            R2 <- round(ad[1,3], 3); p_perm <- ad[1,5]
 
             # SAVE non-facet PERMANOVA table   # <<< NEW
             fn <- file.path(
@@ -494,7 +486,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 "%s\nR2=%.3f\nPERMANOVA p=%.3f",
                 distance_metric,
                 R2,
-                padj
+                p_perm
               ),
               stringsAsFactors = FALSE
             )
@@ -516,7 +508,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         }
 
         if(!is.null(paired) && paired %in% names(pdataframe)){
-          p <- p + geom_line(aes_string(group = paired),color="grey", size = 0.2,
+          p <- p + geom_line(aes_string(group = paired),color="grey", linewidth = 0.2,
                              arrow = arrow(type="closed", length=unit(0.025,"inches")))
         }
 
@@ -525,9 +517,9 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
           scale_y_continuous(expand = expansion(mult = c(0.06, 0.03))) +
           theme(panel.grid = element_blank(),
                 legend.key = element_blank(),
-                panel.background = element_rect(fill = "white", colour = "Black", size = 0.7, linetype = "solid"),
+                panel.background = element_rect(fill = "white", colour = "Black", linewidth = 0.7, linetype = "solid"),
                 aspect.ratio = 1) +
-          geom_vline(xintercept = 0, size = 0.1) + geom_hline(yintercept = 0, size = 0.1)
+          geom_vline(xintercept = 0, linewidth = 0.1) + geom_hline(yintercept = 0, linewidth = 0.1)
 
         pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
                     ord_meths, distance_metric, project, mvar,
