@@ -22,6 +22,9 @@ Go_boxplot(
   standardsize = TRUE,
   statistics = TRUE,
   parametric = FALSE,
+  model = NULL,
+  covariates = NULL,
+  p_adjust = "BH",
   star = TRUE,
   xangle = 90,
   cutoff = 0.1,
@@ -66,7 +69,13 @@ Go_boxplot(
 
 \item{parametric}{Whether to use parametric tests.}
 
-\item{star}{Whether to show significance levels as stars.}
+\item{model}{Statistical engine: "nonparametric", "parametric", or "lmm". If NULL, inferred from \code{parametric}.}
+
+\item{covariates}{Optional covariate column names for adjusted models (ANCOVA/LMM).}
+
+\item{p_adjust}{P-value adjustment method for engine-based pairwise tests (e.g., "BH", "bonferroni").}
+
+\item{star}{Whether to show significance levels as stars (legacy for ggpubr engines).}
 
 \item{xangle}{Angle of x-axis labels.}
 

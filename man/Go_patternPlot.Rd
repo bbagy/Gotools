@@ -8,9 +8,14 @@ Go_patternPlot(
   df,
   project = "project",
   yinfor,
-  fillinfor,
+  fillinfor = NULL,
   StudyID,
   yinfor.order,
+  orders = NULL,
+  multi.sites = NULL,
+  pattern = TRUE,
+  site.compact.step = 0.14,
+  site.dodge.width = 0.6,
   mycols = NULL,
   name = NULL,
   width = 6,
@@ -30,6 +35,23 @@ by \code{StudyID}, \code{yinfor}, and \code{fillinfor}.}
 \item{StudyID}{Character scalar. Column name (string) for subject/sample ID.}
 
 \item{yinfor.order}{Character vector giving the display/order of \code{yinfor} levels (left-to-right on the plot).}
+
+\item{orders}{Optional character vector for categorical ordering
+(used for \code{fillinfor} and \code{multi.sites} via \code{intersect()}).}
+
+\item{multi.sites}{Optional character scalar. Column name (string) for site subgroup
+(e.g., Nose/Mouth/Stool). If \code{NULL}, default single-point mode is used.
+If provided, each timepoint is shown as side-by-side squares per site:
+filled = sample present, empty = no sample.}
+
+\item{pattern}{Logical. If \code{TRUE} (default), aggregate to unique patterns and count patients.
+If \code{FALSE}, plot each \code{StudyID} row directly (no pattern collapsing).}
+
+\item{site.compact.step}{Numeric. Horizontal spacing step for site squares in
+\code{multi.sites + pattern=TRUE} mode. Larger values spread squares more.}
+
+\item{site.dodge.width}{Numeric. Dodge width for site squares in
+\code{multi.sites + pattern=FALSE} mode. Larger values spread squares more.}
 
 \item{mycols}{Optional character vector of colors for levels of \code{fillinfor}.
 If \code{NULL}, a default palette is used. Length must be \eqn{\ge} number of
