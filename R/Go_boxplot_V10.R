@@ -312,7 +312,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
           }
 
 
-          p1 <- ggplot(df.cbn, aes(x = rlang::.data[[mvar]], y = rlang::.data[[oc]]))  + labs(y=oc, x=NULL) + #theme_bw() +
+          p1 <- ggplot(df.cbn, aes_string(x = mvar, y = oc))  + labs(y=oc, x=NULL) + #theme_bw() +
             theme(strip.background = element_blank()) +
             theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
                   plot.title=element_text(size=8),
@@ -352,9 +352,9 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               p1 <- p1
             }
 
-            p1 = p1 + geom_boxplot(aes(colour = rlang::.data[[mvar]]), outlier.shape = NA, lwd = box.tickness)  + theme(legend.position="none")
-            p1 = p1 + geom_point(aes(colour = rlang::.data[[mvar]], group = rlang::.data[[paired]]), alpha = 0.8, size = dot.size, position = position_dodge(0.3), show.legend = F)  #scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
-            p1 = p1 + geom_line(aes(group = rlang::.data[[paired]]), color = "grey50", linewidth = 0.3, position = position_dodge(0.3))
+            p1 = p1 + geom_boxplot(aes_string(colour = mvar), outlier.shape = NA, lwd = box.tickness)  + theme(legend.position="none")
+            p1 = p1 + geom_point(aes_string(colour = mvar, group = paired), alpha = 0.8, size = dot.size, position = position_dodge(0.3), show.legend = F)  #scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
+            p1 = p1 + geom_line(aes_string(group = paired), color = "grey50", linewidth = 0.3, position = position_dodge(0.3))
             p1 = p1 + theme(legend.title = element_blank(), legend.position="bottom", legend.justification="left",legend.box.margin = ggplot2::margin(0,0,0,-1,"cm"))
           }  else{
 
@@ -366,7 +366,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               }else{
                 p1 <- p1
               }
-              p1 = p1 + geom_boxplot(aes(fill = rlang::.data[[mvar]]), outlier.shape = NULL, lwd = box.tickness)   + theme(legend.position="none")
+              p1 = p1 + geom_boxplot(aes_string(fill = mvar), outlier.shape = NULL, lwd = box.tickness)   + theme(legend.position="none")
               # outlier.shape = NA
             } else {
 
@@ -376,8 +376,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                 p1 <- p1
               }
 
-              p1 = p1 + geom_boxplot(aes(colour = rlang::.data[[mvar]]), outlier.shape = NA, lwd = box.tickness) + theme(legend.position="none")
-              p1 = p1 + geom_jitter(aes(colour = rlang::.data[[mvar]]), shape = 16, alpha = 0.8, size = dot.size, position = position_jitter(0.2))
+              p1 = p1 + geom_boxplot(aes_string(colour = mvar), outlier.shape = NA, lwd = box.tickness) + theme(legend.position="none")
+              p1 = p1 + geom_jitter(aes_string(colour = mvar), shape = 16, alpha = 0.8, size = dot.size, position = position_jitter(0.2))
 
             }
           }
@@ -459,7 +459,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
         }
 
 
-        p1 <- ggplot(df.na, aes(x = rlang::.data[[mvar]], y = rlang::.data[[oc]]))  + labs(y=oc, x=NULL) +
+        p1 <- ggplot(df.na, aes_string(x = mvar, y = oc))  + labs(y=oc, x=NULL) +
           theme(strip.background = element_blank()) +
           theme(text=element_text(size=8), axis.text.x=element_text(angle=xangle,hjust=1,vjust=0.5,size=8),
                 plot.title=element_text(size=8),
@@ -478,9 +478,9 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             p1 <- p1
           }
 
-          p1 = p1 + geom_boxplot(aes(colour = rlang::.data[[mvar]]), outlier.shape = NA, lwd = box.tickness)  + theme(legend.position="none")
-          p1 = p1 + geom_point(aes(colour = rlang::.data[[mvar]], group = rlang::.data[[paired]]), alpha = 0.8, size = dot.size, position = position_dodge(0.3), show.legend = F)   #scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
-          p1 = p1 + geom_line(aes(group = rlang::.data[[paired]]), color = "grey50", linewidth = 0.3, position = position_dodge(0.3))
+          p1 = p1 + geom_boxplot(aes_string(colour = mvar), outlier.shape = NA, lwd = box.tickness)  + theme(legend.position="none")
+          p1 = p1 + geom_point(aes_string(colour = mvar, group = paired), alpha = 0.8, size = dot.size, position = position_dodge(0.3), show.legend = F)   #scale_shape_manual(values = c(1, 16, 8, 0,15, 2,17,11, 10,12,3,4,5,6,7,8,9,13,14))
+          p1 = p1 + geom_line(aes_string(group = paired), color = "grey50", linewidth = 0.3, position = position_dodge(0.3))
           p1 = p1 + theme(legend.title = element_blank(), legend.position="bottom", legend.justification="left",legend.box.margin = ggplot2::margin(0,0,0,-1,"cm"))
 
         } else{
@@ -492,7 +492,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             }else{
               p1 <- p1
             }
-            p1 = p1 + geom_boxplot(aes(fill = rlang::.data[[mvar]]), outlier.shape = NULL, lwd = box.tickness)   + theme(legend.position="none")
+            p1 = p1 + geom_boxplot(aes_string(fill = mvar), outlier.shape = NULL, lwd = box.tickness)   + theme(legend.position="none")
 
           } else {
 
@@ -502,8 +502,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               p1 <- p1
             }
 
-            p1 = p1 + geom_boxplot(aes(colour = rlang::.data[[mvar]]), outlier.shape = NA, lwd = box.tickness) + theme(legend.position="none")
-            p1 = p1 + geom_jitter(aes(colour = rlang::.data[[mvar]]), shape = 16, alpha = 0.8, size = dot.size, position = position_jitter(0.2))
+            p1 = p1 + geom_boxplot(aes_string(colour = mvar), outlier.shape = NA, lwd = box.tickness) + theme(legend.position="none")
+            p1 = p1 + geom_jitter(aes_string(colour = mvar), shape = 16, alpha = 0.8, size = dot.size, position = position_jitter(0.2))
 
           }
         }
