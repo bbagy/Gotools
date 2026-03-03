@@ -138,12 +138,13 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
               ifelse(is.null(name), "", paste(name, ".", sep = "")),
               ifelse(is.null(title), "", paste(title, ".", sep = "")),
               normalization, format(Sys.Date(), "%y%m%d")), width = width, height = height)
+  main_title <- sprintf("Profile of Antibiotic Resistance Genes in %s Bacteria", title)
 
   # heatmap 생성
   if(!is.null(x_label)){
     ht <- Heatmap(as.matrix(df2_ordered),
                   name = "expression",
-                  column_title = sprintf("Profile of Antibiotic Resistance Genes in %s Bacteria", title),
+                  column_title = NULL,
                   cluster_rows = TRUE,
                   cluster_columns = FALSE,
                   show_column_names = TRUE,
@@ -153,14 +154,14 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
                   top_annotation = HeatmapAnnotation(
                     foo = anno_block(
                       gp = gpar(fill = palette),
-                      labels = as.character(sorted_groups)
+                      labels = levels(group_info)
                     )
                   )
     )
   }else{
     ht <- Heatmap(as.matrix(df2_ordered),
                   name = "expression",
-                  column_title = sprintf("Profile of Antibiotic Resistance Genes in %s Bacteria", title),
+                  column_title = NULL,
                   cluster_rows = TRUE,
                   cluster_columns = FALSE,
                   show_column_names = TRUE,
@@ -169,13 +170,13 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
                   top_annotation = HeatmapAnnotation(
                     foo = anno_block(
                       gp = gpar(fill = palette),
-                      labels = as.character(sorted_groups)
+                      labels = levels(group_info)
                     )
                   )
     )
 
   }
 
-  draw(ht)
+  draw(ht, column_title = main_title)
   dev.off()
 }
