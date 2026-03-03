@@ -12,8 +12,15 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
                                     covariates = NULL,
                                     paired = NULL,
                                     p_adjust = "BH") {
+  has_covariates <- !is.null(covariates) && length(covariates) > 0
   model <- if (is.null(model)) {
-    if (isTRUE(parametric)) "parametric" else "nonparametric"
+    if (has_covariates) {
+      "parametric"
+    } else if (isTRUE(parametric)) {
+      "parametric"
+    } else {
+      "nonparametric"
+    }
   } else {
     tolower(as.character(model))
   }
@@ -47,8 +54,10 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
   form <- stats::as.formula(sprintf("%s ~ %s", oc, fixed_term))
 
   if (use_nonparam) {
+    # Wilcoxon/Kruskal formula must be response ~ group (no covariates in this path)
+    form_np <- stats::as.formula(sprintf("%s ~ %s", oc, mvar))
     if (nlevels(dat[[mvar]]) > 2) {
-      test <- stats::kruskal.test(form, dat)
+      test <- stats::kruskal.test(form_np, dat)
       return(list(test.name = "KW", pval = round(test$p.value, 4), testmethod = "wilcox.test", annotation = NULL))
     }
     return(list(test.name = "Pairwise Wilcoxon", pval = NULL, testmethod = "wilcox.test", annotation = NULL))
@@ -146,7 +155,6 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
   if (is.null(stat_res$test.name)) return(p1)
 
   if (!is.null(stat_res$annotation)) {
-    if (!is.null(stat_res$pval) && stat_res$pval >= cutoff) return(p1)
     if (nrow(stat_res$annotation) == 0) return(p1)
     return(
       p1 + ggpubr::stat_pvalue_manual(
@@ -202,4 +210,30 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
   }
 
   p1
+}
+
+# Lightweight regression checks for engine logic.
+Go_boxplot_stats_engine_smoke_test <- function() {
+  set.seed(1)
+  dat <- data.frame(
+    grp = rep(c("A", "B", "C"), each = 8),
+    y = rnorm(24),
+    z = sample(c("F", "M"), 24, replace = TRUE),
+    id = rep(1:8, 3)
+  )
+  comps <- list(c("A", "B"), c("A", "C"), c("B", "C"))
+
+  res_np <- Go_boxplot_stats_engine(
+    df = dat, mvar = "grp", oc = "y", comparisons = comps,
+    model = "nonparametric", covariates = "z"
+  )
+  stopifnot(res_np$test.name %in% c("KW", "Pairwise Wilcoxon"))
+
+  res_cov <- Go_boxplot_stats_engine(
+    df = dat, mvar = "grp", oc = "y", comparisons = comps,
+    covariates = "z"
+  )
+  stopifnot(identical(res_cov$test.name, "ANCOVA"))
+
+  invisible(TRUE)
 }
