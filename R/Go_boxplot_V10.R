@@ -21,7 +21,6 @@
 #' @param model Statistical engine: "nonparametric", "parametric", or "lmm". If NULL, inferred from `parametric`.
 #' @param covariates Optional covariate column names for adjusted models (ANCOVA/LMM).
 #' @param p_adjust P-value adjustment method for engine-based pairwise tests (e.g., "BH", "bonferroni").
-#' @param star Whether to show significance levels as stars (legacy for ggpubr engines).
 #' @param xangle Angle of x-axis labels.
 #' @param cutoff Significance level for statistical tests.
 #' @param height Height of the plot.
@@ -59,7 +58,6 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                        model = NULL,
                        covariates = NULL,
                        p_adjust = "BH",
-                       star=TRUE,
                        xangle=90,
                        cutoff = 0.1,
                        height, width, plotCols, plotRows){
@@ -72,6 +70,29 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
     }
     comparisons
   }
+  build_plot_title <- function(base_title, test_name, pval) {
+    sprintf("%s%s%s%s",
+            base_title,
+            ifelse(is.null(test_name), "", paste("\n", test_name, " ", sep = "")),
+            ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
+            ifelse(is.null(pval), "", paste(pval, " ", sep = "")))
+  }
+  build_plot_subtitle <- function(stat_res, p_adjust, use_covariates, covariates_label) {
+    subtitle_parts <- character(0)
+    method_label <- if (!is.null(stat_res$test.name) && stat_res$test.name %in% c("ANCOVA", "LMM")) stat_res$test.name else NULL
+    if (!is.null(method_label)) {
+      subtitle_parts <- c(subtitle_parts, paste0("method=", method_label))
+    }
+    if (!is.null(stat_res$annotation) && !is.null(method_label) && method_label %in% c("ANCOVA", "LMM")) {
+      subtitle_parts <- c(subtitle_parts, sprintf("pairwise (adjust=%s)", p_adjust))
+    }
+    if (isTRUE(use_covariates)) {
+      subtitle_parts <- c(subtitle_parts, sprintf("covariates=%s", covariates_label))
+    }
+    if (length(subtitle_parts) == 0) return(NULL)
+    paste(subtitle_parts, collapse = " | ")
+  }
+  sanitize_tag <- function(x) gsub("[^A-Za-z0-9._-]+", "-", x)
 
   if(!is.null(dev.list())) dev.off()
 
@@ -103,6 +124,31 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
   print("box.tickness1")
 
+  resolved_model <- if (is.null(model)) {
+    if (isTRUE(parametric)) "parametric" else "nonparametric"
+  } else {
+    tolower(as.character(model))
+  }
+  if (!resolved_model %in% c("nonparametric", "parametric", "lmm")) {
+    stop("`model` must be one of: 'nonparametric', 'parametric', 'lmm'.")
+  }
+  covariates_label <- if (!is.null(covariates) && length(covariates) > 0) paste(covariates, collapse = "+") else NULL
+  use_covariates <- !is.null(covariates_label) && resolved_model %in% c("parametric", "lmm")
+  if (!is.null(covariates_label) && resolved_model == "nonparametric") {
+    warning("`covariates` are ignored when model='nonparametric'.")
+  }
+  if (resolved_model == "lmm" && is.null(paired)) {
+    warning("model='lmm' requested but `paired` is NULL. LMM cannot be fitted.")
+  }
+  method_file_tag <- if (resolved_model == "lmm" && !is.null(paired)) {
+    "(method=LMM)."
+  } else if (isTRUE(use_covariates) && resolved_model == "parametric") {
+    "(method=ANCOVA)."
+  } else {
+    ""
+  }
+  covariates_file_tag <- if (isTRUE(use_covariates)) paste0("(cov=", sanitize_tag(covariates_label), ").") else ""
+
   # plot design
   if (height*width <= 6){
     dot.size = 0.7
@@ -115,13 +161,18 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
     box.tickness = 0.5
   }
 
-  pdf(sprintf("%s/box.%s.%s%s%s%s%s.pdf", out_path,
-              project,
-              ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-              ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
-              ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
-              ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              format(Sys.Date(), "%y%m%d")), height = height, width = width)
+  file_name <- paste0(
+    "box.", project, ".",
+    ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+    ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
+    ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
+    method_file_tag,
+    covariates_file_tag,
+    ifelse(is.null(name), "", paste(name, ".", sep = "")),
+    format(Sys.Date(), "%y%m%d"),
+    ".pdf"
+  )
+  pdf(file.path(out_path, file_name), height = height, width = width)
 
   # plot
   plotlist <- list()
@@ -260,17 +311,9 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
 
 
-          if (!is.null(title)) {
-            p1 <- p1 + ggtitle(sprintf("%s%s%s%s", title,
-                                       ifelse(is.null(test.name), "", paste("\n",test.name, " ", sep = "")),
-                                       ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
-                                       ifelse(is.null(pval), "", paste(pval, " ", sep = ""))))
-          } else{
-            p1 <- p1 + ggtitle(sprintf("%s%s%s%s", mvar,
-                                       ifelse(is.null(test.name), "", paste("\n",test.name, " ", sep = "")),
-                                       ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
-                                       ifelse(is.null(pval), "", paste(pval, " ", sep = ""))))
-          }
+          title_text <- build_plot_title(ifelse(is.null(title), mvar, title), test.name, pval)
+          subtitle_text <- if (statistics) build_plot_subtitle(stat_res, p_adjust, use_covariates, covariates_label) else NULL
+          p1 <- p1 + labs(title = title_text, subtitle = subtitle_text)
 
           if (statistics){
             p1 <- Go_boxplot_add_stats_layer(
@@ -278,8 +321,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               stat_res = stat_res,
               my_comparisons = my_comparisons,
               paired = paired,
-              cutoff = cutoff,
-              star = star
+              cutoff = cutoff
             )
           }
 
@@ -464,26 +506,16 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             stat_res = stat_res,
             my_comparisons = my_comparisons,
             paired = paired,
-            cutoff = cutoff,
-            star = star
+            cutoff = cutoff
           )
         }
 
 
 
         # Close an image
-        if (!is.null(title)) {
-          p1 <- p1 + ggtitle(sprintf("%s%s%s%s", title,
-                                     ifelse(is.null(test.name), "", paste("\n",test.name, " ", sep = "")),
-                                     ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
-                                     ifelse(is.null(pval), "", paste(pval, " ", sep = ""))))
-        } else{
-          p1 <- p1 + ggtitle(sprintf("%s%s%s%s", mvar,
-                                     ifelse(is.null(test.name), "", paste("\n",test.name, " ", sep = "")),
-                                     ifelse(is.null(pval), "", paste("p=", " ", sep = "")),
-                                     ifelse(is.null(pval), "", paste(pval, " ", sep = ""))))
-
-        }
+        title_text <- build_plot_title(ifelse(is.null(title), mvar, title), test.name, pval)
+        subtitle_text <- if (statistics) build_plot_subtitle(stat_res, p_adjust, use_covariates, covariates_label) else NULL
+        p1 <- p1 + labs(title = title_text, subtitle = subtitle_text)
 
         # y axis limit
         if(!is.null(ylim)){

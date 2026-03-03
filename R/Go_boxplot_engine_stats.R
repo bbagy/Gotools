@@ -17,6 +17,9 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
   } else {
     tolower(as.character(model))
   }
+  if (!model %in% c("nonparametric", "parametric", "lmm")) {
+    stop("`model` must be one of: 'nonparametric', 'parametric', 'lmm'.")
+  }
 
   use_lmm <- identical(model, "lmm")
   use_param <- identical(model, "parametric")
@@ -75,7 +78,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
     if (inherits(emm, "try-error")) {
       return(list(test.name = "LMM", pval = ifelse(is.na(pval), NULL, round(pval, 4)), testmethod = NULL, annotation = NULL))
     }
-    ctr <- try(emmeans::contrast(emm, method = "pairwise", adjust = p_adjust), silent = TRUE)
+    ctr <- try(emmeans::contrast(emm, method = "pairwise", adjust = "none"), silent = TRUE)
     if (inherits(ctr, "try-error")) {
       return(list(test.name = "LMM", pval = ifelse(is.na(pval), NULL, round(pval, 4)), testmethod = NULL, annotation = NULL))
     }
@@ -90,7 +93,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
     if (inherits(emm, "try-error")) {
       return(list(test.name = "ANCOVA", pval = ifelse(is.na(pval), NULL, round(pval, 4)), testmethod = NULL, annotation = NULL))
     }
-    ctr <- try(emmeans::contrast(emm, method = "pairwise", adjust = p_adjust), silent = TRUE)
+    ctr <- try(emmeans::contrast(emm, method = "pairwise", adjust = "none"), silent = TRUE)
     if (inherits(ctr, "try-error")) {
       return(list(test.name = "ANCOVA", pval = ifelse(is.na(pval), NULL, round(pval, 4)), testmethod = NULL, annotation = NULL))
     }
@@ -139,7 +142,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
 }
 
 Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
-                                       paired = NULL, cutoff = 0.1, star = TRUE) {
+                                       paired = NULL, cutoff = 0.1) {
   if (is.null(stat_res$test.name)) return(p1)
 
   if (!is.null(stat_res$annotation)) {
@@ -158,8 +161,8 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
     )
   }
 
-  label_type <- if (isTRUE(star)) "p.signif" else "p.format"
-  size_val <- if (isTRUE(star)) 3 else 2
+  label_type <- "p.format"
+  size_val <- 2
 
   if (stat_res$test.name %in% c("KW", "ANOVA")) {
     if (!is.null(stat_res$pval) && stat_res$pval >= cutoff) return(p1)
@@ -169,7 +172,7 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
         method = stat_res$testmethod,
         label = label_type,
         comparisons = my_comparisons,
-        hide.ns = isTRUE(star),
+        hide.ns = FALSE,
         size = size_val
       )
     )
@@ -182,7 +185,7 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
           method = stat_res$testmethod,
           label = label_type,
           comparisons = my_comparisons,
-          hide.ns = isTRUE(star),
+          hide.ns = FALSE,
           size = size_val
         )
       )
