@@ -25,7 +25,6 @@ Go_boxplot(
   model = NULL,
   covariates = NULL,
   p_adjust = "BH",
-  star = TRUE,
   xangle = 90,
   cutoff = 0.1,
   height,
@@ -74,8 +73,6 @@ Go_boxplot(
 \item{covariates}{Optional covariate column names for adjusted models (ANCOVA/LMM).}
 
 \item{p_adjust}{P-value adjustment method for engine-based pairwise tests (e.g., "BH", "bonferroni").}
-
-\item{star}{Whether to show significance levels as stars (legacy for ggpubr engines).}
 
 \item{xangle}{Angle of x-axis labels.}
 
