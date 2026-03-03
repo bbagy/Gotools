@@ -96,6 +96,12 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
 
   if(!is.null(dev.list())) dev.off()
 
+  # Facet mode: disable x-label sample-size suffix to avoid misleading counts per facet.
+  if (has_facet(facet) && isTRUE(addnumber)) {
+    addnumber <- FALSE
+    message("facet detected: addnumber forced to FALSE")
+  }
+
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out)) dir.create(out)
@@ -189,10 +195,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
       next
     }
 
-    if (has_facet(facet)){
-      if (facet == mvar){
-        next
-      }
+    if (has_facet(facet) && mvar %in% facet) {
+      next
     }
 
     # remove Na
