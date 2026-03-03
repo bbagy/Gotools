@@ -64,6 +64,12 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
   }
   .has_any <- function(x, key) !is.null(x) && length(x) >= 1 && any(x %in% key)
 
+  # Facet mode: disable group-count suffix because counts differ by facet panel.
+  if (!is.null(facet) && length(facet) >= 1 && isTRUE(addnumber)) {
+    addnumber <- FALSE
+    message("facet detected: addnumber forced to FALSE")
+  }
+
   # permutation blocks
   .mk_perm_block <- function(id_vec, nperm = 999) {
     ok <- !is.null(id_vec)
