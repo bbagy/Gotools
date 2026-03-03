@@ -67,16 +67,15 @@ Go_psTotab <- function(psIN, project){
     otuTable <- cbind(otu,tax)
   }
 
-  write.csv(tax, quote = FALSE,col.names = NA,#row.names = FALSE,
+  write.csv(tax, quote = TRUE,col.names = NA,#row.names = FALSE,
             file=sprintf("%s/%s.%s.psTotab.tax.csv",out,project,format(Sys.Date(), "%y%m%d"), sep="/"))
 
-  write.csv(otu, quote = FALSE,col.names = NA,#row.names = FALSE,
+  write.csv(otu, quote = TRUE,col.names = NA,#row.names = FALSE,
             file=sprintf("%s/%s.%s.psTotab.asv.csv",out,project,format(Sys.Date(), "%y%m%d"), sep="/"))
 
-  write.csv(otuTable, quote = FALSE,col.names = NA,#row.names = FALSE,
+  write.csv(otuTable, quote = TRUE,col.names = NA,#row.names = FALSE,
             file=sprintf("%s/%s.%s.psTotab.asvTable.csv",out,project,format(Sys.Date(), "%y%m%d"), sep="/"))
 
 }
-
 
 
