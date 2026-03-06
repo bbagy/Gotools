@@ -13,12 +13,13 @@
 #' @param mvar Metadata variable in Phyloseq object to divide data for comparison.
 #' @param func Variable for dynamic grouping based on taxonomy or functional data ('KO', 'KO.des', 'pathway', 'path.des').
 #' @param wilcox.p Cutoff for the p-value from the Wilcoxon test to determine statistical significance.
+#' @param transform Normalization/transformation method. One of "clr", "relative", "tss".
+#' @param p_adjust_method Multiple-testing correction method passed to \code{stats::p.adjust}.
+#' @param use_adjusted_p Logical; if TRUE, filter/significance uses adjusted p-values (q-values).
 #' @param height Height of the output plot in inches.
 #' @param width Width of the output plot in inches.
 #'
-#' @return Generates a PDF file containing the extended bar plot visualizing differences
-#' between groups along with overlaid statistical significance. The function outputs
-#' the modified data with significance levels and confidence intervals as well.
+#' @return Invisibly returns a list containing plot object, Wilcoxon table, and plotted data.
 #'
 #' @details
 #' The function preprocesses the data to perform normalization transformations such as
@@ -51,98 +52,112 @@ Go_extendedBarplot <- function(psIN,
                                mvar,
                                func, #  "KO", "KO.des", "pathway", "path.des"
                                wilcox.p = 0.05,
+                               transform = c("clr", "relative", "tss"),
+                               p_adjust_method = "BH",
+                               use_adjusted_p = TRUE,
                                height,
                                width){
-
-  library(phyloseq)
-  library(dplyr)
-  library(ggplot2)
-  library(tidyr)
-  library(rlang)
 
   if(!is.null(dev.list())) dev.off()
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!file_test("-d", out)) dir.create(out, recursive = TRUE)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!file_test("-d", out_path)) dir.create(out_path, recursive = TRUE)
+  out_table_path <- file.path(sprintf("%s_%s/table/extendedBarplot",project, format(Sys.Date(), "%y%m%d")))
+  if(!file_test("-d", out_table_path)) dir.create(out_table_path, recursive = TRUE)
 
   # input
 
-  map <- data.frame(sample_data(psIN))
+  map <- data.frame(phyloseq::sample_data(psIN))
   if(!mvar %in% names(map)) {
     stop("mvar is not a valid column in the sample data.")
   }
-
-  # ps1.sel <- subset_samples(psIN, map[[mvar]] %in% c(group1, group2)) # it doesn't work.
-  # ps1.sel <- subset_samples(psIN, get_variable(psIN, mvar) %in% c(group1, group2))
-  # ps1.sel <- subset_samples(psIN, map[,mvar] %in% c(group1,group2));ps1.sel
-
-  # Manually define a logical condition function
-  manual_in <- function(x, y) {
-    sapply(x, function(xi) any(xi == y))
+  if (!group1 %in% map[[mvar]] || !group2 %in% map[[mvar]]) {
+    stop("group1/group2 are not both present in sample_data(psIN)[[mvar]].")
+  }
+  if (!is.numeric(wilcox.p) || length(wilcox.p) != 1 || wilcox.p <= 0 || wilcox.p >= 1) {
+    stop("wilcox.p must be a single numeric value between 0 and 1.")
+  }
+  if (!is.numeric(height) || !is.numeric(width) || height <= 0 || width <= 0) {
+    stop("height and width must be positive numeric values.")
   }
 
-  # Apply this in the subset_samples context
-  samples_to_keep <- manual_in(sample_data(psIN)[[mvar]], c(group1, group2))
-  ps1.sel <- prune_samples(samples_to_keep, psIN)
+  p_adjust_method <- match.arg(
+    p_adjust_method,
+    c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none")
+  )
+
+  # Keep only the two groups to compare.
+  samples_to_keep <- phyloseq::sample_data(psIN)[[mvar]] %in% c(group1, group2)
+  if (sum(samples_to_keep, na.rm = TRUE) < 4) {
+    stop("Not enough samples after filtering to group1/group2.")
+  }
+  ps1.sel <- phyloseq::prune_samples(samples_to_keep, psIN)
 
 
-  df <- psmelt(ps1.sel)
+  df <- phyloseq::psmelt(ps1.sel)
+  if (!func %in% names(df)) {
+    stop(sprintf("func '%s' is not a valid column in psmelt(psIN).", func))
+  }
+  if (!mvar %in% names(df)) {
+    stop(sprintf("mvar '%s' is not found in psmelt(psIN).", mvar))
+  }
 
-  #===TSS
-  df_top_norm <- df %>%
-    dplyr::group_by(Sample) %>%
-    dplyr::mutate(Abundance = Abundance / sum(Abundance) * 1e6)
+  transform <- match.arg(transform)
 
-  head(df_top_norm$Abundance)
-
-  #===relative
-  df_top_norm <- df %>%
-    dplyr::group_by(Sample) %>%
-    dplyr::mutate(Abundance = Abundance / sum(Abundance))
-
-
-
-  #==== Centered Log Ratio (CLR) transformation
-  df_top_norm <- df %>%
-    dplyr::group_by(Sample) %>%
-    dplyr::mutate(
-      Log_Abundance = log(Abundance + 1),
-      Geometric_Mean = exp(mean(Log_Abundance)),
-      Abundance = Log_Abundance - log(Geometric_Mean)
-    )
-  head(df_top_norm)
+  if (transform == "tss") {
+    df_top_norm <- df %>%
+      dplyr::group_by(Sample) %>%
+      dplyr::mutate(Abundance = Abundance / sum(Abundance, na.rm = TRUE) * 1e6) %>%
+      dplyr::ungroup()
+  } else if (transform == "relative") {
+    df_top_norm <- df %>%
+      dplyr::group_by(Sample) %>%
+      dplyr::mutate(Abundance = Abundance / sum(Abundance, na.rm = TRUE)) %>%
+      dplyr::ungroup()
+  } else if (transform == "clr") {
+    df_top_norm <- df %>%
+      dplyr::group_by(Sample) %>%
+      dplyr::mutate(
+        Rel_Abundance = (Abundance + 1) / sum(Abundance + 1, na.rm = TRUE),
+        Log_Abundance = log(Rel_Abundance),
+        Abundance = Log_Abundance - mean(Log_Abundance, na.rm = TRUE)
+      ) %>%
+      dplyr::ungroup()
+  }
 
 
 
   #===== wilcox test
-  if(func == "pathway" | func == "path.des"){
-    func1 <- "pathway"
-    func2 <- "path.des"
-  } else if(func == "KO" | func == "KO.des"){
-    func1 <- "KO"
-    func2 <- "KO.des"
-  } else if(func == "EC"){
-    func1 <- "KO"
-    func2 <- "EC"
-  }else if(func == "ec_number"){
-    func1 <- "KO"
-    func2 <- "ec_number"
-  } else if(func == "Function"){
-    func1 <- "Function"
+  func_map <- list(
+    pathway = c("pathway", "path.des"),
+    path.des = c("pathway", "path.des"),
+    KO = c("KO", "KO.des"),
+    KO.des = c("KO", "KO.des"),
+    EC = c("KO", "EC"),
+    ec_number = c("KO", "ec_number"),
+    Function = c("Function", NA_character_)
+  )
+
+  if (!func %in% names(func_map)) {
+    stop("func must be one of: pathway, path.des, KO, KO.des, EC, ec_number, Function")
+  }
+  func1 <- func_map[[func]][1]
+  func2 <- func_map[[func]][2]
+  if (!is.na(func2) && !func2 %in% names(df_top_norm)) {
+    func2 <- NULL
   }
 
   # Function to perform Wilcoxon tests with dynamic group names
   perform_wilcox_test <- function(data, group1, group2, func1, func2 = NULL, mvar) {
-    # 그룹화 대상: func1만 사용
     grouped <- data %>%
-      dplyr::group_by(!!sym(func1)) %>%
+      dplyr::group_by(!!rlang::sym(func1)) %>%
       dplyr::summarise(
-        list_group1 = list(Abundance[get(mvar) == group1]),
-        list_group2 = list(Abundance[get(mvar) == group2]),
-        count_group1 = length(Abundance[get(mvar) == group1]),
-        count_group2 = length(Abundance[get(mvar) == group2]),
+        list_group1 = list(Abundance[.data[[mvar]] == group1]),
+        list_group2 = list(Abundance[.data[[mvar]] == group2]),
+        count_group1 = length(Abundance[.data[[mvar]] == group1]),
+        count_group2 = length(Abundance[.data[[mvar]] == group2]),
         .groups = 'drop'
       ) %>%
       rowwise() %>%
@@ -155,46 +170,36 @@ Go_extendedBarplot <- function(psIN,
       ) %>%
       ungroup()
 
-    # 2. func2가 주어졌다면 description 붙이기
-    if (!is.null(func2) && func2 != func1) {
-      desc_df <- data %>% select(!!sym(func1), !!sym(func2)) %>% distinct()
-      grouped <- left_join(grouped, desc_df, by = func1)
+    grouped <- grouped %>%
+      dplyr::mutate(p_adj = stats::p.adjust(p_value, method = p_adjust_method))
+
+    if (!is.null(func2) && !is.na(func2) && func2 != func1) {
+      desc_df <- data %>% dplyr::select(!!rlang::sym(func1), !!rlang::sym(func2)) %>% dplyr::distinct()
+      grouped <- dplyr::left_join(grouped, desc_df, by = func1)
     }
 
-    # 결과 정리
-    if (!is.null(func2) && func2 != func1) {
-      grouped %>% select(!!sym(func1), !!sym(func2), p_value, count_group1, count_group2)
+    if (!is.null(func2) && !is.na(func2) && func2 != func1) {
+      grouped %>% dplyr::select(!!rlang::sym(func1), !!rlang::sym(func2), p_value, p_adj, count_group1, count_group2)
     } else {
-      grouped %>% select(!!sym(func1), p_value, count_group1, count_group2)
+      grouped %>% dplyr::select(!!rlang::sym(func1), p_value, p_adj, count_group1, count_group2)
     }
   }
 
-  # Example usage
   wilcox_results <- perform_wilcox_test(df_top_norm, group1, group2,func1, func2, mvar)
 
-  # Print results to debug
-  print(wilcox_results)
-
-
-
-
-
-  #===== calculate confidance interval
-
-  # Function to perform Wilcoxon tests with dynamic group names
+  #===== calculate quantile interval
   df_summary <- df_top_norm %>%
     dplyr::group_by(!!rlang::sym(func), !!rlang::sym(mvar)) %>%
     dplyr::summarise(
       Mean_Abundance = mean(Abundance, na.rm = TRUE),
-      Lower_CI = quantile(Abundance, probs = 0.025),
-      Upper_CI = quantile(Abundance, probs = 0.975),
+      Lower_CI = quantile(Abundance, probs = 0.025, na.rm = TRUE),
+      Upper_CI = quantile(Abundance, probs = 0.975, na.rm = TRUE),
       .groups = 'drop'
     )
 
 
-  #===== table transform
   df_wide <- df_summary %>%
-    pivot_wider(
+    tidyr::pivot_wider(
       names_from = !!rlang::sym(mvar),
       values_from = c(Mean_Abundance, Lower_CI, Upper_CI),
       names_sep = "_"
@@ -216,8 +221,18 @@ Go_extendedBarplot <- function(psIN,
       Diff_Upper = !!rlang::sym(upper_col_group1) - !!rlang::sym(lower_col_group2)
     )
 
+  df_wide <- df_wide %>%
+    dplyr::filter(
+      !is.na(!!rlang::sym(mean_col_group1)),
+      !is.na(!!rlang::sym(mean_col_group2))
+    )
+
+  if (nrow(df_wide) == 0) {
+    stop("No comparable features found for both groups after aggregation.")
+  }
+
   data_long <- df_wide %>%
-    pivot_longer(
+    tidyr::pivot_longer(
       cols = c(
         paste("Mean_Abundance_", group1, sep = ""),
         paste("Mean_Abundance_", group2, sep = ""),
@@ -230,82 +245,99 @@ Go_extendedBarplot <- function(psIN,
       names_pattern = sprintf("(.+)_(%s|%s)$", group1, group2)
     )
 
-  colnames(data_long)
-
-
   data_long <- data_long %>%
-    dplyr::group_by(!!rlang::sym(func)) %>%
-    dplyr::mutate(Higher_Group = ifelse(Mean_Abundance[!!rlang::sym(mvar) == group1] > Mean_Abundance[!!rlang::sym(mvar) == group2], group1, group2)) %>%
+    dplyr::mutate(
+      Higher_Group = ifelse(Diff_Mean >= 0, group1, group2)
+    ) %>%
     ungroup()
 
+  ordered_feature <- df_wide %>%
+    dplyr::arrange(Diff_Mean) %>%
+    dplyr::pull(!!rlang::sym(func))
+  data_long$Reordered_Category <- factor(data_long[[func]], levels = unique(ordered_feature))
 
-  data_long$Reordered_Category <- reorder(data_long[[func]], data_long$Diff_Mean)
 
-
-  # Update 'data_long' to include a 'Panel' column for bar plots
-  data_long$Panel <- "Difference Mean with CI"  # for points and their error bars
-  # Create a separate data frame for the points and error bars
+  data_long$Panel <- "Difference Mean with CI"
   point_data <- data_long
-  point_data$Panel <- "Mean Proportion"  # for bar plots and their error bars
+  point_data$Panel <- "Mean Proportion"
 
   pvalue_data <- data_long
-  pvalue_data$Panel <- "p_value"
+  pvalue_panel_label <- if (isTRUE(use_adjusted_p) && p_adjust_method == "BH") {
+    "BH-adjusted q_value"
+  } else if (isTRUE(use_adjusted_p)) {
+    sprintf("Adjusted q_value (%s)", p_adjust_method)
+  } else {
+    "p_value"
+  }
+  pvalue_data$Panel <- pvalue_panel_label
 
-  # Combine the data for plotting
   plot_data <- rbind(data_long, point_data,pvalue_data)
 
-  # Ensure that the Panel factor has the intended order
-  plot_data$Panel <- factor(plot_data$Panel, levels = c("Mean Proportion", "Difference Mean with CI","p_value"))
+  plot_data$Panel <- factor(plot_data$Panel, levels = c("Mean Proportion", "Difference Mean with CI", pvalue_panel_label))
+
+  join_col <- if (func %in% names(wilcox_results)) func else func1
+  merged_data <- dplyr::left_join(plot_data, wilcox_results, by = setNames(join_col, join_col))
+
+  filter_col <- if (isTRUE(use_adjusted_p)) "p_adj" else "p_value"
+  merged_data.sig <- merged_data %>%
+    dplyr::filter(!is.na(.data[[filter_col]]) & .data[[filter_col]] < wilcox.p)
+  merged_data.sig$stat_label <- if (isTRUE(use_adjusted_p)) {
+    sprintf("q = %.3f", merged_data.sig$p_adj)
+  } else {
+    sprintf("p = %.3f", merged_data.sig$p_value)
+  }
+
+  if (nrow(merged_data.sig) == 0) {
+    message(sprintf("No feature passed %s < %.3f.", filter_col, wilcox.p))
+  }
+
+  merged_data.sig[[mvar]] <- factor(merged_data.sig[[mvar]] , levels = c(group1, group2))
 
 
-  colnames(plot_data)
-  head(wilcox_results)
+  # Save result tables for reproducibility.
+  utils::write.csv(
+    wilcox_results,
+    file.path(out_table_path,
+              sprintf("wilcox.%s.vs.%s.%s.%s.csv", group1, group2, project, format(Sys.Date(), "%y%m%d"))),
+    row.names = FALSE
+  )
+  utils::write.csv(
+    merged_data.sig,
+    file.path(out_table_path,
+              sprintf("plot_data_sig.%s.vs.%s.%s.%s.csv", group1, group2, project, format(Sys.Date(), "%y%m%d"))),
+    row.names = FALSE
+  )
 
+  if (nrow(merged_data.sig) > 0) {
+    p <- ggplot2::ggplot(merged_data.sig, ggplot2::aes_string(x = "Reordered_Category", y = "Mean_Abundance", fill = mvar))
 
+    p1 <- p + ggplot2::geom_bar(data = subset(merged_data.sig, Panel == "Mean Proportion"),
+                                stat = "identity", position = ggplot2::position_dodge(width = 0.7), width = 0.6)
 
-  # Assuming wilcox_results and plot_data are already created and they share common identifiers 'pathway' and 'path.des'
-  merged_data <- dplyr::left_join(plot_data, wilcox_results, by = c(func))
+    p2 <- p1 + ggplot2::geom_point(data = subset(merged_data.sig, Panel == "Difference Mean with CI"),
+                                   ggplot2::aes_string(x = "Reordered_Category", y = "Diff_Mean", group = mvar, fill = "Higher_Group"),
+                                   size = 3, shape = 23) +
+      ggplot2::geom_errorbar(data = subset(merged_data.sig, Panel == "Difference Mean with CI"),
+                             ggplot2::aes_string(ymin = "Diff_Lower", ymax = "Diff_Upper", group = mvar), width = 0.25)
 
-  merged_data.sig <- subset(merged_data, p_value < wilcox.p);dim(merged_data.sig)
+    p3 <- p2 + ggplot2::geom_text(data = subset(merged_data.sig, Panel == pvalue_panel_label),
+                                  ggplot2::aes(x = Reordered_Category, y = 0, label = stat_label),
+                                  hjust = 0, vjust = 0, inherit.aes = FALSE, size = 3, color= "darkgrey")
 
-
-  merged_data.sig[mvar] <- factor(merged_data.sig[[mvar]] , levels = c(group1, group2))
-
-
-
-  # Plotting
-  p <- ggplot(merged_data.sig, aes_string(x = "Reordered_Category", y = "Mean_Abundance", fill = mvar))
-
-
-
-  p1 <- p + geom_bar(data = subset(merged_data.sig, Panel == "Mean Proportion"),
-                     stat = "identity", position = position_dodge(width = 0.7), width = 0.6)
-   # geom_errorbar(data = subset(merged_data.sig, Panel == "Proportion with CI"),
-   #                aes_string(ymin = "Lower_CI", ymax = "Upper_CI", group = mvar),
-   #               position = position_dodge(width = 0.7), width = 0.25)
-
-
-  p2 <- p1 + geom_point(data = subset(merged_data.sig, Panel == "Difference Mean with CI"),
-                        aes_string(x = "Reordered_Category", y = "Diff_Mean", group = mvar, fill = "Higher_Group"),
-                        size = 3, shape = 23) +
-    geom_errorbar(data = subset(merged_data.sig, Panel == "Difference Mean with CI"),
-                  aes_string(ymin = "Diff_Lower", ymax = "Diff_Upper", group = mvar), width = 0.25)
-
-
-  # Adjusting the geom_text for p-values
-  p3 <- p2 + geom_text(data = subset(merged_data.sig, Panel == "p_value"),
-                       aes(x = Reordered_Category, y = 0, label = sprintf("p = %.3f", p_value)),
-                       hjust = 0, vjust = 0, inherit.aes = FALSE, size = 3, color= "darkgrey")
-
-  # Print the final plot with p-values
-
-  p4 <- p3 + facet_grid(. ~ Panel, scales = "free_x") + #space "free_x"
-    coord_flip() +
-    scale_fill_manual(values = c("blue", "orange")) +
-    labs(x = func, y = NULL, fill = "Group") +
-    theme_minimal() +
-    theme(legend.position = "bottom",
-          legend.title = element_blank())
+    p4 <- p3 + ggplot2::facet_grid(. ~ Panel, scales = "free_x") +
+      ggplot2::coord_flip() +
+      ggplot2::scale_fill_manual(values = c("blue", "orange")) +
+      ggplot2::labs(x = func, y = NULL, fill = "Group") +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(legend.position = "bottom",
+                     legend.title = ggplot2::element_blank())
+  } else {
+    p4 <- ggplot2::ggplot() +
+      ggplot2::annotate("text", x = 0, y = 0,
+                        label = sprintf("No feature passed %s < %.3f", filter_col, wilcox.p),
+                        size = 4) +
+      ggplot2::theme_void()
+  }
 
 
 
@@ -319,7 +351,13 @@ Go_extendedBarplot <- function(psIN,
   print(p4)
 
   dev.off()
-  #return(merged_data.sig)
+  message("Recommendation: Use dedicated DA methods (e.g., ALDEx2, ANCOM-BC2, MaAsLin2) for primary statistical inference.")
+  invisible(list(
+    plot = p4,
+    wilcox_results = wilcox_results,
+    merged_data_significant = merged_data.sig,
+    transform = transform,
+    p_adjust_method = p_adjust_method,
+    use_adjusted_p = use_adjusted_p
+  ))
 }
-
-
