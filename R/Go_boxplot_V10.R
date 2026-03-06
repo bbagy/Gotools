@@ -63,6 +63,23 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                        height, width, plotCols, plotRows){
 
   has_facet <- function(x) !is.null(x) && length(x) >= 1
+  resolve_level_order <- function(values, orders) {
+    vals_chr <- as.character(values)
+    uniq_vals <- unique(vals_chr)
+    if (is.null(orders) || length(orders) == 0) return(uniq_vals)
+
+    ord_chr <- as.character(orders)
+    exact <- intersect(ord_chr, uniq_vals)
+
+    # case-insensitive fallback so "Control"/"control" still follows requested order
+    remain <- setdiff(uniq_vals, exact)
+    if (length(remain) > 0) {
+      ord_idx <- match(tolower(ord_chr), tolower(remain))
+      ci <- remain[ord_idx[!is.na(ord_idx)]]
+      exact <- c(exact, ci)
+    }
+    c(exact, setdiff(uniq_vals, exact))
+  }
   build_comparisons <- function(cbn_mat) {
     comparisons <- vector("list", ncol(cbn_mat))
     for (idx in seq_len(ncol(cbn_mat))) {
@@ -291,7 +308,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               df.cbn.sel <- df.cbn[!is.na(df.cbn[,fc]), ]
               df.cbn <- df.cbn.sel
               # facet or not
-              df.cbn[,fc] <- factor(df.cbn[,fc], levels = orders)
+              fc_levels <- resolve_level_order(df.cbn[,fc], orders)
+              df.cbn[,fc] <- factor(df.cbn[,fc], levels = fc_levels)
             }
           }
 
@@ -439,7 +457,8 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             df.na.sel <- df.na[!is.na(df.na[,fc]), ]
             df.na <- df.na.sel
             # facet or not
-            df.na[,fc] <- factor(df.na[,fc], levels = orders)
+            fc_levels <- resolve_level_order(df.na[,fc], orders)
+            df.na[,fc] <- factor(df.na[,fc], levels = fc_levels)
           }
         }
 
