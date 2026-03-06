@@ -20,6 +20,7 @@
 #' @param height Height of the plot.
 #' @param width Width of the plot.
 #' @param strata_var (NEW) Column name to use as permutation blocks for PERMANOVA.
+#' @param p_adjust P-value adjustment method for PERMANOVA labels (e.g., "BH", "bonferroni").
 #'
 #' @return PDF(s) and CSV tables on disk.
 #' @export
@@ -37,7 +38,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                     name=NULL,
                     addnumber=TRUE,
                     height, width,
-                    strata_var = NULL) {
+                    strata_var = NULL,
+                    p_adjust = "BH") {
 
   if(!is.null(dev.list())) dev.off()
 
@@ -63,6 +65,31 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     factor(x, levels = keep)
   }
   .has_any <- function(x, key) !is.null(x) && length(x) >= 1 && any(x %in% key)
+  .adj_label <- function(method) {
+    if (tolower(as.character(method)) == "bh") "FDR(BH)" else sprintf("Adj(%s)", method)
+  }
+  .axis_percent <- function(ordi_obj) {
+    # Prefer relative eigenvalues when available.
+    rel <- try(ordi_obj$values$Relative_eig, silent = TRUE)
+    if (!inherits(rel, "try-error") && !is.null(rel) && length(rel) >= 2) {
+      return(as.numeric(rel[1:2]) * 100)
+    }
+
+    eig <- try(ordi_obj$values$Eigenvalues, silent = TRUE)
+    if (inherits(eig, "try-error") || is.null(eig)) return(c(NA_real_, NA_real_))
+    eig <- as.numeric(eig)
+    if (length(eig) < 2 || all(is.na(eig))) return(c(NA_real_, NA_real_))
+
+    # PCoA can include negative eigenvalues; use positive-only denominator.
+    den <- sum(eig[eig > 0], na.rm = TRUE)
+    if (!is.finite(den) || den <= 0) {
+      den <- sum(abs(eig), na.rm = TRUE)
+    }
+    if (!is.finite(den) || den <= 0) return(c(NA_real_, NA_real_))
+
+    pct <- pmax(eig[1:2], 0) / den * 100
+    as.numeric(pct)
+  }
 
   # Facet mode: disable group-count suffix because counts differ by facet panel.
   if (!is.null(facet) && length(facet) >= 1 && isTRUE(addnumber)) {
@@ -81,6 +108,15 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     ctrl <- permute::how(blocks = id_vec)
     permute::setNperm(ctrl) <- nperm
     ctrl
+  }
+
+  .perm_model_vars <- function(mvar, cate.conf, strata_var = NULL) {
+    conf_vars <- if (!is.null(cate.conf) && length(cate.conf) > 0) {
+      setdiff(cate.conf, "SampleType")
+    } else {
+      character(0)
+    }
+    unique(c(mvar, conf_vars, strata_var))
   }
 
   # facet 있을 때: facet별 PERMANOVA + 코너 고정 주석
@@ -102,11 +138,22 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
       }
       ps_sub <- phyloseq::prune_samples(base::rownames(map_sub), ps_obj)
 
+      map_sub2 <- base::data.frame(phyloseq::sample_data(ps_sub))
+      model_vars <- .perm_model_vars(mvar, cate.conf, strata_var)
+      model_vars <- intersect(model_vars, names(map_sub2))
+      if (length(model_vars) > 0) {
+        keep <- stats::complete.cases(map_sub2[, model_vars, drop = FALSE])
+        map_sub2 <- map_sub2[keep, , drop = FALSE]
+      }
+      if (base::nrow(map_sub2) < 3 || base::length(base::unique(map_sub2[[mvar]])) < 2) {
+        return(base::data.frame(facet_val = flv, R2 = NA_real_, p = NA_real_))
+      }
+
+      ps_sub <- phyloseq::prune_samples(base::rownames(map_sub2), ps_sub)
       dist_list <- Go_dist(psIN = ps_sub, project = project, name = name,
                            cate.vars = mvar, distance_metrics = distance_metric)
       x <- stats::as.dist(dist_list[[distance_metric]])
 
-      map_sub2 <- base::data.frame(phyloseq::sample_data(ps_sub))
       perm <- 999
       if (!is.null(strata_var) && strata_var %in% names(map_sub2)) {
         perm <- .mk_perm_block(map_sub2[[strata_var]], nperm = 999)
@@ -140,15 +187,16 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     })
 
     stat_df <- dplyr::bind_rows(stat_list)
-    stat_df$padj <- stats::p.adjust(stat_df$p, method = "bonferroni")
+    stat_df$padj <- stats::p.adjust(stat_df$p, method = p_adjust)
 
     ann_df <- dplyr::mutate(
       stat_df,
       label = base::sprintf(
-        "%-12s\n%-12s\n%-12s",
+        "%-12s\n%-12s\n%-18s\n%-18s",
         distance_metric,
         base::paste0("R2=", base::formatC(R2, format="f", digits=3)),
-        base::paste0("PERMANOVA p=", base::formatC(padj, format="f", digits=3))
+        base::paste0("PERMANOVA p=", base::formatC(p, format="f", digits=3)),
+        base::paste0(.adj_label(p_adjust), "=", base::formatC(padj, format="f", digits=3))
       ),
       x = -Inf,
       y = -Inf
@@ -219,10 +267,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
           plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
             ordi = ordinate(psIN.na, method=i, distance=distance_metric)
             df = as.data.frame(ordi$vectors[, 1:2]); colnames(df) = c("Axis_1", "Axis_2")
-            if ("Eigenvalues" %in% names(ordi$values)) {
-              var_explained = ordi$values$Eigenvalues / sum(ordi$values$Eigenvalues) * 100
-              df$Axis1_Percent = var_explained[1]; df$Axis2_Percent = var_explained[2]
-            }
+            var_explained <- .axis_percent(ordi)
+            df$Axis1_Percent = var_explained[1]; df$Axis2_Percent = var_explained[2]
             metadata = as.data.frame(sample_data(psIN.na))
             cbind(df, metadata)
           }, psIN.cbn.na, distance_metric)
@@ -301,7 +347,21 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               x1 <- as.matrix(x)[factors %in% unique(factors), factors %in% unique(factors)]
               map.pair <- subset(mapping.sel.na.rem, mapping.sel.na.rem[,mvar] %in% unique(factors))
 
-              perm_use <- perm_global
+              model_vars <- .perm_model_vars(mvar, cate.conf, strata_var)
+              model_vars <- intersect(model_vars, names(map.pair))
+              if (length(model_vars) > 0) {
+                keep <- stats::complete.cases(map.pair[, model_vars, drop = FALSE])
+                map.pair <- map.pair[keep, , drop = FALSE]
+              }
+              if (nrow(map.pair) < 3 || length(unique(map.pair[, mvar])) < 2) {
+                next
+              }
+              x1 <- as.matrix(x)[rownames(map.pair), rownames(map.pair), drop = FALSE]
+
+              perm_use <- 999
+              if (!is.null(strata_var) && strata_var %in% names(map.pair)) {
+                perm_use <- .mk_perm_block(map.pair[[strata_var]], nperm = 999)
+              }
 
               if (!is.null(cate.conf) && length(cate.conf)>0) {
                 for(conf in cate.conf) map.pair[,conf] <- factor(map.pair[,conf])
@@ -311,6 +371,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               }
               ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
               R2 <- round(ad[1,3], 3); p_perm <- ad[1,5]
+              p_perm_adj <- stats::p.adjust(p_perm, method = p_adjust)[1]
 
               # SAVE non-facet PERMANOVA table   # <<< NEW
               fn <- file.path(
@@ -324,10 +385,11 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               ann_df <- data.frame(
                 x = -Inf,
                 y = -Inf,
-                label = sprintf("%-12s\n%-12s\n%-12s",
+                label = sprintf("%-12s\n%-12s\n%-18s\n%-18s",
                                 distance_metric,
                                 paste0("R2=", formatC(R2, format="f", digits=3)),
-                                paste0("PERMANOVA p=", formatC(p_perm, format="f", digits=3)))
+                                paste0("PERMANOVA p=", formatC(p_perm, format="f", digits=3)),
+                                paste0(.adj_label(p_adjust), "=", formatC(p_perm_adj, format="f", digits=3)))
               )
               p <- p + ggplot2::geom_text(
                 data = ann_df,
@@ -383,10 +445,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
           ordi = ordinate(psIN.na, method=i, distance=distance_metric)
           df = as.data.frame(ordi$vectors[, 1:2]); colnames(df) = c("Axis_1", "Axis_2")
-          if ("Eigenvalues" %in% names(ordi$values)) {
-            var_explained = ordi$values$Eigenvalues / sum(ordi$values$Eigenvalues) * 100
-            df$Axis1_Percent = var_explained[1]; df$Axis2_Percent = var_explained[2]
-          }
+          var_explained <- .axis_percent(ordi)
+          df$Axis1_Percent = var_explained[1]; df$Axis2_Percent = var_explained[2]
           metadata = as.data.frame(sample_data(psIN.na))
           cbind(df, metadata)
         }, psIN.na, distance_metric)
@@ -465,7 +525,21 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
             x1 <- as.matrix(x)[factors %in% unique(factors), factors %in% unique(factors)]
             map.pair <- subset(mapping.sel.na.rem, mapping.sel.na.rem[,mvar] %in% unique(factors))
 
-            perm_use <- perm_global
+            model_vars <- .perm_model_vars(mvar, cate.conf, strata_var)
+            model_vars <- intersect(model_vars, names(map.pair))
+            if (length(model_vars) > 0) {
+              keep <- stats::complete.cases(map.pair[, model_vars, drop = FALSE])
+              map.pair <- map.pair[keep, , drop = FALSE]
+            }
+            if (nrow(map.pair) < 3 || length(unique(map.pair[, mvar])) < 2) {
+              next
+            }
+            x1 <- as.matrix(x)[rownames(map.pair), rownames(map.pair), drop = FALSE]
+
+            perm_use <- 999
+            if (!is.null(strata_var) && strata_var %in% names(map.pair)) {
+              perm_use <- .mk_perm_block(map.pair[[strata_var]], nperm = 999)
+            }
 
             if (!is.null(cate.conf) && length(cate.conf)>0) {
               for(conf in cate.conf) map.pair[,conf] <- factor(map.pair[,conf])
@@ -475,6 +549,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
             }
             ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
             R2 <- round(ad[1,3], 3); p_perm <- ad[1,5]
+            p_perm_adj <- stats::p.adjust(p_perm, method = p_adjust)[1]
 
             # SAVE non-facet PERMANOVA table   # <<< NEW
             fn <- file.path(
@@ -489,10 +564,12 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               x = -Inf,
               y = -Inf,
               label = sprintf(
-                "%s\nR2=%.3f\nPERMANOVA p=%.3f",
+                "%s\nR2=%.3f\nPERMANOVA p=%.3f\n%s=%.3f",
                 distance_metric,
                 R2,
-                p_perm
+                p_perm,
+                .adj_label(p_adjust),
+                p_perm_adj
               ),
               stringsAsFactors = FALSE
             )
