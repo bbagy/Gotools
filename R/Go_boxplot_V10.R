@@ -133,7 +133,9 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
   has_covariates <- !is.null(covariates) && length(covariates) > 0
   model_is_auto <- is.null(model)
   resolved_model <- if (model_is_auto) {
-    if (has_covariates) {
+    if (!is.null(paired)) {
+      "lmm"
+    } else if (has_covariates) {
       "parametric"
     } else if (isTRUE(parametric)) {
       "parametric"
@@ -301,10 +303,11 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               mvar = mvar,
               oc = oc,
               comparisons = my_comparisons,
-              model = model,
+              model = resolved_model,
               parametric = parametric,
               covariates = covariates,
               paired = paired,
+              facet = facet,
               p_adjust = p_adjust
             )
             test.name <- stat_res$test.name
@@ -448,10 +451,11 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             mvar = mvar,
             oc = oc,
             comparisons = my_comparisons,
-            model = model,
+            model = resolved_model,
             parametric = parametric,
             covariates = covariates,
             paired = paired,
+            facet = facet,
             p_adjust = p_adjust
           )
           test.name <- stat_res$test.name
