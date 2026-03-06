@@ -172,7 +172,13 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
     sub_res <- compute_single(dat_sub)
     if (!is.null(sub_res$annotation) && nrow(sub_res$annotation) > 0) {
       for (fc in facet_vars) {
-        sub_res$annotation[[fc]] <- as.character(dat_sub[[fc]][1])
+        fc_levels <- levels(dat[[fc]])
+        fc_value <- as.character(dat_sub[[fc]][1])
+        if (is.null(fc_levels)) {
+          sub_res$annotation[[fc]] <- fc_value
+        } else {
+          sub_res$annotation[[fc]] <- factor(fc_value, levels = fc_levels)
+        }
       }
     }
     res_list[[length(res_list) + 1]] <- sub_res
