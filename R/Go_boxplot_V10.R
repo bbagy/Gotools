@@ -63,22 +63,20 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
                        height, width, plotCols, plotRows){
 
   has_facet <- function(x) !is.null(x) && length(x) >= 1
-  resolve_level_order <- function(values, orders) {
-    vals_chr <- as.character(values)
-    uniq_vals <- unique(vals_chr)
-    if (is.null(orders) || length(orders) == 0) return(uniq_vals)
-
-    ord_chr <- as.character(orders)
-    exact <- intersect(ord_chr, uniq_vals)
-
-    # case-insensitive fallback so "Control"/"control" still follows requested order
-    remain <- setdiff(uniq_vals, exact)
-    if (length(remain) > 0) {
-      ord_idx <- match(tolower(ord_chr), tolower(remain))
-      ci <- remain[ord_idx[!is.na(ord_idx)]]
-      exact <- c(exact, ci)
+  coerce_to_ordered_factor <- function(x, orders, var_name = "variable") {
+    x_chr <- as.character(x)
+    if (is.null(orders) || length(orders) == 0) {
+      return(factor(x_chr))
     }
-    c(exact, setdiff(uniq_vals, exact))
+    ord_chr <- as.character(orders)
+    bad_levels <- setdiff(unique(x_chr), ord_chr)
+    if (length(bad_levels) > 0) {
+      stop(sprintf(
+        "`%s` has levels not present in `orders`: %s",
+        var_name, paste(bad_levels, collapse = ", ")
+      ))
+    }
+    factor(x_chr, levels = intersect(ord_chr, x_chr))
   }
   build_comparisons <- function(cbn_mat) {
     comparisons <- vector("list", ncol(cbn_mat))
@@ -226,7 +224,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
     df.na <- subset(df, df[,mvar] != "NA");df.na[,mvar]  # subset 를 사용한 NA 삭제
     df.na[,mvar] <- as.factor(df.na[,mvar]);df.na[,mvar]
 
-    df.na[,mvar] <- factor(df.na[,mvar], levels = intersect(orders, df.na[,mvar]))
+    df.na[,mvar] <- coerce_to_ordered_factor(df.na[,mvar], orders, var_name = mvar)
 
 
     # Add number of samples in the group
@@ -308,8 +306,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
               df.cbn.sel <- df.cbn[!is.na(df.cbn[,fc]), ]
               df.cbn <- df.cbn.sel
               # facet or not
-              fc_levels <- resolve_level_order(df.cbn[,fc], orders)
-              df.cbn[,fc] <- factor(df.cbn[,fc], levels = fc_levels)
+              df.cbn[,fc] <- coerce_to_ordered_factor(df.cbn[,fc], orders, var_name = fc)
             }
           }
 
@@ -457,8 +454,7 @@ Go_boxplot <- function(df, cate.vars, project, outcomes,
             df.na.sel <- df.na[!is.na(df.na[,fc]), ]
             df.na <- df.na.sel
             # facet or not
-            fc_levels <- resolve_level_order(df.na[,fc], orders)
-            df.na[,fc] <- factor(df.na[,fc], levels = fc_levels)
+            df.na[,fc] <- coerce_to_ordered_factor(df.na[,fc], orders, var_name = fc)
           }
         }
 
