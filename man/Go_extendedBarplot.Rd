@@ -13,6 +13,9 @@ Go_extendedBarplot(
   mvar,
   func,
   wilcox.p = 0.05,
+  transform = c("clr", "relative", "tss"),
+  p_adjust_method = "BH",
+  use_adjusted_p = TRUE,
   height,
   width
 )
@@ -34,14 +37,18 @@ Go_extendedBarplot(
 
 \item{wilcox.p}{Cutoff for the p-value from the Wilcoxon test to determine statistical significance.}
 
+\item{transform}{Normalization/transformation method. One of "clr", "relative", "tss".}
+
+\item{p_adjust_method}{Multiple-testing correction method passed to \code{stats::p.adjust}.}
+
+\item{use_adjusted_p}{Logical; if TRUE, filter/significance uses adjusted p-values (q-values).}
+
 \item{height}{Height of the output plot in inches.}
 
 \item{width}{Width of the output plot in inches.}
 }
 \value{
-Generates a PDF file containing the extended bar plot visualizing differences
-between groups along with overlaid statistical significance. The function outputs
-the modified data with significance levels and confidence intervals as well.
+Invisibly returns a list containing plot object, Wilcoxon table, and plotted data.
 }
 \description{
 This function generates extended bar plots from a Phyloseq object for comparative analysis
