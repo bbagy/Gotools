@@ -24,7 +24,8 @@ Go_bdivPM(
   addnumber = TRUE,
   height,
   width,
-  strata_var = NULL
+  strata_var = NULL,
+  p_adjust = "BH"
 )
 }
 \arguments{
@@ -67,6 +68,8 @@ Go_bdivPM(
 \item{width}{Width of the plot.}
 
 \item{strata_var}{(NEW) Column name to use as permutation blocks for PERMANOVA.}
+
+\item{p_adjust}{P-value adjustment method for PERMANOVA labels (e.g., "BH", "bonferroni").}
 }
 \value{
 PDF(s) and CSV tables on disk.
