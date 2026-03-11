@@ -19,6 +19,8 @@
 #' @param addnumber Logical indicating whether to add sample numbers to groups.
 #' @param height Height of the plot.
 #' @param width Width of the plot.
+#' @param plotCols Number of columns in the multiplot layout.
+#' @param plotRows Number of rows in the multiplot layout.
 #' @param strata_var (NEW) Column name to use as permutation blocks for PERMANOVA.
 #' @param p_adjust P-value adjustment method for PERMANOVA labels (e.g., "BH", "bonferroni").
 #'
@@ -38,6 +40,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                     name=NULL,
                     addnumber=TRUE,
                     height, width,
+                    plotCols = 2, plotRows = 1,
                     strata_var = NULL,
                     p_adjust = "BH") {
 
@@ -117,6 +120,30 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
       character(0)
     }
     unique(c(mvar, conf_vars, strata_var))
+  }
+
+  multiplot <- function(..., plotlist=NULL, file, cols=1, rows=1) {
+    require(grid)
+    plots <- c(list(...), plotlist)
+    numPlots = length(plots)
+
+    i = 1
+    while (i < numPlots + 1) {
+      numToPlot <- min(numPlots-i+1, cols*rows)
+      layout <- matrix(seq(i, i+cols*rows-1), ncol = cols, nrow = rows, byrow = TRUE)
+      if (numToPlot == 1) {
+        print(plots[[i]])
+      } else {
+        grid.newpage()
+        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+        for (j in i:(i+numToPlot-1)) {
+          matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
+          print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
+                                          layout.pos.col = matchidx$col))
+        }
+      }
+      i <- i+numToPlot
+    }
   }
 
   # facet 있을 때: facet별 PERMANOVA + 코너 고정 주석
@@ -240,6 +267,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                          ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
                   ifelse(is.null(strata_var), "", paste("(strata=", strata_var, ").", sep = "")),
                   format(Sys.Date(), "%y%m%d")), height = height, width = width)
+      plotlist <- list()
 
       for(i in seq_along(group_comparisons)){
         group.combination <- unlist(group_comparisons[i])
@@ -422,13 +450,27 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                   plot.title=element_text(size=8,face="bold")) +
             geom_vline(xintercept = 0, linewidth = 0.1) + geom_hline(yintercept = 0, linewidth = 0.1)
 
-          print(p)
+          plotlist[[length(plotlist)+1]] <- p
         }
       }
+      multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
       dev.off()
 
     } else {
       # no combination
+      ord_meths = plot
+      pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
+                  ord_meths, paste(distance_metrics, collapse = "+"), project, mvar,
+                  ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+                  ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
+                  ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
+                  ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
+                  ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                  ifelse(ellipse == FALSE, "ellipse_FALSE.",
+                         ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
+                  ifelse(is.null(strata_var), "", paste("(strata=", strata_var, ").", sep = "")),
+                  format(Sys.Date(), "%y%m%d")), height = height, width = width)
+      plotlist <- list()
       for(distance_metric in distance_metrics){
         mapping.sel <- data.frame(sample_data(psIN))
         mapping.sel.na <- mapping.sel[!is.na(mapping.sel[,mvar]), ]
@@ -604,20 +646,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 aspect.ratio = 1) +
           geom_vline(xintercept = 0, linewidth = 0.1) + geom_hline(yintercept = 0, linewidth = 0.1)
 
-        pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
-                    ord_meths, distance_metric, project, mvar,
-                    ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-                    ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
-                    ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
-                    ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
-                    ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                    ifelse(ellipse == FALSE, "ellipse_FALSE.",
-                           ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
-                    ifelse(is.null(strata_var), "", paste("(strata=", strata_var, ").", sep = "")),
-                    format(Sys.Date(), "%y%m%d")), height = height, width = width)
-        print(p)
-        dev.off()
+        plotlist[[length(plotlist)+1]] <- p
       }
+      multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
+      dev.off()
     }
   }
 }
