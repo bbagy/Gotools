@@ -81,16 +81,12 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
   out_taxa <- file.path(sprintf("%s_%s/table/taxa",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_taxa)) dir.create(out_taxa)
 
-
   if(!is.null(x_label)){
     x_label = x_label
   }else{
     x_label="SampleIDfactor"
   }
 
-
-  # out file
-  # "name" definition
   if (class(name) == "function"){
     name <- NULL
   }
@@ -107,23 +103,128 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     orders <- NULL
   }
 
+  panel_height_base <- 4.0
 
-  if(relative == T){
-    pdf(sprintf("%s/barchart.relative.%s.%s%s(%s).%s.pdf", out_path,
-                project,
-                ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-                ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                cutoff,
-                format(Sys.Date(), "%y%m%d")), height = height, width = width)
-  }else{
-    pdf(sprintf("%s/barchart.absolute.%s.%s%s(%s).%s.pdf", out_path,
-                project,
-                ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-                ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                cutoff,
-                format(Sys.Date(), "%y%m%d")), height = height, width = width)
+  estimate_barchart_layout <- function(df_plot, tax_var, mvar, facet_vars = NULL,
+                                       x_var = "SampleIDfactor", simple = FALSE,
+                                       user_ncol = NULL, panel_height_base = 4.0) {
+    if (!is.null(facet_vars) && mvar %in% facet_vars) {
+      return(NULL)
+    }
+
+    facet_vars <- if (is.null(facet_vars)) character(0) else setdiff(as.character(facet_vars), "SampleType")
+    panel_group_vars <- unique(c(facet_vars, if (isTRUE(simple)) character(0) else mvar))
+
+    if (length(panel_group_vars) == 0) {
+      panel_count <- 1
+      panel_ids <- factor(rep("all", nrow(df_plot)))
+    } else {
+      panel_ids <- interaction(df_plot[, panel_group_vars, drop = FALSE], drop = TRUE, lex.order = TRUE)
+      panel_count <- nlevels(panel_ids)
+      if (panel_count == 0) panel_count <- 1
+    }
+
+    facet_ncol <- if (!is.null(user_ncol)) {
+      user_ncol
+    } else if (panel_count <= 2) {
+      panel_count
+    } else if (panel_count <= 4) {
+      2
+    } else if (panel_count <= 9) {
+      3
+    } else if (panel_count <= 16) {
+      4
+    } else {
+      5
+    }
+    facet_ncol <- max(1, facet_ncol)
+    facet_nrow <- max(1, ceiling(panel_count / facet_ncol))
+
+    if (x_var %in% c("SampleID", "SampleIDfactor")) {
+      samples_per_panel <- max(as.numeric(table(panel_ids)))
+    } else {
+      samples_per_panel <- max(tapply(as.character(df_plot[[x_var]]), panel_ids, function(v) length(unique(v))))
+      if (!is.finite(samples_per_panel)) {
+        samples_per_panel <- length(unique(df_plot[[x_var]]))
+      }
+    }
+    if (!is.finite(samples_per_panel) || samples_per_panel < 1) {
+      samples_per_panel <- 1
+    }
+
+    labels <- as.character(unique(df_plot[[tax_var]]))
+    labels <- labels[!is.na(labels) & nzchar(labels)]
+    colourCount <- length(labels)
+    label_nchar <- if (colourCount > 0) nchar(labels) else 0
+    max_label_nchar <- if (colourCount > 0) max(label_nchar, na.rm = TRUE) else 0
+
+    legend_ncol_cap <- if (max_label_nchar <= 12) {
+      6
+    } else if (max_label_nchar <= 20) {
+      5
+    } else if (max_label_nchar <= 30) {
+      4
+    } else if (max_label_nchar <= 45) {
+      3
+    } else {
+      2
+    }
+    legend_ncol <- max(1, min(colourCount, legend_ncol_cap))
+    legend_rows <- max(1, ceiling(colourCount / legend_ncol))
+
+    legend_text_size <- if (max_label_nchar > 55) {
+      4
+    } else if (max_label_nchar > 40) {
+      4.5
+    } else if (max_label_nchar > 30) {
+      5
+    } else if (max_label_nchar > 20) {
+      5.5
+    } else {
+      6
+    }
+    legend_key_size <- if (max_label_nchar > 40) {
+      0.18
+    } else if (max_label_nchar > 25) {
+      0.22
+    } else {
+      0.25
+    }
+
+    panel_width_base <- max(3.0, min(10.0, 2.5 + samples_per_panel * 0.05))
+    width_calc <- panel_width_base * facet_ncol + 0.8
+    height_calc <- panel_height_base * facet_nrow + 0.30 * legend_rows + 0.6
+
+    list(
+      width = width_calc,
+      height = height_calc,
+      facet_ncol = facet_ncol,
+      legend_ncol = legend_ncol,
+      legend_text_size = legend_text_size,
+      legend_key_size = legend_key_size
+    )
   }
 
+  build_barchart_pdf_path <- function(rank_name) {
+    rank_tag <- if (length(taxanames) > 1) paste(rank_name, ".", sep = "") else ""
+    if (relative == TRUE) {
+      sprintf("%s/barchart.relative.%s.%s%s(%s).%s%s.pdf", out_path,
+              project,
+              ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+              ifelse(is.null(name), "", paste(name, ".", sep = "")),
+              cutoff,
+              rank_tag,
+              format(Sys.Date(), "%y%m%d"))
+    } else {
+      sprintf("%s/barchart.absolute.%s.%s%s(%s).%s%s.pdf", out_path,
+              project,
+              ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+              ifelse(is.null(name), "", paste(name, ".", sep = "")),
+              cutoff,
+              rank_tag,
+              format(Sys.Date(), "%y%m%d"))
+    }
+  }
 
   # order by bdiv
   ordi.tt <- try(ordi <- ordinate(psIN , method = "PCoA", distance = "bray"),T)
@@ -136,14 +237,10 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     ordering.pc1 <- names(sort(ordi$vectors[,"Axis.1"]))
   }
 
-
-
   mapping.sel <- data.frame(sample_data(psIN))
 
-  plotlist <- list()
-  for(i in 1:length(taxanames)){
+  for(i in seq_along(taxanames)){
 
-    # try table type
     otu.filt <- as.data.frame(otu_table(psIN))
     tt <- try(otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i]),T)
 
@@ -157,68 +254,46 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i])
     }
 
-
-    #if (dim(otu.filt)[2] == 2){
-    #  next
-    #}
-
     agg <- aggregate(as.formula(sprintf(". ~ %s" , taxanames[i])), otu.filt, sum, na.action=na.pass)
 
     if (taxanames[i] == "Species"){
       agg <- agg[grepl("NA NA", agg$Species)==F,]
     }
 
-
     if (relative == TRUE){
       genera <- agg[,taxanames[i]]
       agg[,taxanames[i]] <- NULL
-      #agg <- agg[,-1]
       agg <- normalizeByCols(agg)
       inds_to_grey <- which(rowMeans(agg) < cutoff)
       genera[inds_to_grey] <- "[1_#Other]"
       agg[,taxanames[i]] <- genera
-      #saving table
       agg_other_out <- subset(agg, agg[,taxanames[i]] != "[1_#Other]")
       write.csv(agg_other_out, quote = FALSE,file=sprintf("%s/%s.taxa_relative_abundance.(%s).%s.%s%s.csv", out_taxa,
                                                           project,cutoff,taxanames[i],
                                                           ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                                                          format(Sys.Date(),"%y%m%d"))) #,sep="/"  col.names = TRUE,
-
-
+                                                          format(Sys.Date(),"%y%m%d")))
       df <- melt(agg, variable="SampleID")
-    }else if(relative == FALSE){
+    }else{
       genera <- agg[,taxanames[i]]
       agg[,taxanames[i]] <- NULL
-      #agg <- agg[,-1]
       agg.rel <- normalizeByCols(agg)
       inds_to_grey <- which(rowMeans(agg.rel) < cutoff)
       genera[inds_to_grey] <- "[1_#Other]"
       agg[,taxanames[i]] <- genera
-      #saving table
       agg_other_out <- subset(agg, agg[,taxanames[i]] != "[1_#Other]")
       write.csv(agg_other_out, quote = FALSE, file=sprintf("%s/%s.taxa_absolute_abundance.(%s).%s.%s%s.csv", out_taxa,
-                                                                           project,cutoff,taxanames[i],
-                                                                           ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                                                                           format(Sys.Date(),"%y%m%d"))) #,sep="/"col.names = TRUE,
+                                                           project,cutoff,taxanames[i],
+                                                           ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                                                           format(Sys.Date(),"%y%m%d")))
       df <- melt(agg, variable="SampleID")
     }
-
-
-    # add StduyID
-
 
     df2 <- aggregate(as.formula(sprintf("value ~ %s + SampleID" , taxanames[i])), df, sum)
     df2$SampleID <- as.character(df2$SampleID)
     df2$SampleIDfactor <- factor(df2$SampleID, levels=ordering.pc1)
-    df.SampleIDstr <- unique(df2[,c("SampleID", "SampleIDfactor")]);head(df.SampleIDstr)
 
-    #mapping.sel[df2$SampleID, "StudyID"]
-
-    # add groups
     for (mvar in cate.vars) {
-      df.SampleIDstr$Group <- as.character(mapping.sel[df.SampleIDstr$SampleID, mvar])
       df2[,mvar] <- mapping.sel[df2$SampleID, mvar]
-      # order
       if (length(orders) >= 1) {
         df2[,mvar] <- factor(df2[,mvar], levels = orders)
       }
@@ -227,17 +302,18 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       }
     }
 
-    # adding facet to groups
     if (!is.null(facet)) {
       for (fa in facet){
         rownames(mapping.sel) <- as.character(rownames(mapping.sel))
-        df.SampleIDstr$Group <- as.character(mapping.sel[df.SampleIDstr$SampleID, fa])
         df2[,fa] <- mapping.sel[df2$SampleID, fa]
-        df2[,fa] <- factor(df2[,fa], levels = orders)
+        if (length(orders) >= 1) {
+          df2[,fa] <- factor(df2[,fa], levels = orders)
+        } else {
+          df2[,fa] <- factor(df2[,fa])
+        }
       }
     }
 
-    # define x_label
     if (x_label == "SampleID" | x_label == "SampleIDfactor") {
       df2 <- df2
     } else if (length(x_label) >= 1) {
@@ -246,8 +322,6 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       if (!is.null(mark)) {
         df2[, mark] <- mapping.sel[df2$SampleID, mark]
         df2$x_label_with_star <- ifelse(df2[[mark]] == "Yes", paste0(df2[[x_label]], " *"), as.character(df2[[x_label]]))
-
-        # Order "D0", "D0 *", "D3", "D3 *", etc.
         new_orders <- unlist(lapply(orders, function(order) c(order, paste0(order, " *"))))
         df2[, x_label] <- factor(df2$x_label_with_star, levels = new_orders)
       } else {
@@ -255,155 +329,86 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       }
     }
 
-
-    print(1)
-    # color
-    colourCount = length(unique(df2[,taxanames[i]]));colourCount
-
+    colourCount <- length(unique(df2[,taxanames[i]]));colourCount
     if(!is.null(mycols)){
-      getPalette = colorRampPalette(mycols)
-    }else{
-      p=p
+      getPalette <- colorRampPalette(mycols)
     }
 
-
-    # pdf size height = 5, width=9
-
-    if (legend == "bottom"){
-      if (colourCount < 30) {
-        coln <- 4
-      }else if (colourCount >= 30) {
-        coln <- 5
-      }
-    } else if (legend == "right") {
-      if (colourCount <= 18) {
-        coln <- 1
-      } else if (colourCount > 19 & colourCount  < 35) {
-        coln <- 2
-      } else if (colourCount > 36) {
-        coln <- 3
+    layout_plan <- list()
+    for (mvar in cate.vars) {
+      layout_info <- estimate_barchart_layout(
+        df_plot = df2,
+        tax_var = taxanames[i],
+        mvar = mvar,
+        facet_vars = facet,
+        x_var = x_label,
+        simple = simple,
+        user_ncol = ncol,
+        panel_height_base = panel_height_base
+      )
+      if (!is.null(layout_info)) {
+        layout_plan[[mvar]] <- layout_info
       }
     }
+    if (length(layout_plan) == 0) {
+      next
+    }
 
-    # plot
-    # df2 <- df2[order(df2$value, decreasing=T),]
-    print(2)
+    pdf_width <- max(vapply(layout_plan, function(x) x$width, numeric(1)))
+    pdf_height <- max(vapply(layout_plan, function(x) x$height, numeric(1)))
+    pdf(build_barchart_pdf_path(taxanames[i]), height = pdf_height, width = pdf_width)
 
-    #p <- ggplot(df2, aes_string(x= x_label, y="value", fill=taxanames[i], order=taxanames[i])) +
-    #  geom_bar(stat="identity", position="stack") + theme_classic()  + labs(fill=NULL)+
-    #  theme(legend.position=legend, # legend.text=element_text(size=8),
-    #        legend.text = element_text(face = c(rep("italic", 5), rep("plain", 5))),
-    #        axis.title.x = element_blank(), axis.text.x = element_text(angle=90, vjust=0.5, hjust=1, size=8)) +
-    #  guides(fill=guide_legend(ncol= coln))   #guides(col = guide_legend(ncol = coln)) +
+    for (mvar in cate.vars) {
+      current_layout <- layout_plan[[mvar]]
+      if (is.null(current_layout)) {
+        next
+      }
 
+      p <- ggplot(df2, aes(x = !!sym(x_label), y = value, fill = !!sym(taxanames[i]), order = !!sym(taxanames[i]))) +
+        geom_bar(stat = "identity", position = "stack") +
+        theme_classic() +
+        labs(fill = NULL) +
+        theme(
+          legend.position = "bottom",
+          legend.text = element_text(face = "italic", size = current_layout$legend_text_size),
+          legend.key.height = grid::unit(current_layout$legend_key_size, "cm"),
+          legend.key.width = grid::unit(current_layout$legend_key_size, "cm"),
+          axis.title.x = element_blank(),
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8)
+        ) +
+        guides(fill = ggplot2::guide_legend(ncol = current_layout$legend_ncol, byrow = TRUE))
 
-
-    p <- ggplot(df2, aes(x = !!sym(x_label), y = value, fill = !!sym(taxanames[i]), order = !!sym(taxanames[i]))) +
-      geom_bar(stat = "identity", position = "stack") +
-      theme_classic() +
-      labs(fill = NULL) +
-      theme(
-        legend.position = legend,
-        legend.text = element_text(face = "italic"),  # 또는 "plain"
-        axis.title.x = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8)
-      ) +
-      guides(fill = guide_legend(ncol = coln))
-
-
-    #===== y_axis
-    if(!is.null(y_axis)){
-      p <- p + labs(y = y_axis)
-    }else{
-      if (relative == TRUE){
+      if(!is.null(y_axis)){
+        p <- p + labs(y = y_axis)
+      }else if (relative == TRUE){
         p <- p + labs(y = "Relative abundance") + ylim(c(-.1, 1.01))
-      }else if(relative == FALSE){
+      }else{
         p <- p + labs(y = "Absolute abundance")
       }
-    }
 
-    #===== mycols
-    if(!is.null(mycols)){
-      p=p + scale_fill_manual(values = getPalette(colourCount))
-    }else{
-      p=p
-    }
-
-
-    #===== facet
-    if (!is.null(facet)) {
-      for (mvar in cate.vars) {
-        if (facet == mvar) {
-          next
-        }
-
-        df2[,facet] <- factor(df2[,facet], levels = orders)
-
-        print(sprintf("Facet by %s-%s",mvar, facet))
-
-         if (!is.null(ncol)) {
-         p <- p+ facet_wrap(as.formula(sprintf("~ %s + %s", paste(setdiff(facet, "SampleType"), collapse="+"), mvar)), scales = "free_x", ncol = ncol)
-         }else{
-         p <- p+ facet_grid(as.formula(sprintf("~ %s + %s", paste(setdiff(facet, "SampleType"), collapse="+"), mvar)), scales = "free_x", space = "free")
-         }
-
-
-        p = p + ggtitle(sprintf("%s barplots overall of %s%s (cut off < %s) %s",
-                                taxanames[i],
-                                mvar,
-                                ifelse(is.null(name), "", paste0("-", name)),
-                                cutoff,
-                                ifelse(is.null(mark), "", paste0("mark by - ", mark))))
-
-        print(p)
+      if(!is.null(mycols)){
+        p <- p + scale_fill_manual(values = getPalette(colourCount))
       }
 
-    }else if (is.null(facet) & simple == FALSE) {
-      for (mvar in cate.vars) {
-        print("B")
-        print(sprintf("Facet by %s",mvar))
+      p <- p + ggtitle(sprintf("%s barplots overall of %s%s (cut off < %s) %s",
+                               taxanames[i],
+                               mvar,
+                               ifelse(is.null(name), "", paste0("-", name)),
+                               cutoff,
+                               ifelse(is.null(mark), "", paste0("mark by - ", mark))))
 
-        if (!is.null(ncol)) {
-          p <- p + facet_wrap(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", ncol = ncol)
-        }else{
-          p <- p + facet_grid(as.formula(sprintf("~ %s"  ,mvar)), scales = "free_x", space = "free_x")
-        }
-
-
-        p = p + ggtitle(sprintf("%s barplots overall of %s%s (cut off < %s) %s",
-                                taxanames[i],
-                                mvar,
-                                ifelse(is.null(name), "", paste0("-", name)),
-                                cutoff,
-                                ifelse(is.null(mark), "", paste0("mark by - ", mark))))
-
-        #plotlist[[length(plotlist)+1]] <- p
-        print(p)
-
+      if (!is.null(facet)) {
+        facet_vars <- setdiff(as.character(facet), "SampleType")
+        facet_formula <- as.formula(sprintf("~ %s", paste(c(facet_vars, mvar), collapse = " + ")))
+        p <- p + facet_wrap(facet_formula, scales = "free_x", ncol = current_layout$facet_ncol)
+      } else if (simple == FALSE) {
+        p <- p + facet_wrap(as.formula(sprintf("~ %s", mvar)), scales = "free_x", ncol = current_layout$facet_ncol)
       }
-    } else if (is.null(facet) & simple == TRUE) {
-      for (mvar in cate.vars) {
 
-        print("C")
-        print("Simpe plot")
-
-        p = p
-
-        p = p + ggtitle(sprintf("%s barplots overall of %s%s (cut off < %s) %s",
-                                taxanames[i],
-                                mvar,
-                                ifelse(is.null(name), "", paste0("-", name)),
-                                cutoff,
-                                ifelse(is.null(mark), "", paste0("mark by - ", mark))))
-
-
-        #plotlist[[length(plotlist)+1]] <- p
-
-        print(p)
-      }
+      print(p)
     }
+    dev.off()
   }
-  dev.off()
 }
 
 
