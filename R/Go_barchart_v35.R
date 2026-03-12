@@ -110,7 +110,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     plot_grob$grobs[[guide_idx[1]]]
   }
 
-  draw_plot_with_bottom_legend <- function(plot_obj, legend_grob, chart_height, legend_height) {
+  multiplot <- function(plot_obj, legend_grob = NULL, chart_height, legend_height) {
     chart_grob <- ggplot2::ggplotGrob(plot_obj + ggplot2::theme(legend.position = "none"))
     grid::grid.newpage()
     grid::pushViewport(
@@ -421,7 +421,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       }
 
       legend_grob <- extract_legend_grob(p)
-      draw_plot_with_bottom_legend(
+      multiplot(
         plot_obj = p,
         legend_grob = legend_grob,
         chart_height = height,
