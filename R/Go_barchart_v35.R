@@ -104,33 +104,21 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
   }
 
   extract_legend_grob <- function(plot_obj) {
-    plot_grob <- ggplot2::ggplotGrob(plot_obj)
-    guide_idx <- which(grepl("^guide-box", plot_grob$layout$name))
-    if (length(guide_idx) == 0) return(NULL)
-    plot_grob$grobs[[guide_idx[1]]]
+    cowplot::get_legend(plot_obj)
   }
 
   multiplot <- function(plot_obj, legend_grob = NULL, chart_height, legend_height) {
-    chart_grob <- ggplot2::ggplotGrob(plot_obj + ggplot2::theme(legend.position = "none"))
-    grid::grid.newpage()
-    grid::pushViewport(
-      grid::viewport(
-        layout = grid::grid.layout(
-          nrow = 2,
-          ncol = 1,
-          heights = grid::unit(c(chart_height, legend_height), "in")
-        )
-      )
-    )
-    grid::pushViewport(grid::viewport(layout.pos.row = 1, layout.pos.col = 1))
-    grid::grid.draw(chart_grob)
-    grid::upViewport()
-    if (!is.null(legend_grob)) {
-      grid::pushViewport(grid::viewport(layout.pos.row = 2, layout.pos.col = 1))
-      grid::grid.draw(legend_grob)
-      grid::upViewport()
+    plot_main <- plot_obj + ggplot2::theme(legend.position = "none")
+    if (is.null(legend_grob)) {
+      return(plot_main)
     }
-    grid::upViewport()
+    cowplot::plot_grid(
+      plot_main,
+      legend_grob,
+      ncol = 1,
+      rel_heights = c(chart_height, legend_height),
+      align = "v"
+    )
   }
 
   estimate_barchart_layout <- function(df_plot, tax_var, mvar, facet_vars = NULL,
@@ -421,12 +409,13 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       }
 
       legend_grob <- extract_legend_grob(p)
-      multiplot(
+      combined_plot <- multiplot(
         plot_obj = p,
         legend_grob = legend_grob,
         chart_height = height,
         legend_height = current_layout$legend_height
       )
+      print(combined_plot)
     }
     dev.off()
   }
