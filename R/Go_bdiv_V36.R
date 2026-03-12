@@ -352,7 +352,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                   legend.margin = ggplot2::margin(0, 0, 0, 0, "cm"))
 
           if(!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
-          p <- p + guides(color = ggplot2::guide_legend(ncol = 1, byrow = TRUE))
+          p <- p + guides(
+            color = ggplot2::guide_legend(ncol = 1, byrow = TRUE),
+            shape = ggplot2::guide_legend(ncol = 1, byrow = TRUE)
+          )
           if (!is.null(ID) && ID %in% names(pdataframe)) p <- p + ggrepel::geom_text_repel(aes_string(label = ID), size = 2)
 
           if (ellipse == TRUE) p <- p + stat_ellipse(type="norm", linetype=2)
@@ -549,7 +552,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 plot.title=element_text(size=8,face="bold"))
 
         if(!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
-        p <- p + guides(color = ggplot2::guide_legend(ncol = 1, byrow = TRUE))
+        p <- p + guides(
+          color = ggplot2::guide_legend(ncol = 1, byrow = TRUE),
+          shape = ggplot2::guide_legend(ncol = 1, byrow = TRUE)
+        )
         if (!is.null(ID) && ID %in% names(pdataframe)) p <- p + ggrepel::geom_text_repel(aes_string(label = ID), size = 2)
 
         if (ellipse == TRUE) p <- p + stat_ellipse(type="norm", linetype=2)
