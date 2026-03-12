@@ -345,9 +345,14 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                   legend.title = element_blank(),
                   legend.justification="left",
                   legend.box = "vertical",
-                  legend.box.margin = ggplot2::margin(0,0,0,-1,"cm"))
+                  legend.box.margin = ggplot2::margin(0,0,0,-1,"cm"),
+                  legend.spacing.y = ggplot2::unit(0.02, "cm"),
+                  legend.key.height = ggplot2::unit(0.25, "cm"),
+                  legend.key.width = ggplot2::unit(0.35, "cm"),
+                  legend.margin = ggplot2::margin(0, 0, 0, 0, "cm"))
 
           if(!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
+          p <- p + guides(color = ggplot2::guide_legend(ncol = 1, byrow = TRUE))
           if (!is.null(ID) && ID %in% names(pdataframe)) p <- p + ggrepel::geom_text_repel(aes_string(label = ID), size = 2)
 
           if (ellipse == TRUE) p <- p + stat_ellipse(type="norm", linetype=2)
@@ -537,9 +542,14 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 legend.justification="left",
                 legend.box = "vertical",
                 legend.box.margin = ggplot2::margin(0,0,0,-1,"cm"),
+                legend.spacing.y = ggplot2::unit(0.02, "cm"),
+                legend.key.height = ggplot2::unit(0.25, "cm"),
+                legend.key.width = ggplot2::unit(0.35, "cm"),
+                legend.margin = ggplot2::margin(0, 0, 0, 0, "cm"),
                 plot.title=element_text(size=8,face="bold"))
 
         if(!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
+        p <- p + guides(color = ggplot2::guide_legend(ncol = 1, byrow = TRUE))
         if (!is.null(ID) && ID %in% names(pdataframe)) p <- p + ggrepel::geom_text_repel(aes_string(label = ID), size = 2)
 
         if (ellipse == TRUE) p <- p + stat_ellipse(type="norm", linetype=2)
