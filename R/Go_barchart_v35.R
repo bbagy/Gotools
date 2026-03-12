@@ -105,6 +105,40 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
 
   panel_height_base <- 4.0
 
+  extract_legend_grob <- function(plot_obj) {
+    plot_grob <- ggplot2::ggplotGrob(plot_obj)
+    guide_idx <- which(grepl("^guide-box", plot_grob$layout$name))
+    if (length(guide_idx) == 0) {
+      return(NULL)
+    }
+    plot_grob$grobs[[guide_idx[1]]]
+  }
+
+  draw_plot_with_bottom_legend <- function(plot_obj, legend_grob, chart_height, legend_height) {
+    if (is.null(legend_grob)) {
+      print(plot_obj)
+      return(invisible(NULL))
+    }
+
+    chart_grob <- ggplot2::ggplotGrob(plot_obj + theme(legend.position = "none"))
+    grid::grid.newpage()
+    grid::pushViewport(
+      grid::viewport(
+        layout = grid::grid.layout(
+          nrow = 2,
+          ncol = 1,
+          heights = grid::unit(c(chart_height, legend_height), "in")
+        )
+      )
+    )
+    grid::pushViewport(grid::viewport(layout.pos.row = 1, layout.pos.col = 1))
+    grid::grid.draw(chart_grob)
+    grid::upViewport()
+    grid::pushViewport(grid::viewport(layout.pos.row = 2, layout.pos.col = 1))
+    grid::grid.draw(legend_grob)
+    grid::upViewport(2)
+  }
+
   estimate_barchart_layout <- function(df_plot, tax_var, mvar, facet_vars = NULL,
                                        x_var = "SampleIDfactor", simple = FALSE,
                                        user_ncol = NULL, panel_height_base = 4.0) {
@@ -125,20 +159,11 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     }
 
     facet_ncol <- if (!is.null(user_ncol)) {
-      user_ncol
-    } else if (panel_count <= 2) {
-      panel_count
-    } else if (panel_count <= 4) {
-      2
-    } else if (panel_count <= 9) {
-      3
-    } else if (panel_count <= 16) {
-      4
+      max(1, user_ncol)
     } else {
-      5
+      NA_integer_
     }
-    facet_ncol <- max(1, facet_ncol)
-    facet_nrow <- max(1, ceiling(panel_count / facet_ncol))
+    facet_nrow <- if (is.na(facet_ncol)) 1 else max(1, ceiling(panel_count / facet_ncol))
 
     if (x_var %in% c("SampleID", "SampleIDfactor")) {
       samples_per_panel <- max(as.numeric(table(panel_ids)))
@@ -172,36 +197,23 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     legend_ncol <- max(1, min(colourCount, legend_ncol_cap))
     legend_rows <- max(1, ceiling(colourCount / legend_ncol))
 
-    legend_text_size <- if (max_label_nchar > 55) {
-      4
-    } else if (max_label_nchar > 40) {
-      4.5
-    } else if (max_label_nchar > 30) {
-      5
-    } else if (max_label_nchar > 20) {
-      5.5
-    } else {
-      6
-    }
+    legend_text_size <- 8
     legend_key_size <- if (max_label_nchar > 40) {
-      0.18
+      0.14
     } else if (max_label_nchar > 25) {
-      0.22
+      0.18
     } else {
-      0.25
+      0.20
     }
-
-    panel_width_base <- max(3.0, min(10.0, 2.5 + samples_per_panel * 0.05))
-    width_calc <- panel_width_base * facet_ncol + 0.8
-    height_calc <- panel_height_base * facet_nrow + 0.30 * legend_rows + 0.6
 
     list(
-      width = width_calc,
-      height = height_calc,
       facet_ncol = facet_ncol,
+      facet_nrow = facet_nrow,
       legend_ncol = legend_ncol,
       legend_text_size = legend_text_size,
-      legend_key_size = legend_key_size
+      legend_key_size = legend_key_size,
+      legend_height = 0.14 * legend_rows + 0.25,
+      chart_height = panel_height_base * facet_nrow
     )
   }
 
@@ -354,8 +366,8 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       next
     }
 
-    pdf_width <- max(vapply(layout_plan, function(x) x$width, numeric(1)))
-    pdf_height <- max(vapply(layout_plan, function(x) x$height, numeric(1)))
+    pdf_width <- width
+    pdf_height <- max(vapply(layout_plan, function(x) x$chart_height + x$legend_height, numeric(1)))
     pdf(build_barchart_pdf_path(taxanames[i]), height = pdf_height, width = pdf_width)
 
     for (mvar in cate.vars) {
@@ -373,6 +385,8 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
           legend.text = element_text(face = "italic", size = current_layout$legend_text_size),
           legend.key.height = grid::unit(current_layout$legend_key_size, "cm"),
           legend.key.width = grid::unit(current_layout$legend_key_size, "cm"),
+          legend.spacing.y = grid::unit(0.02, "cm"),
+          legend.margin = ggplot2::margin(0, 0, 0, 0, "cm"),
           axis.title.x = element_blank(),
           axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8)
         ) +
@@ -400,15 +414,27 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       if (!is.null(facet)) {
         facet_vars <- setdiff(as.character(facet), "SampleType")
         facet_formula <- as.formula(sprintf("~ %s", paste(c(facet_vars, mvar), collapse = " + ")))
-        p <- p + facet_wrap(facet_formula, scales = "free_x", ncol = current_layout$facet_ncol)
+        if (is.na(current_layout$facet_ncol)) {
+          p <- p + facet_grid(facet_formula, scales = "free_x", space = "free_x")
+        } else {
+          p <- p + facet_wrap(facet_formula, scales = "free_x", ncol = current_layout$facet_ncol)
+        }
       } else if (simple == FALSE) {
-        p <- p + facet_wrap(as.formula(sprintf("~ %s", mvar)), scales = "free_x", ncol = current_layout$facet_ncol)
+        if (is.na(current_layout$facet_ncol)) {
+          p <- p + facet_grid(as.formula(sprintf("~ %s", mvar)), scales = "free_x", space = "free_x")
+        } else {
+          p <- p + facet_wrap(as.formula(sprintf("~ %s", mvar)), scales = "free_x", ncol = current_layout$facet_ncol)
+        }
       }
 
-      print(p)
+      legend_grob <- extract_legend_grob(p)
+      draw_plot_with_bottom_legend(
+        plot_obj = p,
+        legend_grob = legend_grob,
+        chart_height = current_layout$chart_height,
+        legend_height = current_layout$legend_height
+      )
     }
     dev.off()
   }
 }
-
-
