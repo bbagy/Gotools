@@ -103,42 +103,6 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     orders <- NULL
   }
 
-  panel_height_base <- 4.0
-
-  extract_legend_grob <- function(plot_obj) {
-    plot_grob <- ggplot2::ggplotGrob(plot_obj)
-    guide_idx <- which(grepl("^guide-box", plot_grob$layout$name))
-    if (length(guide_idx) == 0) {
-      return(NULL)
-    }
-    plot_grob$grobs[[guide_idx[1]]]
-  }
-
-  draw_plot_with_bottom_legend <- function(plot_obj, legend_grob, chart_height, legend_height) {
-    if (is.null(legend_grob)) {
-      print(plot_obj)
-      return(invisible(NULL))
-    }
-
-    chart_grob <- ggplot2::ggplotGrob(plot_obj + theme(legend.position = "none"))
-    grid::grid.newpage()
-    grid::pushViewport(
-      grid::viewport(
-        layout = grid::grid.layout(
-          nrow = 2,
-          ncol = 1,
-          heights = grid::unit(c(chart_height, legend_height), "in")
-        )
-      )
-    )
-    grid::pushViewport(grid::viewport(layout.pos.row = 1, layout.pos.col = 1))
-    grid::grid.draw(chart_grob)
-    grid::upViewport()
-    grid::pushViewport(grid::viewport(layout.pos.row = 2, layout.pos.col = 1))
-    grid::grid.draw(legend_grob)
-    grid::upViewport(2)
-  }
-
   estimate_barchart_layout <- function(df_plot, tax_var, mvar, facet_vars = NULL,
                                        x_var = "SampleIDfactor", simple = FALSE,
                                        user_ncol = NULL, panel_height_base = 4.0) {
@@ -211,9 +175,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       facet_nrow = facet_nrow,
       legend_ncol = legend_ncol,
       legend_text_size = legend_text_size,
-      legend_key_size = legend_key_size,
-      legend_height = 0.14 * legend_rows + 0.25,
-      chart_height = panel_height_base * facet_nrow
+      legend_key_size = legend_key_size
     )
   }
 
@@ -356,7 +318,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
         x_var = x_label,
         simple = simple,
         user_ncol = ncol,
-        panel_height_base = panel_height_base
+        panel_height_base = height
       )
       if (!is.null(layout_info)) {
         layout_plan[[mvar]] <- layout_info
@@ -367,7 +329,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     }
 
     pdf_width <- width
-    pdf_height <- max(vapply(layout_plan, function(x) x$chart_height + x$legend_height, numeric(1)))
+    pdf_height <- height
     pdf(build_barchart_pdf_path(taxanames[i]), height = pdf_height, width = pdf_width)
 
     for (mvar in cate.vars) {
@@ -427,13 +389,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
         }
       }
 
-      legend_grob <- extract_legend_grob(p)
-      draw_plot_with_bottom_legend(
-        plot_obj = p,
-        legend_grob = legend_grob,
-        chart_height = current_layout$chart_height,
-        legend_height = current_layout$legend_height
-      )
+      print(p)
     }
     dev.off()
   }
