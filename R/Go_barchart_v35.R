@@ -165,21 +165,10 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     label_nchar <- if (colourCount > 0) nchar(labels) else 0
     max_label_nchar <- if (colourCount > 0) max(label_nchar, na.rm = TRUE) else 0
 
-    legend_ncol_cap <- if (max_label_nchar <= 12) {
-      6
-    } else if (max_label_nchar <= 20) {
-      5
-    } else if (max_label_nchar <= 30) {
-      4
-    } else if (max_label_nchar <= 45) {
-      3
-    } else {
-      2
-    }
-    legend_ncol <- max(1, min(colourCount, legend_ncol_cap))
+    legend_ncol <- min(4, max(1, colourCount))
     legend_rows <- max(1, ceiling(colourCount / legend_ncol))
 
-    legend_text_size <- 8
+    legend_text_size <- 10
     legend_key_size <- if (max_label_nchar > 40) {
       0.14
     } else if (max_label_nchar > 25) {
