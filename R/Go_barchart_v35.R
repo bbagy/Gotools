@@ -117,7 +117,8 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       legend_grob,
       ncol = 1,
       rel_heights = c(chart_height, legend_height),
-      align = "v"
+      align = "v",
+      axis = "lr"
     )
   }
 
