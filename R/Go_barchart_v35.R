@@ -311,6 +311,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
       }
     }
 
+    df2[[taxanames[i]]] <- gsub("\\s*\\(ex [^)]+\\)", "", as.character(df2[[taxanames[i]]]))
     colourCount <- length(unique(df2[,taxanames[i]]));colourCount
     if(!is.null(mycols)){
       getPalette <- colorRampPalette(mycols)
