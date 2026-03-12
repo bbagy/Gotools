@@ -383,7 +383,9 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
                                cutoff,
                                ifelse(is.null(mark), "", paste0("mark by - ", mark))))
 
-      if (!is.null(facet)) {
+      if (isTRUE(simple)) {
+        p <- p
+      } else if (!is.null(facet)) {
         facet_vars <- setdiff(as.character(facet), "SampleType")
         facet_formula <- as.formula(sprintf("~ %s", paste(c(facet_vars, mvar), collapse = " + ")))
         if (is.na(current_layout$facet_ncol)) {
@@ -391,7 +393,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
         } else {
           p <- p + facet_wrap(facet_formula, scales = "free_x", ncol = current_layout$facet_ncol)
         }
-      } else if (simple == FALSE) {
+      } else {
         if (is.na(current_layout$facet_ncol)) {
           p <- p + facet_grid(as.formula(sprintf("~ %s", mvar)), scales = "free_x", space = "free_x")
         } else {
