@@ -118,12 +118,15 @@ Go_groupBoxTimepoint <- function(df = NULL,
                                  x.axis = NULL,
                                  height = NULL,
                                  width = NULL,
+                                 plotCols = NULL,
+                                 plotRows = NULL,
                                  baseline = NULL,   # 추가
                                  paired = NULL) {   # 추가
 
   library(dplyr)
   library(ggplot2)
   library(ggpubr)
+  library(grid)
 
   if (is.null(df)) stop("Input dataframe (df) is required.")
   if (is.null(project)) stop("Project name is required.")
@@ -139,6 +142,32 @@ Go_groupBoxTimepoint <- function(df = NULL,
 
   if (is.null(height)) height <- 3.5
   if (is.null(width)) width <- 5
+
+  multiplot <- function(..., plotlist=NULL, cols=1, rows=1) {
+    plots <- c(list(...), plotlist)
+    numPlots <- length(plots)
+    if (numPlots == 0) {
+      return(invisible(NULL))
+    }
+
+    i <- 1
+    while (i < numPlots + 1) {
+      numToPlot <- min(numPlots - i + 1, cols * rows)
+      layout <- matrix(seq(i, i + cols * rows - 1), ncol = cols, nrow = rows, byrow = TRUE)
+      if (numToPlot == 1) {
+        print(plots[[i]])
+      } else {
+        grid.newpage()
+        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+        for (j in i:(i + numToPlot - 1)) {
+          matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
+          print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
+                                          layout.pos.col = matchidx$col))
+        }
+      }
+      i <- i + numToPlot
+    }
+  }
 
   #--------------------------------------------
   # baseline 보정(subtraction) 수행
@@ -168,17 +197,21 @@ Go_groupBoxTimepoint <- function(df = NULL,
     }
   }
 
+  outcomes <- outcomes[outcomes %in% colnames(df.sel)]
+  if (length(outcomes) == 0) {
+    warning("No valid outcomes were found in the dataframe.")
+    return(invisible(NULL))
+  }
+
+  if (is.null(plotCols)) plotCols <- length(outcomes)
+  if (is.null(plotRows)) plotRows <- 1
+
+  plotlist <- list()
+
   #--------------------------------------------
   # 변수별 boxplot 작성
   #--------------------------------------------
   for (variable in outcomes) {
-    if (!is.null(dev.list())) dev.off()
-
-    if (!variable %in% colnames(df.sel)) {
-      warning(sprintf("Variable '%s' not found in dataframe. Skipping.", variable))
-      next
-    }
-
     average_data <- df.sel %>%
       dplyr::group_by(!!sym(timepoint), !!sym(maingroup)) %>%
       dplyr::summarise(
@@ -215,17 +248,15 @@ Go_groupBoxTimepoint <- function(df = NULL,
     } else {
       p <- p + ggtitle(sprintf("%s (%s)", maingroup, "wilcox.test"))
     }
-
-    dir <- Go_path(project, pdf = "yes", table = "no", path = NULL)
-
-    pdf(sprintf("%s/groupBox3.%s.%s.%s%s%s.pdf", dir$pdf,
-                project,
-                maingroup,
-                ifelse(is.null(variable), "", paste(variable, ".", sep = "")),
-                ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                format(Sys.Date(), "%y%m%d")), height = height, width = width)
-
-    print(p)
-    dev.off()
+    plotlist[[length(plotlist) + 1]] <- p
   }
+
+  dir <- Go_path(project, pdf = "yes", table = "no", path = NULL)
+  pdf(sprintf("%s/box.bygroup.%s.%s.%s%s.pdf", dir$pdf,
+              project,
+              maingroup,
+              ifelse(is.null(name), "", paste(name, ".", sep = "")),
+              format(Sys.Date(), "%y%m%d")), height = height, width = width)
+  multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
+  dev.off()
 }
