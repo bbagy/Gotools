@@ -209,6 +209,25 @@ Go_volcanoPlot <- function(project,
     # Clean the dataframe
     df[df == ""] <- "NA"
     df.na <- df[!is.na(df[, pval]), ]
+    table_name_token <- NULL
+    if ("name_token" %in% colnames(df.na)) {
+      table_name_vals <- unique(as.character(df.na$name_token))
+      table_name_vals <- table_name_vals[!is.na(table_name_vals) & table_name_vals != "" & table_name_vals != "NA"]
+      if (length(table_name_vals) > 0) {
+        table_name_token <- gsub("^\\(|\\)$", "", table_name_vals[1])
+      }
+    }
+
+    call_name_token <- if (is.null(name)) NULL else gsub("^\\(|\\)$", "", as.character(name))
+
+    comparison_token <- NULL
+    if ("comparison_token" %in% colnames(df.na)) {
+      comparison_vals <- unique(as.character(df.na$comparison_token))
+      comparison_vals <- comparison_vals[!is.na(comparison_vals) & comparison_vals != "" & comparison_vals != "NA"]
+      if (length(comparison_vals) > 0) {
+        comparison_token <- comparison_vals[1]
+      }
+    }
 
 
 
@@ -237,6 +256,13 @@ Go_volcanoPlot <- function(project,
         paste(smvar, " (n=", unique(df.na$smvar.count), ")", sep = "")
       )
       names(legend.labs) <- c(as.character(basline), "NS", as.character(smvar))
+      if (is.null(comparison_token)) {
+        name_token <- if (!is.null(table_name_token)) table_name_token else call_name_token
+        comparison_token <- sprintf("%s.vs.%s%s",
+                                    basline,
+                                    smvar,
+                                    if (is.null(name_token)) "" else paste(".", name_token, sep = ""))
+      }
     }else if(model == "corr-kendall") {
       # Get unique values for some columns
       basline <- "Negative"
@@ -258,6 +284,13 @@ Go_volcanoPlot <- function(project,
       # Set legend labels
       legend.labs <- c(basline, "NS", smvar)
       names(legend.labs) <- c(as.character(basline), "NS", as.character(smvar))
+      if (is.null(comparison_token)) {
+        name_token <- if (!is.null(table_name_token)) table_name_token else call_name_token
+        comparison_token <- sprintf("%s.vs.%s%s",
+                                    basline,
+                                    smvar,
+                                    if (is.null(name_token)) "" else paste(".", name_token, sep = ""))
+      }
 
     }
 
@@ -322,13 +355,11 @@ Go_volcanoPlot <- function(project,
             aspect.ratio = 1/1.5)
 
 
-    pdf(sprintf("%s/%s.%s%s.(%s.vs.%s%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
+    pdf(sprintf("%s/%s.%s%s.(%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
                 tool,
                 ifelse(is.null(plot), "", paste(plot, ".", sep = "")),
                 mvar,
-                basline,
-                smvar,
-                ifelse(is.null(name), "", paste(".", name, sep = "")),
+                comparison_token,
                 project,
                 ifelse(is.null(model), "", paste(model, ".", sep = "")),
                 ifelse(is.null(confounder), "", paste(confounder, ".", sep = "")),
@@ -398,13 +429,11 @@ Go_volcanoPlot <- function(project,
 
 
 
-      pdf(sprintf("%s/%s.%s%s.(%s.vs.%s%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
+      pdf(sprintf("%s/%s.%s%s.(%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
                   tool,
                   ifelse(is.null(plot), "", paste(plot, ".", sep = "")),
                   mvar,
-                  basline,
-                  smvar,
-                  ifelse(is.null(name), "", paste(".", name, sep = "")),
+                  comparison_token,
                   project,
                   ifelse(is.null(model1), "", paste(model1, ".", sep = "")),
                   ifelse(is.null(confounder), "", paste(confounder, ".", sep = "")),
@@ -415,4 +444,3 @@ Go_volcanoPlot <- function(project,
     }
   }
 }
-
