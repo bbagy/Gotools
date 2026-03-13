@@ -341,11 +341,11 @@ Go_extendedBarplot <- function(psIN,
 
 
 
-  pdf(sprintf("%s/extended_error_barplot.(%s.vs.%s).%s.%s%s.pdf", out_path,
+  pdf(sprintf("%s/extended_error_barplot.(%s.vs.%s%s).%s.%s.pdf", out_path,
               group1,
               group2,
+              ifelse(is.null(name), "", paste0(".", gsub("^\\(|\\)$", "", name))),
               project,
-              ifelse(is.null(name), "", paste(name, ".", sep = "")),
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
 
   print(p4)

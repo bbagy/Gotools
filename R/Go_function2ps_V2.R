@@ -7,6 +7,9 @@
 #' @param project (Optional) A string indicating the project name for file naming.
 #' @param func.type A string specifying the type of functional data ("PICRUSt" or "HUMAnN").
 #' @param name (Optional) A string to add as a suffix to the file name.
+#' @param collapse_pairs Logical. For HUMAnN3 inputs, collapse paired technical columns such as `_R1` and `_R2` into one sample-level column. Default is `FALSE`.
+#' @param pair_suffix Character vector of length 2 giving the suffixes to collapse when `collapse_pairs = TRUE`. Default is `c("_R1", "_R2")`.
+#' @param collapse_fun Character scalar. How to combine paired HUMAnN3 columns. Currently supports `"sum"` and `"mean"`. Default is `"sum"`.
 #'
 #' @details
 #' The function reads the functional data (e.g., KO or pathway abundances) and converts it into a format
@@ -24,7 +27,7 @@
 #'
 #' @export
 
-Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL) {
+Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL, collapse_pairs = FALSE, pair_suffix = c("_R1", "_R2"), collapse_fun = "sum") {
   library(phyloseq)
   library(stringr)
 
@@ -79,6 +82,37 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL) {
   } else if (func.type %in% c("humann", "humann2", "humann3")) {
     func.type <- "Humann3"
 
+    collapse_humann_pairs <- function(df, suffix = c("_R1", "_R2"), fun = "sum") {
+      stopifnot(length(suffix) == 2)
+      fun <- match.arg(fun, c("sum", "mean"))
+
+      sample_cols <- setdiff(colnames(df), c("ID", "Description"))
+      base_names <- unique(sub(paste0("(", suffix[1], "|", suffix[2], ")$"), "", sample_cols))
+      out <- vector("list", length(base_names))
+      names(out) <- base_names
+
+      for (base in base_names) {
+        candidates <- c(paste0(base, suffix[1]), paste0(base, suffix[2]))
+        present <- intersect(candidates, sample_cols)
+
+        if (length(present) == 0) {
+          present <- base
+        }
+
+        vals <- as.matrix(df[, present, drop = FALSE])
+        mode(vals) <- "numeric"
+        out[[base]] <- if (fun == "sum") {
+          rowSums(vals, na.rm = TRUE)
+        } else {
+          rowMeans(vals, na.rm = TRUE)
+        }
+      }
+
+      collapsed <- as.data.frame(out, check.names = FALSE, stringsAsFactors = FALSE)
+      rownames(collapsed) <- rownames(df)
+      collapsed
+    }
+
     # 특정 단어 포함된 행 제거
     func.tab <- func.tab[!grepl("ribosomal protein|UNGROUPED|unclassified|UNMAPPED|UNINTEGRATED", rownames(func.tab)), ]
 
@@ -91,9 +125,15 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL) {
     func.tab <- cbind(func.tab1, func.tab)
     rownames(func.tab) <- func.tab$ID
 
-    # Sample matrix와 tax table 분리
-    NumOfSample <- ncol(func.tab)
-    otu <- as.matrix(func.tab[, 3:NumOfSample])
+    if (isTRUE(collapse_pairs)) {
+      collapsed_otu <- collapse_humann_pairs(func.tab, suffix = pair_suffix, fun = collapse_fun)
+      message(sprintf("Go_function2ps(): collapsed paired HUMAnN3 columns using %s on suffixes %s and %s.", collapse_fun, pair_suffix[1], pair_suffix[2]))
+      attr(collapsed_otu, "pair_collapse_note") <- sprintf("HUMAnN3 paired technical columns were collapsed to sample-level columns using %s on suffixes %s and %s.", collapse_fun, pair_suffix[1], pair_suffix[2])
+      otu <- as.matrix(collapsed_otu)
+    } else {
+      NumOfSample <- ncol(func.tab)
+      otu <- as.matrix(func.tab[, 3:NumOfSample])
+    }
     tax <- as.matrix(func.tab[, 1:2])
     rownames(otu) <- tax[, 1]
     rownames(tax) <- tax[, 1]
@@ -122,6 +162,9 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL) {
 
   # Merge phyloseq
   ps <- phyloseq(otu_table(otu, taxa_are_rows = TRUE), tax_table(tax))
+  if (func.type == "Humann3" && isTRUE(collapse_pairs)) {
+    attr(ps, "pair_collapse_note") <- sprintf("HUMAnN3 paired technical columns were collapsed to sample-level columns using %s on suffixes %s and %s.", collapse_fun, pair_suffix[1], pair_suffix[2])
+  }
 
   print(ps)
 

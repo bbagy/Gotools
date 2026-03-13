@@ -60,7 +60,20 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
   out_perm <- file.path(sprintf("%s_%s/table/perm",project, format(Sys.Date(), "%y%m%d")))
   if(!file_test("-d", out_perm)) dir.create(out_perm, recursive = TRUE)
 
-  title_suffix <- if (!is.null(strata_var)) sprintf(" | strata=%s", strata_var) else ""
+  title_suffix <- ""
+  build_plot_subtitle <- function(cate.conf, strata_var) {
+    subtitle_parts <- character(0)
+    if (!is.null(cate.conf) && length(cate.conf) > 0) {
+      subtitle_parts <- c(subtitle_parts, sprintf("covariates=%s", paste(cate.conf, collapse = "+")))
+    }
+    if (!is.null(strata_var) && length(strata_var) > 0) {
+      subtitle_parts <- c(subtitle_parts, sprintf("strata=%s", paste(strata_var, collapse = "+")))
+    }
+    if (length(subtitle_parts) == 0) {
+      return(NULL)
+    }
+    paste(subtitle_parts, collapse = "\n")
+  }
 
   # ---------- helpers ----------
   .safe_levels <- function(x, levs) {
@@ -335,10 +348,12 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               geom_point(size=0.9, alpha=1)
           }
 
+          subtitle_text <- build_plot_subtitle(cate.conf, strata_var)
           p = p +
             labs(x = paste0("Axis 1 (", sprintf("%.2f", axis1_percent_avg),"%)"),
-                 y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)")) +
-            ggtitle(sprintf("%s (%s)%s", mvar, distance_metric, title_suffix)) +
+                 y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)"),
+                 title = sprintf("%s (%s)%s", mvar, distance_metric, title_suffix),
+                 subtitle = subtitle_text) +
             facet_wrap(~ method, scales="free") + theme_bw() +
             theme(strip.background = element_blank(),
                   legend.position = "bottom",
@@ -349,7 +364,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                   legend.spacing.y = ggplot2::unit(0.02, "cm"),
                   legend.key.height = ggplot2::unit(0.25, "cm"),
                   legend.key.width = ggplot2::unit(0.35, "cm"),
-                  legend.margin = ggplot2::margin(0, 0, 0, 0, "cm"))
+                  legend.margin = ggplot2::margin(0, 0, 0, 0, "cm"),
+                  plot.subtitle = element_text(size = 6, lineheight = 0.9))
 
           if(!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
           p <- p + guides(
@@ -534,10 +550,12 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
             geom_point(size=0.9, alpha=1)
         }
 
+        subtitle_text <- build_plot_subtitle(cate.conf, strata_var)
         p = p +
           labs(x = paste0("Axis 1 (", sprintf("%.2f", axis1_percent_avg),"%)"),
-               y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)")) +
-          ggtitle(sprintf("%s (%s)%s", mvar, distance_metric, title_suffix)) +
+               y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)"),
+               title = sprintf("%s (%s)%s", mvar, distance_metric, title_suffix),
+               subtitle = subtitle_text) +
           facet_wrap(~ method, scales="free") + theme_bw() +
           theme(strip.background = element_blank(),
                 legend.position = "bottom",
@@ -549,7 +567,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 legend.key.height = ggplot2::unit(0.25, "cm"),
                 legend.key.width = ggplot2::unit(0.35, "cm"),
                 legend.margin = ggplot2::margin(0, 0, 0, 0, "cm"),
-                plot.title=element_text(size=8,face="bold"))
+                plot.title=element_text(size=8,face="bold"),
+                plot.subtitle = element_text(size = 6, lineheight = 0.9))
 
         if(!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
         p <- p + guides(
