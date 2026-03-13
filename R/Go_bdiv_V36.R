@@ -457,8 +457,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
           # ===================================== #
 
           if (!is.null(facet) && facet %in% names(pdataframe)) {
-            ncol <- length(unique(mapping.sel.na.rem[,facet]))
-            p <- p + facet_wrap(as.formula(sprintf("~ %s", facet)), scales="free_x", ncol = ncol)
+            p <- p + facet_wrap(as.formula(sprintf("~ %s", facet)), scales="free_x", ncol = 1)
           }
 
           if(!is.null(paired) && paired %in% names(pdataframe)){
@@ -664,9 +663,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         # ===================================== #
 
         if (!is.null(facet) && facet %in% names(pdataframe)) {
-          ncol <- length(unique(mapping.sel.na.rem[,facet]))
           mapping.sel.na.rem[[facet]] <- factor(mapping.sel.na.rem[[facet]], levels = orders)
-          p <- p + facet_wrap(as.formula(sprintf("~ %s", facet)), scales="free_x", ncol = ncol)
+          p <- p + facet_wrap(as.formula(sprintf("~ %s", facet)), scales="free_x", ncol = 1)
         }
 
         if(!is.null(paired) && paired %in% names(pdataframe)){

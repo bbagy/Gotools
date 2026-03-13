@@ -271,6 +271,11 @@ Go_Deseq2 <- function(psIN,  project,
       tmp$bas.count <-  sum(with(mapping.sel.cb, mapping.sel.cb[,mvar] == basline))
       tmp$smvar <- smvar
       tmp$smvar.count <-  sum(with(mapping.sel.cb, mapping.sel.cb[,mvar] == smvar))
+      tmp$name_token <- if (is.null(name)) NA_character_ else as.character(name)
+      tmp$comparison_token <- sprintf("%s.vs.%s%s",
+                                      basline,
+                                      smvar,
+                                      if (is.null(name)) "" else paste(".", as.character(name), sep = ""))
 
 
       #-- give taxa name --#
@@ -383,4 +388,3 @@ Go_Deseq2 <- function(psIN,  project,
     }
   }
 }
-

@@ -338,6 +338,11 @@ Go_Aldex2 <- function(psIN,  project,
         aldex_df$bas.count <-  sum(with(mapping.sel.cb, mapping.sel.cb[,mvar] == basline))
         aldex_df$smvar <- smvar
         aldex_df$smvar.count <-  sum(with(mapping.sel.cb, mapping.sel.cb[,mvar] == smvar))
+        aldex_df$name_token <- if (is.null(name)) NA_character_ else as.character(name)
+        aldex_df$comparison_token <- sprintf("%s.vs.%s%s",
+                                             basline,
+                                             smvar,
+                                             if (is.null(name)) "" else paste(".", as.character(name), sep = ""))
 
 
 
@@ -518,5 +523,4 @@ Go_Aldex2 <- function(psIN,  project,
     }
   }
 }
-
 

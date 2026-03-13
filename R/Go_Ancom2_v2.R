@@ -347,6 +347,11 @@ Go_Ancom2 <- function(psIN, project,
       ancom_df$bas.count <- sum(mapping.sel.cb[,mvar] == basline)
       ancom_df$smvar <- smvar
       ancom_df$smvar.count <- sum(mapping.sel.cb[,mvar] == smvar)
+      ancom_df$name_token <- if (is.null(name)) NA_character_ else as.character(name)
+      ancom_df$comparison_token <- sprintf("%s.vs.%s%s",
+                                           basline,
+                                           smvar,
+                                           if (is.null(name)) "" else paste(".", as.character(name), sep = ""))
       ancom_df$ancom2.FDR <- ifelse(ancom_df$qvalue_ancombc < 0.05,
                                     ifelse(sign(ancom_df$lfc_ancombc) == 1, "up", "down"), "NS")
       ancom_df$ancom2.P <- ifelse(ancom_df$pvalue_ancombc < 0.05,
