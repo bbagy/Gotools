@@ -51,7 +51,7 @@
 #'
 #' @export
 
-Go_pheatmap <- function(psIN,project, title,
+Go_pheatmap <- function(psIN,project, title = NULL,
                         group1=NULL, group2=NULL, group3=NULL, group4=NULL,
                         Ntax=NULL,
                         name=NULL,
@@ -385,4 +385,3 @@ print("Check the psIN")
 
   dev.off()
 }
-
