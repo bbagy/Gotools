@@ -69,6 +69,12 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
 
   if(!is.null(dev.list())) dev.off()
 
+  # Normalize taxanames to actual tax_table column names (case-insensitive)
+  actual_ranks <- colnames(tax_table(psIN))
+  taxanames <- sapply(taxanames, function(tn) {
+    m <- which(tolower(actual_ranks) == tolower(tn))
+    if (length(m) > 0) actual_ranks[m[1]] else tn
+  }, USE.NAMES = FALSE)
   taxRanks <- taxanames
 
   # out dir
