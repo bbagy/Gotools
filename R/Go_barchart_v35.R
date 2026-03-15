@@ -166,7 +166,8 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     label_nchar <- if (colourCount > 0) nchar(labels) else 0
     max_label_nchar <- if (colourCount > 0) max(label_nchar, na.rm = TRUE) else 0
 
-    legend_ncol <- min(4, max(1, colourCount))
+    legend_ncol_limit <- if (tax_var %in% c("Genus", "Species")) 3 else 4
+    legend_ncol <- min(legend_ncol_limit, max(1, colourCount))
     legend_rows <- max(1, ceiling(colourCount / legend_ncol))
 
     legend_text_size <- 10
