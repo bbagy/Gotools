@@ -229,16 +229,14 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     })
 
     stat_df <- dplyr::bind_rows(stat_list)
-    stat_df$padj <- stats::p.adjust(stat_df$p, method = p_adjust)
 
     ann_df <- dplyr::mutate(
       stat_df,
       label = base::sprintf(
-        "%-12s\n%-12s\n%-18s\n%-18s",
+        "%-12s\n%-12s\n%-18s",
         distance_metric,
         base::paste0("R2=", base::formatC(R2, format="f", digits=3)),
-        base::paste0("PERMANOVA p=", base::formatC(p, format="f", digits=3)),
-        base::paste0(.adj_label(p_adjust), "=", base::formatC(padj, format="f", digits=3))
+        base::paste0("PERMANOVA p=", base::formatC(p, format="f", digits=3))
       ),
       x = -Inf,
       y = -Inf
@@ -425,7 +423,6 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               }
               ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
               R2 <- round(ad[1,3], 3); p_perm <- ad[1,5]
-              p_perm_adj <- stats::p.adjust(p_perm, method = p_adjust)[1]
 
               # SAVE non-facet PERMANOVA table   # <<< NEW
               fn <- file.path(
@@ -439,11 +436,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               ann_df <- data.frame(
                 x = -Inf,
                 y = -Inf,
-                label = sprintf("%-12s\n%-12s\n%-18s\n%-18s",
+                label = sprintf("%-12s\n%-12s\n%-18s",
                                 distance_metric,
                                 paste0("R2=", formatC(R2, format="f", digits=3)),
-                                paste0("PERMANOVA p=", formatC(p_perm, format="f", digits=3)),
-                                paste0(.adj_label(p_adjust), "=", formatC(p_perm_adj, format="f", digits=3)))
+                                paste0("PERMANOVA p=", formatC(p_perm, format="f", digits=3)))
               )
               p <- p + ggplot2::geom_text(
                 data = ann_df,
@@ -627,7 +623,6 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
             }
             ad <- vegan::adonis2(form, data = map.pair, permutations = perm_use, by="terms")
             R2 <- round(ad[1,3], 3); p_perm <- ad[1,5]
-            p_perm_adj <- stats::p.adjust(p_perm, method = p_adjust)[1]
 
             # SAVE non-facet PERMANOVA table   # <<< NEW
             fn <- file.path(
@@ -642,12 +637,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               x = -Inf,
               y = -Inf,
               label = sprintf(
-                "%s\nR2=%.3f\nPERMANOVA p=%.3f\n%s=%.3f",
+                "%s\nR2=%.3f\nPERMANOVA p=%.3f",
                 distance_metric,
                 R2,
-                p_perm,
-                .adj_label(p_adjust),
-                p_perm_adj
+                p_perm
               ),
               stringsAsFactors = FALSE
             )

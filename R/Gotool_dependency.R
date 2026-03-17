@@ -32,7 +32,7 @@ Gotool_dependency <- function() {
                      "RcppZiggurat", "Rfast", "survival", "withr", "knitr", "kableExtra", "DT")
 
   # Packages to install from Bioconductor
-  bioconductor_packages <- c("phyloseq", "microbiome", "Rhtslib", "dada2", "dplyr",
+  bioconductor_packages <- c("phyloseq", "microbiome", "Rhtslib", "dada2",
                              "ggpubr", "ggfortify", "genefilter", "ggpmisc", "S4Vectors",
                              "ShortRead", "illuminaio", "rstatix", "useful", "DECIPHER",
                              "ComplexHeatmap","DESeq2", "ALDEx2","scater","ANCOMBC") #"ComplexHeatmap",
@@ -51,7 +51,7 @@ Gotool_dependency <- function() {
       if (!require("BiocManager", quietly = TRUE)) {
         install.packages("BiocManager")
       }
-      BiocManager::install(package, force = TRUE, ask = FALSE, type = "source")
+      BiocManager::install(package, ask = FALSE)
     }
     library(package, character.only = TRUE, quietly = TRUE)
   }

@@ -197,14 +197,5 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL, coll
 
   print(ps)
 
-  # Saving file
-  rds <- file.path("2_rds")
-  if (!dir.exists(rds)) dir.create(rds, recursive = TRUE)
-
-  saveRDS(ps, file.path(rds, sprintf("ps.%s.%s%s%s%s.rds",
-                                     func.type,
-                                     ifelse(is.null(func), "", paste0(func, ".")),
-                                     ifelse(is.null(project), "", paste0(project, ".")),
-                                     ifelse(is.null(name), "", paste0(name, ".")),
-                                     format(Sys.Date(), "%y%m%d"))))
+  return(ps)
 }
