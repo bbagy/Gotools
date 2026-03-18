@@ -143,6 +143,7 @@ Go_Deseq2 <- function(psIN,  project,
 
   # start
   res <- {}
+  results_list <- list()
   for (mvar in cate.outs ) {
     if (length(unique(mapping[, mvar])) == 1) {
       next
@@ -385,6 +386,8 @@ Go_Deseq2 <- function(psIN,  project,
       # Write the csv and rds files
       write.csv(res, quote = FALSE, col.names = NA, file = csv_filename)
       #saveRDS(ps.taxa.sig, rds_filename)
+      results_list[[length(results_list) + 1]] <- res
     }
   }
+  invisible(results_list)
 }

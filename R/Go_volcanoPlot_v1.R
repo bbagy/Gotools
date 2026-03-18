@@ -29,10 +29,12 @@
 
 
 Go_volcanoPlot <- function(project,
-                       file_path,files,
+                       file_path = NULL,
+                       files = NULL,
+                       result = NULL,
                        fc,
                        mycols=NULL,
-                       name,
+                       name = NULL,
                        overlaps=10,
                        font,
                        height, width){
@@ -47,15 +49,53 @@ Go_volcanoPlot <- function(project,
   out_DA <- file.path(sprintf("%s_%s/pdf/DA_plot",project, format(Sys.Date(), "%y%m%d")))
   if(!dir.exists(out_DA)) dir.create(out_DA)
 
-
-  # add input files
+  # build file list
   plot = "volcano"
-  path <- file_path
-  filenames <- list.files(path, pattern=files);filenames
-  print(path)
-  print(filenames)
+  if (!is.null(result)) {
+    # extract dataframe from result object
+    result_df <- if (is.data.frame(result)) result else {
+      dfs <- Filter(is.data.frame, result)
+      if (length(dfs) == 0) stop("result must contain a data frame.")
+      dfs[[1]]
+    }
+    # detect tool from column names
+    tool_name <- if ("deseq2.P" %in% colnames(result_df)) {
+      "deseq2"
+    } else if (any(c("aldex2.P", "aldex2.kP") %in% colnames(result_df))) {
+      model_suffix <- if ("kendall.etau" %in% colnames(result_df)) "corr" else
+                      if ("diff.btw"    %in% colnames(result_df)) "t-test" else "GLM"
+      paste0("aldex2_", model_suffix)
+    } else if ("ancom2.P" %in% colnames(result_df)) {
+      "ancom2"
+    } else {
+      stop("Cannot detect tool from result columns (expected deseq2.P / aldex2.P / ancom2.P).")
+    }
+    tmp_dir <- tempfile(pattern = "volcano_")
+    dir.create(tmp_dir)
+    tmp_file <- sprintf("%s_result.csv", tool_name)
+    write.csv(result_df, file.path(tmp_dir, tmp_file), row.names = FALSE)
+    file_list <- data.frame(path = tmp_dir, file = tmp_file, stringsAsFactors = FALSE)
 
-  # out file
+  } else if (!is.null(file_path) && !is.null(files)) {
+    filenames <- list.files(file_path, pattern = files)
+    file_list <- data.frame(path = file_path, file = filenames, stringsAsFactors = FALSE)
+
+  } else {
+    tool_dirs <- c("deseq2", "aldex2", "ancom2")
+    file_list <- do.call(rbind, lapply(tool_dirs, function(tool) {
+      tool_path <- sprintf("%s_%s/table/%s", project, format(Sys.Date(), "%y%m%d"), tool)
+      if (!dir.exists(tool_path)) return(NULL)
+      tool_files <- list.files(tool_path, pattern = "\\.csv$", full.names = FALSE)
+      if (length(tool_files) == 0) return(NULL)
+      data.frame(path = tool_path, file = tool_files, stringsAsFactors = FALSE)
+    }))
+  }
+  if (is.null(file_list) || nrow(file_list) == 0) {
+    message("No DA result files found.")
+    return(invisible(NULL))
+  }
+  print(file_list)
+
   # "name" definition
   if (is.function(name)){
     name <- NULL
@@ -67,8 +107,8 @@ Go_volcanoPlot <- function(project,
     mycols <- NULL
   }
 
-  for (fn in 1:length(filenames)) {
-    filename1 <- sprintf("%s/%s", path, filenames[fn]);filename1
+  for (fn in seq_len(nrow(file_list))) {
+    filename1 <- file.path(file_list$path[fn], file_list$file[fn])
     df <- read.csv(filename1, row.names=NULL ,check.names=FALSE,quote = "")
 
     df$aldex2.FDR
@@ -340,15 +380,19 @@ Go_volcanoPlot <- function(project,
 
     p1 <- p1 + labs(title = sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc), subtitle = subtitle_text)
     p2 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE) +
-      labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool)) +  #
+      labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool)) +
+      guides(color = guide_legend(nrow = 1, byrow = TRUE, title.position = "top"),
+             shape = guide_legend(nrow = 1, byrow = TRUE, title.position = "left")) +
       theme(text = element_text(size=font+8),
             plot.title = element_text(size=font+8),
             plot.subtitle = element_text(size=font+6, lineheight = 0.9),
             legend.text=element_text(size=font+8),
             legend.position="bottom",
-            legend.justification = "left",
+            legend.justification = c(0, 0),
             legend.box.just = "left",
             legend.box = "vertical",
+            legend.margin = ggplot2::margin(0, 0, 0, 0),
+            legend.box.margin = ggplot2::margin(0, 0, 0, -25),
             legend.key = element_blank(),
             panel.grid = element_blank(),
             panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),
@@ -413,15 +457,19 @@ Go_volcanoPlot <- function(project,
       p1 <- p1 + geom_text_repel(aes_string(label=label_condition), size=font, fontface="italic", max.overlaps=overlaps)
       p1 <- p1 + labs(title = sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc), subtitle = subtitle_text)
       p2 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE) +
-        labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool)) +  #
+        labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool)) +
+        guides(color = guide_legend(nrow = 1, byrow = TRUE, title.position = "top"),
+               shape = guide_legend(nrow = 1, byrow = TRUE, title.position = "left")) +
         theme(text = element_text(size=font+8),
               plot.title = element_text(size=font+8),
               plot.subtitle = element_text(size=font+6, lineheight = 0.9),
               legend.text=element_text(size=font+8),
               legend.position="bottom",
-              legend.justification = "left",
+              legend.justification = c(0, 0),
               legend.box.just = "left",
               legend.box = "vertical",
+              legend.margin = ggplot2::margin(0, 0, 0, 0),
+              legend.box.margin = ggplot2::margin(0, 0, 0, -25),
               legend.key = element_blank(),
               panel.grid = element_blank(),
               panel.background = element_rect(fill = "white", colour = "Black",size = 0.5, linetype = "solid"),

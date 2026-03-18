@@ -136,7 +136,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
     y_base <- max(dat_sub[[oc]], na.rm = TRUE)
     y_span <- diff(range(dat_sub[[oc]], na.rm = TRUE))
     if (!is.finite(y_span) || y_span == 0) y_span <- 1
-    y_step <- y_span * 0.08
+    y_step <- y_span * 0.06
 
     ann <- data.frame(
       group1 = vapply(comparisons, `[`, character(1), 1),
@@ -194,9 +194,9 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
   ann <- if (length(ann_list) > 0) do.call(rbind, ann_list) else NULL
 
   list(
-    test.name = test_name,
-    pval = NULL,
-    testmethod = NULL,
+    test.name  = test_name,
+    pval       = NULL,
+    testmethod = res_list[[1]]$testmethod,
     annotation = ann
   )
 }
@@ -237,7 +237,7 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
     )
   }
 
-  if (stat_res$testmethod %in% c("wilcox.test", "t.test")) {
+  if (!is.null(stat_res$testmethod) && stat_res$testmethod %in% c("wilcox.test", "t.test")) {
     if (is.null(paired)) {
       return(
         p1 + ggpubr::stat_compare_means(

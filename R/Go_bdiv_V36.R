@@ -176,7 +176,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
       map_sub <- base::as.data.frame(phyloseq::sample_data(ps_obj))
       map_sub <- map_sub[map_sub[[facet]] == flv, , drop = FALSE]
       if (base::nrow(map_sub) < 3 || base::length(base::unique(map_sub[[mvar]])) < 2) {
-        return(base::data.frame(facet_val = flv, R2 = NA_real_, p = NA_real_))
+        return(base::data.frame(facet_val = flv, R2 = NA_real_, pval = NA_real_))
       }
       ps_sub <- phyloseq::prune_samples(base::rownames(map_sub), ps_obj)
 
@@ -188,7 +188,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         map_sub2 <- map_sub2[keep, , drop = FALSE]
       }
       if (base::nrow(map_sub2) < 3 || base::length(base::unique(map_sub2[[mvar]])) < 2) {
-        return(base::data.frame(facet_val = flv, R2 = NA_real_, p = NA_real_))
+        return(base::data.frame(facet_val = flv, R2 = NA_real_, pval = NA_real_))
       }
 
       ps_sub <- phyloseq::prune_samples(base::rownames(map_sub2), ps_sub)
@@ -222,8 +222,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
 
       base::data.frame(
         facet_val = flv,
-        R2 = base::suppressWarnings(base::round(ad[1,"R2"], 3)),
-        p  = base::suppressWarnings(ad[1,"Pr(>F)"]),
+        R2   = base::suppressWarnings(base::round(ad[1,"R2"], 3)),
+        pval = base::suppressWarnings(ad[1,"Pr(>F)"]),
         stringsAsFactors = FALSE
       )
     })
@@ -236,7 +236,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         "%-12s\n%-12s\n%-18s",
         distance_metric,
         base::paste0("R2=", base::formatC(R2, format="f", digits=3)),
-        base::paste0("PERMANOVA p=", base::formatC(p, format="f", digits=3))
+        base::paste0("PERMANOVA p=", base::formatC(pval, format="f", digits=3))
       ),
       x = -Inf,
       y = -Inf
