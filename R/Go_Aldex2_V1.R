@@ -196,7 +196,6 @@ Go_Aldex2 <- function(psIN,  project,
   #  Start data controlling #
   #=========================#
   mapping <- map
-  results_list <- list()
   for (mvar in outcomes) {
     holm_col_name <- NULL
     est_col_name <- NULL
@@ -442,7 +441,6 @@ Go_Aldex2 <- function(psIN,  project,
         filename <- sprintf("%s/aldex2.(%s.vs.%s).Sig%s.%s.%s.%s%s.%s.csv",
                             out_DA, basline, smvar, num_significant, mvar, model, confounder_prefix, name_prefix, project)
         write.csv(merged_results, quote = F, col.names = NA, file = filename)
-        results_list[[length(results_list) + 1]] <- merged_results
       }
 
     }else if(class(mapping[,mvar]) == "numeric"){ #====== aldex continuous value
@@ -520,10 +518,9 @@ Go_Aldex2 <- function(psIN,  project,
       filename <- sprintf("%s/aldex2.continuous.Sig%s.%s.%s.%s%s.csv",
                           out_DA, num_significant,  model, mvar, name_prefix, project)
       write.csv(merged_results, quote = FALSE, col.names = NA, file = filename)
-      results_list[[length(results_list) + 1]] <- merged_results
 
     }
   }
-  invisible(results_list)
+  invisible(out_DA)
 }
 

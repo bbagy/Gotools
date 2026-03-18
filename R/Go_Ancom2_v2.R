@@ -188,7 +188,6 @@ Go_Ancom2 <- function(psIN, project,
   # 8. ANCOM-BC2 분석 루프 시작
   ########################################################
   # cate.outs: 분석할 주요 범주형 변수 리스트
-  results_list <- list()
   for (mvar in cate.outs) {
     if (length(unique(mapping[, mvar])) == 1) {
       next
@@ -382,10 +381,9 @@ Go_Ancom2 <- function(psIN, project,
 
       output_path <- file.path(out_DA, filename)
       write.csv(merged_results, quote = FALSE, col.names = NA, file = output_path)
-      results_list[[length(results_list) + 1]] <- merged_results
 
       message(sprintf(" [DONE] Saved: %s", output_path))
     }
   }
-  invisible(results_list)
+  invisible(out_DA)
 }

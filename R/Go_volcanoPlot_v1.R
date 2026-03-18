@@ -52,29 +52,13 @@ Go_volcanoPlot <- function(project,
   # build file list
   plot = "volcano"
   if (!is.null(result)) {
-    # extract dataframe from result object
-    result_df <- if (is.data.frame(result)) result else {
-      dfs <- Filter(is.data.frame, result)
-      if (length(dfs) == 0) stop("result must contain a data frame.")
-      dfs[[1]]
+    # result is a directory path returned by Go_Deseq2 / Go_Aldex2 / Go_Ancom2
+    if (!is.character(result) || !dir.exists(result)) {
+      stop("result must be a directory path returned by Go_Deseq2 / Go_Aldex2 / Go_Ancom2.")
     }
-    # detect tool from column names
-    tool_name <- if ("deseq2.P" %in% colnames(result_df)) {
-      "deseq2"
-    } else if (any(c("aldex2.P", "aldex2.kP") %in% colnames(result_df))) {
-      model_suffix <- if ("kendall.etau" %in% colnames(result_df)) "corr" else
-                      if ("diff.btw"    %in% colnames(result_df)) "t-test" else "GLM"
-      paste0("aldex2_", model_suffix)
-    } else if ("ancom2.P" %in% colnames(result_df)) {
-      "ancom2"
-    } else {
-      stop("Cannot detect tool from result columns (expected deseq2.P / aldex2.P / ancom2.P).")
-    }
-    tmp_dir <- tempfile(pattern = "volcano_")
-    dir.create(tmp_dir)
-    tmp_file <- sprintf("%s_result.csv", tool_name)
-    write.csv(result_df, file.path(tmp_dir, tmp_file), row.names = FALSE)
-    file_list <- data.frame(path = tmp_dir, file = tmp_file, stringsAsFactors = FALSE)
+    tool_files <- list.files(result, pattern = "\\.csv$", full.names = FALSE)
+    if (length(tool_files) == 0) stop(sprintf("No CSV files found in: %s", result))
+    file_list <- data.frame(path = result, file = tool_files, stringsAsFactors = FALSE)
 
   } else if (!is.null(file_path) && !is.null(files)) {
     filenames <- list.files(file_path, pattern = files)
