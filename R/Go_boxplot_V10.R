@@ -23,10 +23,9 @@
 #' @param model Statistical engine: "nonparametric", "parametric", or "lmm". If NULL, inferred from \code{parametric}.
 #' @param covariates Optional covariate column names for adjusted models (ANCOVA/LMM).
 #' @param p_adjust P-value adjustment method for pairwise tests (e.g., "BH", "bonferroni"). Default "BH".
-#' @param xangle Angle of x-axis labels. Default 90.
 #' @param cutoff Significance level for statistical tests. Default 0.1.
-#' @param min_height Minimum plot panel height in inches (excluding x-axis labels). Default 3.
-#' @param min_width Minimum plot width per column in inches. Default 3.
+#' @param min_height Minimum plot panel height in inches (excluding x-axis labels). Default 2.
+#' @param min_width Minimum plot width per column in inches. Default 2.
 #' @param plotCols Number of columns in the multiplot layout. Default 1.
 #' @param plotRows Number of rows in the multiplot layout. Default 1.
 #'
@@ -71,10 +70,9 @@ Go_boxplot <- function(df          = NULL,
                        model       = NULL,
                        covariates  = NULL,
                        p_adjust    = "BH",
-                       xangle      = 90,
                        cutoff      = 0.1,
-                       min_height  = 3,
-                       min_width   = 3,
+                       min_height  = 2,
+                       min_width   = 2,
                        plotCols    = 1,
                        plotRows    = 1) {
 
@@ -124,7 +122,7 @@ Go_boxplot <- function(df          = NULL,
       labs(y = oc, x = NULL) +
       theme(strip.background = element_blank(),
             text              = element_text(size = 8),
-            axis.text.x       = element_text(angle = xangle, hjust = 1, vjust = 0.5, size = 8),
+            axis.text.x       = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8),
             plot.title        = element_text(size = 8),
             plot.subtitle     = element_text(size = 6, lineheight = 0.9))
   }
@@ -180,25 +178,6 @@ Go_boxplot <- function(df          = NULL,
     p1
   }
 
-  # Split plot into panel (fixed height) + x-axis labels (variable height)
-  apply_label_split <- function(p, panel_h, label_h) {
-    p_panel <- p + theme(axis.text.x  = element_blank(),
-                         axis.ticks.x = element_blank(),
-                         plot.margin  = ggplot2::margin(5, 5, 2, 5, "pt"))
-
-    # Extract x-axis grob from full plot
-    gt       <- ggplot_gtable(ggplot_build(p))
-    axis_idx <- which(gt$layout$name == "axis-b")
-    if (length(axis_idx) == 0) return(p_panel)
-
-    axis_grob <- gt$grobs[[axis_idx]]
-    p_xlab    <- cowplot::ggdraw() +
-                   cowplot::draw_grob(axis_grob, x = 0, y = 0, width = 1, height = 1)
-
-    cowplot::plot_grid(p_panel, p_xlab,
-                       ncol        = 1,
-                       rel_heights = c(panel_h, label_h))
-  }
 
   # ── setup ───────────────────────────────────────────────────────────────────
   if (!is.null(dev.list())) dev.off()
@@ -420,20 +399,13 @@ Go_boxplot <- function(df          = NULL,
   max_n_comp <- max(all_n_comp,  na.rm = TRUE)
   max_lbl    <- max(all_max_lbl, na.rm = TRUE)
 
-  panel_h <- max(min_height, 2 + max_n_comp * 0.3)   # panel + stat brackets
-  label_h <- max(0.5, max_lbl * 0.09)                 # rotated x-axis labels
+  panel_h <- max(min_height, min_height + max_n_comp * 0.10)  # panel + stat brackets
+  label_h <- max(0.3, max_lbl * 0.055)                        # rotated x-axis labels
   pdf_h   <- (panel_h + label_h) * plotRows
-  pdf_w   <- max(min_width, max_n_grp * 0.5) * plotCols
+  pdf_w   <- max(min_width, max_n_grp * 0.4) * plotCols
 
   message(sprintf("[Go_boxplot] PDF: %.1f x %.1f in  (panel=%.1f, labels=%.1f, w/grp=%.2f)",
                   pdf_w, pdf_h, panel_h, label_h, max_n_grp * 0.5))
-
-  # Apply panel / label split to each plot
-  plotlist <- lapply(plotlist, function(p) {
-    ph <- max(min_height, 2 + (attr(p, "n_comp") %||% 0) * 0.3)
-    lh <- max(0.5, (attr(p, "max_lbl_chars") %||% 10) * 0.09)
-    apply_label_split(p, ph, lh)
-  })
 
   # ── render ───────────────────────────────────────────────────────────────────
   pdf(file.path(out_path, file_name), height = pdf_h, width = pdf_w)
