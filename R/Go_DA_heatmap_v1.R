@@ -46,12 +46,12 @@ Go_DA_heat <- function(df, project, data_type, font,
 
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
 
   tt <- try(mycols,T)
-  if(class(tt) == "try-error"){
+  if(inherits(tt, "try-error")){
     print("mycols is not defined.")
     mycols <- NULL
   }
@@ -65,7 +65,7 @@ Go_DA_heat <- function(df, project, data_type, font,
 
   # out file
   # "name" definition
-  if (class(name) == "function"){
+  if (is.function(name)){
     name <- NULL
   }
 

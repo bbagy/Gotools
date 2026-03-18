@@ -29,11 +29,11 @@
 Go_dist <- function(psIN, project, cate.vars, name=NULL, distance_metrics){
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   out_dist <- file.path(sprintf("%s_%s/table/dist",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_dist)) dir.create(out_dist)
+  if(!dir.exists(out_dist)) dir.create(out_dist)
   
   print("You can measure unifrac, wunifrac, dpcoa, jsd, manhattan, euclidean, canberra, bray, kulczynski, and jaccard.")
   

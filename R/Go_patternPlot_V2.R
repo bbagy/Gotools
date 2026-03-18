@@ -120,7 +120,7 @@ Go_patternPlot <- function(
   require(rlang)
 
   tt <- try(orders, TRUE)
-  if (class(tt) == "try-error") {
+  if (inherits(tt, "try-error")) {
     print("orders is not defined.")
     orders <- NULL
   }

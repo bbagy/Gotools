@@ -67,13 +67,13 @@ Go_pheatmap <- function(psIN,project, title = NULL,
 
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_pdf <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_pdf)) dir.create(out_pdf)
+  if(!dir.exists(out_pdf)) dir.create(out_pdf)
   out_tab <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_tab)) dir.create(out_tab)
+  if(!dir.exists(out_tab)) dir.create(out_tab)
   out_pheatmapTab <- file.path(sprintf("%s_%s/table/pheatmapTab",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_pheatmapTab)) dir.create(out_pheatmapTab)
+  if(!dir.exists(out_pheatmapTab)) dir.create(out_pheatmapTab)
 
 
   #----- normalization relative abundant ---#
@@ -244,7 +244,7 @@ print("Check the psIN")
 
   tt <- try(rownames(annotation_row) <- rownames(matrix), T)
 
-  if (class(tt) == "try-error"){
+  if (inherits(tt, "try-error")){
     rownames(annotation_row) <- colnames(matrix)
   }else{
     rownames(annotation_row) <- rownames(matrix)
@@ -320,7 +320,7 @@ print("Check the psIN")
   print("p0")
 
   tt<-try(pheatmap(matrix, annotation_col = annotation_col),T)
-  if (class(tt) == "try-error"){
+  if (inherits(tt, "try-error")){
     matrix <- t(matrix)
   }else{
     matrix <- matrix

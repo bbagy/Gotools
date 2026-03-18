@@ -45,11 +45,11 @@ Go_regression <- function(data, project,
                           orders, pvalue=0.05, name=NULL){
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   out_table <- file.path(sprintf("%s_%s/table/regression",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_table)) dir.create(out_table)
+  if(!dir.exists(out_table)) dir.create(out_table)
 
   # data control
   # fix outcome column types
@@ -244,9 +244,7 @@ Go_regression <- function(data, project,
           colnames(coef) <- c("Estimate", "SE", "t", "pval")
         }
 
-        if (dim(coef)[
-
-          1] == 0){
+        if (dim(coef)[1] == 0){
           next
         }
 

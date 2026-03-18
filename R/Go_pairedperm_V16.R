@@ -65,11 +65,11 @@ Go_pairedperm <- function(psIN, cate.vars, project, distance_metrics, cate.conf=
 
   # Output directory setup
   out <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
-  if (!file_test("-d", out)) dir.create(out)
+  if (!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s/table", out))
-  if (!file_test("-d", out_path)) dir.create(out_path)
+  if (!dir.exists(out_path)) dir.create(out_path)
   out_perm <- file.path(sprintf("%s/perm", out_path))
-  if (!file_test("-d", out_perm)) dir.create(out_perm)
+  if (!dir.exists(out_perm)) dir.create(out_perm)
 
   # Run header
   if (!is.null(des)) {

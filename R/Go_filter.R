@@ -21,7 +21,7 @@ Go_filter <- function(psIN, cutoff){ #project
   # remove 0 ASVs
   
   tt = try(psIN.prune <- prune_samples(sample_sums(psIN) > 1, psIN),T)
-  if (class(tt) == "try-error"){
+  if (inherits(tt, "try-error")){
     psIN.prune = prune_samples(sample_sums(psIN) > 0, psIN);psIN.prune
   }else{
     psIN.prune <- prune_samples(sample_sums(psIN) > 1, psIN);psIN.prune
@@ -51,7 +51,7 @@ Go_filter <- function(psIN, cutoff){ #project
   
   # out dir
   # out <- file.path("2_rds") 
-  # if(!file_test("-d", out)) dir.create(out)
+  # if(!dir.exists(out)) dir.create(out)
   #saveRDS(ps_filtered, sprintf("%s/ps_filtered.%s.(%s).%s.rds", out, project, cutoff,format(Sys.Date(), "%y%m%d")))
   return(ps_filtered)
   #cat("\n")

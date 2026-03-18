@@ -5,7 +5,8 @@
 \title{Generate Boxplots for Multiple Variables}
 \usage{
 Go_boxplot(
-  df,
+  df = NULL,
+  psIN = NULL,
   cate.vars,
   project,
   outcomes,
@@ -19,7 +20,6 @@ Go_boxplot(
   name = NULL,
   ncol = NULL,
   addnumber = TRUE,
-  standardsize = TRUE,
   statistics = TRUE,
   parametric = FALSE,
   model = NULL,
@@ -27,20 +27,24 @@ Go_boxplot(
   p_adjust = "BH",
   xangle = 90,
   cutoff = 0.1,
-  height,
-  width,
-  plotCols,
-  plotRows
+  min_height = 3,
+  min_width = 3,
+  plotCols = 1,
+  plotRows = 1
 )
 }
 \arguments{
-\item{df}{Data frame containing the data to be plotted.}
+\item{df}{Data frame containing the data to be plotted. Provide either \code{df} or \code{psIN}.}
 
-\item{cate.vars}{Categorical variables to be used for the boxplot's x-axis.}
+\item{psIN}{Phyloseq object. If \code{outcomes} are alpha diversity metrics (e.g. "Shannon"),
+\code{Go_adiv()} is called internally. If taxa names are given, rank is auto-detected from
+\code{tax_table}.}
+
+\item{cate.vars}{Categorical variables to be used for the boxplot x-axis.}
 
 \item{project}{Project name used for output file naming.}
 
-\item{outcomes}{Numeric variables to be plotted on the y-axis.}
+\item{outcomes}{Numeric variables (or alpha metrics / taxa names when using psIN) to plot on y-axis.}
 
 \item{orders}{Vector of ordered factor levels for the categorical variables.}
 
@@ -60,31 +64,29 @@ Go_boxplot(
 
 \item{ncol}{Number of columns for facet wrapping in the plot.}
 
-\item{addnumber}{Boolean to add the number of samples in each group.}
+\item{addnumber}{Boolean to add the number of samples in each group. Default TRUE.}
 
-\item{standardsize}{Boolean to control the size of the plot based on group size.}
+\item{statistics}{Whether to perform statistical tests. Default TRUE.}
 
-\item{statistics}{Whether to perform statistical tests.}
-
-\item{parametric}{Whether to use parametric tests.}
+\item{parametric}{Whether to use parametric tests. Default FALSE.}
 
 \item{model}{Statistical engine: "nonparametric", "parametric", or "lmm". If NULL, inferred from \code{parametric}.}
 
 \item{covariates}{Optional covariate column names for adjusted models (ANCOVA/LMM).}
 
-\item{p_adjust}{P-value adjustment method for engine-based pairwise tests (e.g., "BH", "bonferroni").}
+\item{p_adjust}{P-value adjustment method for pairwise tests (e.g., "BH", "bonferroni"). Default "BH".}
 
-\item{xangle}{Angle of x-axis labels.}
+\item{xangle}{Angle of x-axis labels. Default 90.}
 
-\item{cutoff}{Significance level for statistical tests.}
+\item{cutoff}{Significance level for statistical tests. Default 0.1.}
 
-\item{height}{Height of the plot.}
+\item{min_height}{Minimum plot panel height in inches (excluding x-axis labels). Default 3.}
 
-\item{width}{Width of the plot.}
+\item{min_width}{Minimum plot width per column in inches. Default 3.}
 
-\item{plotCols}{Number of columns in the multiplot layout.}
+\item{plotCols}{Number of columns in the multiplot layout. Default 1.}
 
-\item{plotRows}{Number of rows in the multiplot layout.}
+\item{plotRows}{Number of rows in the multiplot layout. Default 1.}
 }
 \value{
 A PDF file containing the boxplots.
@@ -93,11 +95,20 @@ A PDF file containing the boxplots.
 Generate Boxplots for Multiple Variables
 }
 \details{
-This function creates boxplots for multiple categorical variables against one or more numeric outcomes. It supports faceting, custom color palettes, and statistical testing with options for parametric or non-parametric methods. The function can handle paired data and allows customization of plot size and layout.
+PDF dimensions are calculated automatically from the data:
+\itemize{
+\item \strong{Width}: \code{max(min_width, n_groups * 0.5) * plotCols}
+\item \strong{Panel height}: \code{max(min_height, 2 + n_comparisons * 0.3) * plotRows}
+\item \strong{Label height}: \code{max(0.5, max_label_chars * 0.09)} added for rotated x-axis labels
+}
+Panel height and label height are allocated separately via \code{cowplot::plot_grid()},
+so long group names do not eat into the boxplot panel space.
 }
 \examples{
-Go_boxplot(df = my_data, cate.vars = c("Group", "Condition"), project = "MyProject",
-           outcomes = c("Variable1", "Variable2"), orders = c("Control", "Treatment"),
-           height = 10, width = 8, plotCols = 2, plotRows = 1)
+Go_boxplot(df = my_data, cate.vars = "Group", project = "MyProject",
+           outcomes = c("Variable1", "Variable2"))
+
+Go_boxplot(psIN = ps, cate.vars = "Group", project = "MyProject",
+           outcomes = c("Shannon", "Chao1"))
 
 }

@@ -118,10 +118,10 @@ Go_Maaslin2_heatmap <- function(df,
   date_tag <- format(Sys.Date(), "%y%m%d")
   
   out_root <- sprintf("%s_%s", project, date_tag)
-  if (!utils::file_test("-d", out_root)) dir.create(out_root)
+  if (!utils::dir.exists(out_root)) dir.create(out_root)
   
   out_pdf <- file.path(out_root, "pdf")
-  if (!utils::file_test("-d", out_pdf)) dir.create(out_pdf)
+  if (!utils::dir.exists(out_pdf)) dir.create(out_pdf)
   
   ## 파일 이름 태그
   name_tag <- if (is.null(name)) "" else paste0(name,"_")

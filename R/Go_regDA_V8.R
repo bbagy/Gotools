@@ -56,17 +56,17 @@ Go_regDA <- function(psIN,
 
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   out_table <- file.path(sprintf("%s_%s/table/lmem",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_table)) dir.create(out_table)
+  if(!dir.exists(out_table)) dir.create(out_table)
 
   out_lmem.Tab <- file.path(sprintf("%s_%s/table/lmem/tab",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_lmem.Tab)) dir.create(out_lmem.Tab)
+  if(!dir.exists(out_lmem.Tab)) dir.create(out_lmem.Tab)
   
   out_lmem.ps <- file.path(sprintf("%s_%s/table/lmem/ps",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_lmem.ps)) dir.create(out_lmem.ps)
+  if(!dir.exists(out_lmem.ps)) dir.create(out_lmem.ps)
   
   # Check if taxanames is NULL or empty before proceeding
   if (!is.null(taxanames) && length(taxanames) > 0) {
@@ -151,7 +151,7 @@ Go_regDA <- function(psIN,
       otu.filt <- as.data.frame(t(otu_table(psIN.cb)))
       tt <- try(otu.filt[,taxanames]  <- getTaxonomy(otus=rownames(otu.filt), taxRanks = colnames(tax_table(psIN.cb)), tax_tab=tax_table(psIN.cb), level=taxanames),T)
       
-      if(class(tt) == "try-error"){
+      if(inherits(tt, "try-error")){
         print("other table")
         otu.filt <- as.data.frame(otu_table(psIN.cb)) 
         otu.filt[,taxanames] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN.cb), taxRanks=colnames(tax_table(psIN.cb)),level=taxanames)
@@ -254,7 +254,7 @@ Go_regDA <- function(psIN,
                                        ifelse(is.null(confounders), "", paste("+",setdiff(confounders, "SampleType"), collapse=""))))
             print(form)
             tt <- try(mod <- lmer(form, data=df, control=lmerControl(check.nobs.vs.nlev = "ignore",check.nobs.vs.rankZ = "ignore",check.nobs.vs.nRE="ignore")),T)
-            if(class(tt) == "try-error"){
+            if(inherits(tt, "try-error")){
               next
             }else{
               mod <- lmer(form, data=df, control=lmerControl(check.nobs.vs.nlev = "ignore",check.nobs.vs.rankZ = "ignore",check.nobs.vs.nRE="ignore"))
@@ -301,7 +301,7 @@ Go_regDA <- function(psIN,
           
           tt <- try(res$pvalue <- as.numeric(as.character(res$`Pr(>|z|)`)),T)
           
-          if(class(tt) == "try-error"){
+          if(inherits(tt, "try-error")){
             res$pvalue <- as.numeric(as.character(res$`Pr(>|t|)`))
             res$`Pr(>|t|)` <- NULL
           }else{
@@ -350,7 +350,7 @@ Go_regDA <- function(psIN,
         }else{
           tt <- try(ps.taxa.sig <- prune_taxa(taxa_sig, psIN.cb),T)
           
-          if(class(tt) == "try-error"){
+          if(inherits(tt, "try-error")){
             pathwayTab <- data.frame(otu_table(psIN.cb))
             pathwayRank <- data.frame(tax_table(psIN.cb))
             rownames(pathwayRank) <- pathwayRank[,taxRanks]
@@ -437,7 +437,7 @@ Go_regDA <- function(psIN,
                                      ifelse(is.null(confounders), "", paste("+",setdiff(confounders, "SampleType"), collapse=""))))
           print(form)
           tt <- try(mod <- lmer(form, data=df, control=lmerControl(check.nobs.vs.nlev = "ignore",check.nobs.vs.rankZ = "ignore",check.nobs.vs.nRE="ignore")),T)
-          if(class(tt) == "try-error"){
+          if(inherits(tt, "try-error")){
             next
           }else{
             mod <- lmer(form, data=df, control=lmerControl(check.nobs.vs.nlev = "ignore",check.nobs.vs.rankZ = "ignore",check.nobs.vs.nRE="ignore"))
@@ -480,7 +480,7 @@ Go_regDA <- function(psIN,
         
         tt <- try(res$pvalue <- as.numeric(as.character(res$`Pr(>|z|)`)),T)
         
-        if(class(tt) == "try-error"){
+        if(inherits(tt, "try-error")){
           res$pvalue <- as.numeric(as.character(res$`Pr(>|t|)`))
           res$`Pr(>|t|)` <- NULL
         }else{
@@ -523,7 +523,7 @@ Go_regDA <- function(psIN,
       }else{
         tt <- try(ps.taxa.sig <- prune_taxa(taxa_sig, psIN.cb),T)
         
-        if(class(tt) == "try-error"){
+        if(inherits(tt, "try-error")){
           pathwayTab <- data.frame(otu_table(psIN.cb))
           pathwayRank <- data.frame(tax_table(psIN.cb))
           rownames(pathwayRank) <- pathwayRank[,taxRanks]

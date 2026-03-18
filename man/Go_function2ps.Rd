@@ -4,32 +4,56 @@
 \alias{Go_function2ps}
 \title{Convert Functional Data to Phyloseq Object}
 \usage{
-Go_function2ps(tabPath, project = NULL, func.type, name = NULL)
+Go_function2ps(
+  tabPath,
+  project = NULL,
+  func.type,
+  name = NULL,
+  collapse_pairs = FALSE
+)
 }
 \arguments{
-\item{tabPath}{The path to the functional data file.}
+\item{tabPath}{Path to the functional data file (tab-delimited, row names as feature IDs).}
 
-\item{project}{(Optional) A string indicating the project name for file naming.}
+\item{project}{(Optional) Project name included in the output RDS file name.}
 
-\item{func.type}{A string specifying the type of functional data ("PICRUSt" or "HUMAnN").}
+\item{func.type}{Data source: \code{"PICRUSt"} (or \code{"PICRUSt2"}) or \code{"HUMAnN"} (or \code{"HUMAnN2"}, \code{"HUMAnN3"}). Case-insensitive.}
 
-\item{name}{(Optional) A string to add as a suffix to the file name.}
+\item{name}{(Optional) Additional suffix for the output RDS file name.}
+
+\item{collapse_pairs}{Logical. For HUMAnN inputs only. When \code{TRUE}, automatically detects
+and collapses paired technical read columns (e.g., \code{_R1}/\code{_R2}, \code{_r1}/\code{_r2},
+\code{_1}/\code{_2}) into a single sample-level column by summing. The pattern is detected
+from column names — no manual suffix specification required. Default is \code{FALSE}.}
 }
 \value{
-A \code{phyloseq} object containing the functional data. The function also saves an RDS file of the \code{phyloseq} object.
+A \code{phyloseq} object with \code{otu_table} and \code{tax_table}. Also saves an RDS file.
 }
 \description{
-This function converts functional data from PICRUSt or HUMAnN into a \code{phyloseq} object for further analysis.
+Converts functional profiling data from PICRUSt2 or HUMAnN into a \code{phyloseq} object.
+Automatically detects the functional type (KEGG KO, Pathway, EC) from row names.
 }
 \details{
-The function reads the functional data (e.g., KO or pathway abundances) and converts it into a format
-suitable for integration into a \code{phyloseq} object. The function automatically detects the data type
-(PICRUSt or HUMAnN) and processes the data accordingly.
+For PICRUSt2 input, feature IDs are taken from row names and classified as KEGG KO
+(\code{^K\\d{5}}), Pathway (\code{^PWY}), or EC number (\code{^\\d+\\.\\d+\\.\\d+\\.\\d+}).
+
+For HUMAnN input, rows containing \code{UNGROUPED}, \code{UNMAPPED}, \code{UNINTEGRATED},
+\code{unclassified}, or \code{ribosomal protein} are removed. Feature IDs and descriptions
+are split on \code{": "}.
+
+The output RDS is saved to \code{2_rds/} in the working directory with the naming convention:
+\code{ps.<func.type>.<func>.<project>.<name>.<YYMMDD>.rds}.
 }
 \examples{
-Go_function2ps(tabPath = "path/to/functional_data.txt",
+# PICRUSt2
+Go_function2ps(tabPath = "path/to/pred_metagenome_unstrat.tsv",
                project = "MyProject",
-               func.type = "PICRUSt",
-               name = "Analysis1")
+               func.type = "PICRUSt2")
+
+# HUMAnN with automatic R1/R2 collapsing
+Go_function2ps(tabPath = "path/to/humann_genefamilies.tsv",
+               project = "MyProject",
+               func.type = "HUMAnN",
+               collapse_pairs = TRUE)
 
 }

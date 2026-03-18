@@ -18,6 +18,8 @@ Go_groupBoxTimepoint(
   x.axis = NULL,
   height = NULL,
   width = NULL,
+  plotCols = NULL,
+  plotRows = NULL,
   baseline = NULL,
   paired = NULL
 )

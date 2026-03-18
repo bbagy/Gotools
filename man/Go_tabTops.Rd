@@ -4,12 +4,14 @@
 \alias{Go_tabTops}
 \title{Convert CSV Data to Phyloseq Object}
 \usage{
-Go_tabTops(csv, project)
+Go_tabTops(csv, project, cleanMito = FALSE)
 }
 \arguments{
 \item{csv}{The file path of the CSV file containing OTU data and taxonomy information.}
 
 \item{project}{A string representing the name of the project.}
+
+\item{cleanMito}{Logical. If TRUE, removes mitochondrial taxa (Order == "Rickettsiales") and taxa with NA Phylum. Default is FALSE. (Previously Go_cleanMito())}
 }
 \value{
 A phyloseq object created from the provided CSV data.
@@ -23,5 +25,6 @@ The function reads the CSV file, splits the data into numeric (OTU) and non-nume
 \examples{
 # Example usage:
 ps_object <- Go_tabTops(csv = "path/to/otu_data.csv", project = "MyMicrobiomeProject")
+ps_object <- Go_tabTops(csv = "path/to/otu_data.csv", project = "MyMicrobiomeProject", cleanMito = TRUE)
 
 }

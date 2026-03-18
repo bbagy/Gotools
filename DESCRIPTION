@@ -1,7 +1,7 @@
 Package: Gotools
 Type: Package
 Title: General Microbiome Analysis (GoTools)
-Version: 0.1.0
+Version: 2.0.0
 Authors@R: 
     person(given = "Heekuk",
            family = "Park",

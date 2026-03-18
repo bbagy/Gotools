@@ -37,16 +37,16 @@ Go_getSigASVs <- function(project, file_path, files= ".csv",
 
   #===== output files
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
 
   out_path <- file.path(sprintf("%s_%s/sigTab",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
 
   #out_csv <- file.path(sprintf("%s_%s/sigTab/csv",project, format(Sys.Date(), "%y%m%d")))
-  #if(!file_test("-d", out_csv)) dir.create(out_csv)
+  #if(!dir.exists(out_csv)) dir.create(out_csv)
 
   out_fasta <- file.path(sprintf("%s_%s/sigTab/fasta",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_fasta)) dir.create(out_fasta)
+  if(!dir.exists(out_fasta)) dir.create(out_fasta)
 
   #===== check input
   if(!target.column %in% c("deseq2.P", "ancom2.P","deseq2.FDR", "ancom2.FDR")) {

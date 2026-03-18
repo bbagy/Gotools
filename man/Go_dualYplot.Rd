@@ -6,7 +6,7 @@
 \usage{
 Go_dualYplot(
   df,
-  TaxTab,
+  TaxTab = NULL,
   cate.vars,
   project,
   Box,
@@ -16,61 +16,63 @@ Go_dualYplot(
   name = NULL,
   mycols = NULL,
   orders = NULL,
-  xanlgle = 90,
+  xangle = 90,
+  addnumber = TRUE,
   height,
   width
 )
 }
 \arguments{
-\item{df}{Data frame containing the data to be plotted.}
+\item{df}{Data frame containing sample metadata and variables to plot.}
 
-\item{TaxTab}{Path to the taxonomy table file.}
+\item{TaxTab}{Either a file path (CSV) to a taxa abundance table, or a data
+frame with samples as rows and taxa as columns. If NULL, taxa columns are
+assumed to already be present in \code{df}.}
 
-\item{cate.vars}{Vector of categorical variables for grouping.}
+\item{cate.vars}{Vector of categorical variables (grouping variables).}
 
-\item{project}{Name of the project associated with the data.}
+\item{project}{Project name for output file naming.}
 
-\item{Box}{Column name in the data frame for boxplot values.}
+\item{Box}{Column name for the boxplot (left Y axis).}
 
-\item{Line1}{Column name in the data frame for the first line plot values.}
+\item{Line1}{Column name for the first line plot (right Y axis, group means).}
 
-\item{Line2}{Optional column name for the second line plot values.}
+\item{Line2}{Optional second column name for a second line (right Y axis).}
 
-\item{title}{Optional title for the plot.}
+\item{title}{Optional plot title. Defaults to the grouping variable name.}
 
-\item{name}{Optional name for output file.}
+\item{name}{Optional suffix for output file name.}
 
-\item{mycols}{Optional color palette for the plot.}
+\item{mycols}{Optional color palette for groups.}
 
-\item{orders}{Optional order of factor levels for the categorical variables.}
+\item{orders}{Optional vector to order factor levels.}
 
-\item{height}{Height of the output plot.}
+\item{xangle}{Rotation angle for x-axis labels. Default 90.}
 
-\item{width}{Width of the output plot.}
+\item{addnumber}{Logical. Add sample counts to group labels. Default TRUE.}
 
-\item{xangle}{Rotation angle for x-axis labels.}
+\item{height}{Height of the output PDF.}
+
+\item{width}{Width of the output PDF.}
 }
 \value{
-A PDF file containing the generated plot.
+Saves a PDF and returns the last plot invisibly.
 }
 \description{
-Create a Dual Y-Axis Plot
+Combines a boxplot (left Y axis) and one or two line plots of group means
+(right Y axis) in a single panel. The secondary axis is automatically scaled
+to match the range of the boxplot data, so both variables are visible
+regardless of their original units.
 }
 \details{
-This function creates a dual y-axis plot, typically combining a boxplot and one or two line plots.
-It is useful for visualizing relationships between different types of data (e.g., abundance and environmental variables) across categorical groups.
+The right Y axis is automatically scaled so that the line plot range aligns
+with the boxplot range. This avoids the misleading \code{*10} hardcoding and
+makes the function work correctly regardless of data magnitude.
 }
 \examples{
-Go_dualYplot(df = data_frame,
-             TaxTab = "tax_table.csv",
-             cate.vars = c("Group1", "Group2"),
-             project = "MyProject",
-             Box = "Abundance",
-             Line1 = "Temperature",
-             Line2 = "pH",
-             title = "Abundance vs Environmental Factors",
-             name = "Abundance_EnvFactors",
-             height = 6,
-             width = 8)
+Go_dualYplot(df = meta_df, TaxTab = "taxa_table.csv",
+             cate.vars = "Timepoint", project = "MyProject",
+             Box = "Bacteroides", Line1 = "IL6",
+             height = 6, width = 5)
 
 }

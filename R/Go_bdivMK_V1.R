@@ -40,9 +40,9 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
 
   # out dirs
   out_root  <- sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d"))
-  out_path  <- file.path(out_root, "pdf");        if(!file_test("-d", out_path))  dir.create(out_path, recursive = TRUE)
-  out_dist  <- file.path(out_root, "table", "dist");   if(!file_test("-d", out_dist)) dir.create(out_dist, recursive = TRUE)
-  out_table <- file.path(out_root, "table", "mirkat"); if(!file_test("-d", out_table)) dir.create(out_table, recursive = TRUE)
+  out_path  <- file.path(out_root, "pdf");        if(!dir.exists(out_path))  dir.create(out_path, recursive = TRUE)
+  out_dist  <- file.path(out_root, "table", "dist");   if(!dir.exists(out_dist)) dir.create(out_dist, recursive = TRUE)
+  out_table <- file.path(out_root, "table", "mirkat"); if(!dir.exists(out_table)) dir.create(out_table, recursive = TRUE)
 
   title_suffix <- if (!is.null(rand.eff)) sprintf(" | rand=%s", rand.eff) else ""
 

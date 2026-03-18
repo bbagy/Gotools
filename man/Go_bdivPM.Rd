@@ -24,6 +24,8 @@ Go_bdivPM(
   addnumber = TRUE,
   height,
   width,
+  plotCols = 2,
+  plotRows = 1,
   strata_var = NULL,
   p_adjust = "BH"
 )
@@ -66,6 +68,10 @@ Go_bdivPM(
 \item{height}{Height of the plot.}
 
 \item{width}{Width of the plot.}
+
+\item{plotCols}{Number of columns in the multiplot layout.}
+
+\item{plotRows}{Number of rows in the multiplot layout.}
 
 \item{strata_var}{(NEW) Column name to use as permutation blocks for PERMANOVA.}
 

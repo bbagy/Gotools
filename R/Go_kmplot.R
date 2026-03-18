@@ -103,9 +103,9 @@ Go_kmplot <- function(df,
 
   # 출력 경로 (항상 생성)
   out <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
-  if (!file_test("-d", out)) dir.create(out, recursive = TRUE)
+  if (!dir.exists(out)) dir.create(out, recursive = TRUE)
   out_path <- file.path(sprintf("%s_%s/pdf", project, format(Sys.Date(), "%y%m%d")))
-  if (!file_test("-d", out_path)) dir.create(out_path, recursive = TRUE)
+  if (!dir.exists(out_path)) dir.create(out_path, recursive = TRUE)
 
   # 데이터 준비
   df <- df %>%

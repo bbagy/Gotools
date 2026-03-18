@@ -57,9 +57,9 @@ Go_colbarchart <- function(psIN, cate.vars, project, taxanames, data_type, order
     
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
 
 if(!is.null(x_label)){
   x_label = x_label
@@ -69,12 +69,12 @@ if(!is.null(x_label)){
 
   # out file
   # "name" definition
-  if (class(name) == "function"){
+  if (is.function(name)){
     name <- NULL
   }
   
   tt <- try(mycols,T)
-  if(class(tt) == "try-error"){
+  if(inherits(tt, "try-error")){
     print("orders is not defined.")
     mycols <- NULL
   }
@@ -111,7 +111,7 @@ if(relative == T){
     otu.filt <- as.data.frame(otu_table(psIN)) 
     tt <- try(otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i]),T)
     
-    if(class(tt) == "try-error"){
+    if(inherits(tt, "try-error")){
       print("DADA2 table")
       otu.filt <- as.data.frame(t(otu_table(psIN))) 
       otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i])
