@@ -64,13 +64,13 @@ Go_Ancom2 <- function(psIN, project,
   # 1. 출력 디렉토리 생성
   ########################################################
   out <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
 
   out_path <- file.path(sprintf("%s_%s/table", project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
 
   out_DA <- file.path(sprintf("%s_%s/table/Ancom2", project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_DA)) dir.create(out_DA)
+  if(!dir.exists(out_DA)) dir.create(out_DA)
 
   mapping <- data.frame(sample_data(psIN))
 
@@ -285,7 +285,7 @@ Go_Ancom2 <- function(psIN, project,
       # ancom 실행
       tt <- try(ancom.out <- run_ancombc2(psIN.cb, fixed_formula, mvar, rand_formula, taxanames), silent = TRUE)
 
-      if (class(tt) == "try-error") {
+      if (inherits(tt, "try-error")) {
         # 0 sum 샘플 제거
         psIN.cb1 <- prune_samples(sample_sums(psIN.cb) > 0, psIN.cb)
 

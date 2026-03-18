@@ -28,9 +28,9 @@ Go_qq <- function(psIN, project, alpha_metrics, name, height, width){
     if(!is.null(dev.list())) dev.off()
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   
   
       # logic for out file

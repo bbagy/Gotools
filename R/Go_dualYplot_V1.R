@@ -1,271 +1,226 @@
 
 #' Create a Dual Y-Axis Plot
 #'
-#' @param df Data frame containing the data to be plotted.
-#' @param TaxTab Path to the taxonomy table file.
-#' @param cate.vars Vector of categorical variables for grouping.
-#' @param project Name of the project associated with the data.
-#' @param Box Column name in the data frame for boxplot values.
-#' @param Line1 Column name in the data frame for the first line plot values.
-#' @param Line2 Optional column name for the second line plot values.
-#' @param title Optional title for the plot.
-#' @param name Optional name for output file.
-#' @param mycols Optional color palette for the plot.
-#' @param orders Optional order of factor levels for the categorical variables.
-#' @param xangle Rotation angle for x-axis labels.
-#' @param height Height of the output plot.
-#' @param width Width of the output plot.
+#' Combines a boxplot (left Y axis) and one or two line plots of group means
+#' (right Y axis) in a single panel. The secondary axis is automatically scaled
+#' to match the range of the boxplot data, so both variables are visible
+#' regardless of their original units.
+#'
+#' @param df Data frame containing sample metadata and variables to plot.
+#' @param TaxTab Either a file path (CSV) to a taxa abundance table, or a data
+#'   frame with samples as rows and taxa as columns. If NULL, taxa columns are
+#'   assumed to already be present in \code{df}.
+#' @param cate.vars Vector of categorical variables (grouping variables).
+#' @param project Project name for output file naming.
+#' @param Box Column name for the boxplot (left Y axis).
+#' @param Line1 Column name for the first line plot (right Y axis, group means).
+#' @param Line2 Optional second column name for a second line (right Y axis).
+#' @param title Optional plot title. Defaults to the grouping variable name.
+#' @param name Optional suffix for output file name.
+#' @param mycols Optional color palette for groups.
+#' @param orders Optional vector to order factor levels.
+#' @param xangle Rotation angle for x-axis labels. Default 90.
+#' @param addnumber Logical. Add sample counts to group labels. Default TRUE.
+#' @param height Height of the output PDF.
+#' @param width Width of the output PDF.
+#'
+#' @return Saves a PDF and returns the last plot invisibly.
 #'
 #' @details
-#' This function creates a dual y-axis plot, typically combining a boxplot and one or two line plots.
-#' It is useful for visualizing relationships between different types of data (e.g., abundance and environmental variables) across categorical groups.
-#'
-#' @return
-#' A PDF file containing the generated plot.
+#' The right Y axis is automatically scaled so that the line plot range aligns
+#' with the boxplot range. This avoids the misleading \code{*10} hardcoding and
+#' makes the function work correctly regardless of data magnitude.
 #'
 #' @examples
-#' Go_dualYplot(df = data_frame,
-#'              TaxTab = "tax_table.csv",
-#'              cate.vars = c("Group1", "Group2"),
-#'              project = "MyProject",
-#'              Box = "Abundance",
-#'              Line1 = "Temperature",
-#'              Line2 = "pH",
-#'              title = "Abundance vs Environmental Factors",
-#'              name = "Abundance_EnvFactors",
-#'              height = 6,
-#'              width = 8)
+#' Go_dualYplot(df = meta_df, TaxTab = "taxa_table.csv",
+#'              cate.vars = "Timepoint", project = "MyProject",
+#'              Box = "Bacteroides", Line1 = "IL6",
+#'              height = 6, width = 5)
 #'
 #' @export
 
-Go_dualYplot <- function(df, TaxTab, cate.vars, project,  Box, Line1, Line2=NULL,
-                       title= NULL, 
-                       name= NULL, 
-                       mycols=NULL, 
-                       orders=NULL,
-                       xanlgle=90,  height, width){
-  
-  if(!is.null(dev.list())) dev.off()
+Go_dualYplot <- function(df, TaxTab = NULL, cate.vars, project,
+                         Box, Line1, Line2 = NULL,
+                         title    = NULL,
+                         name     = NULL,
+                         mycols   = NULL,
+                         orders   = NULL,
+                         xangle   = 90,
+                         addnumber = TRUE,
+                         height, width) {
 
-  # out dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out)) dir.create(out)
-  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_path)) dir.create(out_path)
-  set.seed(151) 
-  
+  if (!is.null(dev.list())) dev.off()
 
+  # output dirs
+  out      <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
+  out_path <- file.path(sprintf("%s_%s/pdf", project, format(Sys.Date(), "%y%m%d")))
+  for (d in c(out, out_path)) if (!dir.exists(d)) dir.create(d, recursive = TRUE)
 
-  # out file
-  # "name" definition
-  if (class(name) == "function"){
-    name <- NULL
-  }
-  
-  tt <- try(mycols,T)
-  if(class(tt) == "try-error"){
-    print("mycols is not defined.")
-    mycols <- NULL
-  }
+  set.seed(151)
 
-  tt <- try(orders,T)
-  if(class(tt) == "try-error"){
-    print("orders is not defined.")
-    orders <- NULL
-  }
-  # out file
-  pdf(sprintf("%s/dualYplot.%s.%s%s%s.pdf", out_path, 
-              project, 
-              ifelse(is.null(Line1), "", paste(Line1, ".", sep = "")), 
-              ifelse(is.null(name), "", paste(name, ".", sep = "")), 
-              format(Sys.Date(), "%y%m%d")), height = height, width = width)
+  tt <- try(mycols, TRUE); if (inherits(tt, "try-error")) mycols <- NULL
+  tt <- try(orders, TRUE); if (inherits(tt, "try-error")) orders <- NULL
+  if (is.function(name)) name <- NULL
 
-
-  ## fix factor  and  numeric
-  df$etc <- NULL
-  df2 <- read.csv(sprintf("%s",TaxTab),header=T,row.names=1,check.names=FALSE);head(df2)
-  
-  rownames(df2)<- df2$Species
-  df2$Species <-NULL
-  rownames(df2) <- gsub(" ","_",rownames(df2));rownames(df2)
-  
-  
-  df2 <- as.data.frame(t(df2))
-
-  for (var in cate.vars) {
-    print(var)
-      df[,var] <- factor(df[,var])
-  }
-  
-
-  
-  # plot
-  for (mvar in cate.vars) {
-    if (length(unique(df[,mvar])) < 2){
-      next
-    }
-    
-    
-    # merge merged.df and taxa table
-    merged.df <- merge(df, df2, by="row.names");head(merged.df)
-    
-    # NA remove
-    merged.df[,mvar] <- as.character(merged.df[,mvar]);merged.df[,mvar]
-    merged.df[,mvar][merged.df[,mvar]==""] <- "NA";merged.df[,mvar]
-    merged.df.na <- subset(merged.df, merged.df[,mvar] != "NA");merged.df.na[,mvar]  # subset 를 사용한 NA 삭제
-    merged.df.na[,mvar] <- as.factor(merged.df.na[,mvar]);merged.df.na[,mvar]  
-    
-    # re-order
-    if (length(orders) >= 1) {
-      merged.df.na[,mvar] <- factor(merged.df.na[,mvar], levels = orders)
+  # ── load and merge TaxTab ────────────────────────────────────────────────
+  if (!is.null(TaxTab)) {
+    if (is.character(TaxTab)) {
+      df2 <- read.csv(TaxTab, header = TRUE, row.names = 1, check.names = FALSE)
     } else {
-      merged.df.na[,mvar] <- factor(merged.df.na[,mvar])
+      df2 <- as.data.frame(TaxTab)
     }
-    
-    # Add number of samples in the group
-    renamed_levels <- as.character(levels(merged.df.na[,mvar]));renamed_levels
-    oldNames <- unique(merged.df.na[,mvar]);oldNames
-    if (length(renamed_levels) == 0) {
-      renamed_levels <- oldNames
+    # use Species column as rownames if present
+    if ("Species" %in% colnames(df2)) {
+      rownames(df2) <- gsub(" ", "_", df2$Species)
+      df2$Species   <- NULL
     }
-    for (name in oldNames) {
-      total <- length(which(merged.df.na[,mvar] == name));total
-      new_n <- paste(name, " (n=", total, ")", sep="");new_n
-      levels(merged.df.na[[mvar]])[levels(merged.df.na[[mvar]])== name] <- new_n
-      renamed_levels <- replace(renamed_levels, renamed_levels == name, new_n);renamed_levels
-    }
-    
-    
-    
-    print(sprintf("##-- %s (total without NA: %s/%s) --##", 
-                  mvar, dim(merged.df.na)[1], dim(merged.df)[1]))
-    
-    if (length(unique(merged.df.na[,mvar])) ==1) {
-      next
-    }
-    
-    summary.merged.df.na <- summary(merged.df.na[,mvar])
-    
-
-    
-    #===============================#
-    # Visualization for Dual Y axis #
-    #===============================#
-  
-    # for Line1
-    mean.line1 <- aggregate(merged.df.na[,Line1], list(merged.df.na[,mvar]), FUN=mean)
-    colnames(mean.line1) <- c(mvar, Line1);mean.line1
-    mean.line1[,Line1] <- mean.line1[,Line1]*10
-
-    if (height*width <= 6){
-      dot.size = 0.7
-      box.tickness = 0.3
-    }else if (height*width > 6 & height*width < 10){
-      dot.size = 1
-      box.tickness = 0.4
-    }else{
-      dot.size = 1.5
-      box.tickness = 0.5
-    }
-    
-    p <- ggplot() + theme_bw() + theme(strip.background = element_blank()) + #theme_ipsum() +
-      geom_boxplot(data=merged.df.na, mapping=aes(x=!!sym(mvar), y=!!sym(Box), colour=!!sym(mvar)), outlier.shape = NA, show.legend = FALSE) +
-      theme(text=element_text(size=9), axis.text.x=element_text(angle=xanlgle,hjust=1,vjust=0.5),
-            plot.title=element_text(size=9,face="bold"))
-      # theme(legend.position="none") +
-
-     if(!is.null(mycols)){
-      p <- p + scale_color_manual(values = mycols)
-     }else{
-       p <- p
-     }
-    
-    
-    # count or table for number of variable
-    if (max(table(merged.df.na[,mvar])) > 250 & max(table(merged.df.na[,mvar])) < 500){
-      dot.size <- dot.size/2
-      p = p + geom_jitter(data=merged.df.na, mapping=aes(x=!!sym(mvar), y=!!sym(Box), colour=!!sym(mvar)), 
-                          shape=16, alpha = 0.8, size = dot.size, position=position_jitter(0.2), show.legend = FALSE) 
-    } else  if (max(table(merged.df.na[,mvar])) < 250 ){
-      p = p + geom_jitter(data=merged.df.na, mapping=aes(x=!!sym(mvar), y=!!sym(Box), colour=!!sym(mvar)), 
-                          shape=16, alpha = 0.8, size = dot.size, position=position_jitter(0.2), show.legend = FALSE)  
-    }else if(max(table(merged.df.na[,mvar])) > 500) {
-      dot.size <- dot.size/3
-      p = p + geom_jitter(data=merged.df.na, mapping=aes(x=!!sym(mvar), y=!!sym(Box), colour=!!sym(mvar)), 
-                          shape=16, alpha = 0.8, size = dot.size, position=position_jitter(0.2), show.legend = FALSE) 
-    }
-    
-    mean.line1.melt <- melt(mean.line1)
-    # get label for geom_text_repel
-    label.line1 <- subset(mean.line1.melt, variable == Line1);
-    n <- dim(label.line1)[1]
-    label.line1.sel <- label.line1[n,]
-    label.line1.sel$variable <- gsub("_"," ", label.line1.sel$variable)
-    
-    
-    
-    p1 <- p + geom_line(data = mean.line1.melt, 
-                        mapping = aes(x = !!sym(mvar), y = value, group=variable, color= variable), 
-                        inherit.aes = FALSE, size=1)  + guides(color = "none") +
-      scale_linetype_manual(values=c("solid", "solid")) + theme(legend.position="top")+
-      geom_text_repel(data = label.line1.sel, aes(x = !!sym(mvar), y = value,label = variable),
-                      size=3, fontface="italic")
-    
-
-   
-      
-    # for Line2
-    if (!is.null(Line2)){
-      mean.line1 <- aggregate(merged.df.na[,Line1], list(merged.df.na[,mvar]), FUN=mean)
-      colnames(mean.line1) <- c(mvar, Line1);mean.line1
-      mean.line1[,Line1] <- mean.line1[,Line1]*10
-      
-      
-      mean.line2 <- aggregate(merged.df.na[,Line2], list(merged.df.na[,mvar]), FUN=mean)
-      colnames(mean.line2) <- c(mvar, Line2);mean.line1
-      mean.line2[,Line2] <- mean.line2[,Line2]*10
-      
-      mean.line <- merge(mean.line1, mean.line2, by=mvar);head(mean.line)
-      
-      mean.line.melt <- melt(mean.line)
-
-      # get label for geom_text_repel
-      label.line1 <- subset(mean.line.melt, variable == Line1);
-      n <- dim(label.line1)[1]
-      label.line1.sel <- label.line1[n,]
-      label.line1.sel$variable <- gsub("_"," ", label.line1.sel$variable)
-      
-      label.line2 <- subset(mean.line.melt, variable == Line2);
-      n <- dim(label.line2)[1]
-      label.line2.sel <- label.line2[n,]
-      label.line2.sel$variable <- gsub("_"," ", label.line2.sel$variable)
-      
-      
-      p1 <- p + geom_line(data = mean.line.melt, 
-                          mapping = aes(x = !!sym(mvar), y = value, group=variable, color= variable), 
-                          inherit.aes = FALSE, size=1)  + guides(color = "none") +
-        scale_linetype_manual(values=c("solid", "solid")) + theme(legend.position="top") +
-        geom_text_repel(data = label.line1.sel, aes(x = !!sym(mvar), y = value,label = variable),
-                        size=3, fontface="italic")  +
-        geom_text_repel(data = label.line2.sel, aes(x = !!sym(mvar), y = value,label = variable),
-                        size=3, fontface="italic") 
-          
-      
-      
-
-    }
-    
-
-    
-    p1 <- p1 + scale_y_continuous(sec.axis = sec_axis(~.*10, name="Relative abundance (%)")) 
-    
-    if (!is.null(title)) {
-      p1 <- p1 + ggtitle(title)
-    } else{
-      p1 <- p1 + ggtitle(sprintf("%s", mvar))
-    }
-    print(p1)
+    df2      <- as.data.frame(t(df2))
+    base_df  <- merge(df, df2, by = "row.names")
+    rownames(base_df) <- base_df$Row.names
+    base_df$Row.names <- NULL
+  } else {
+    base_df <- df
   }
-  dev.off()
-}
+  base_df$etc <- NULL
 
+  # dot size by plot area
+  dot.size     <- if (height * width <= 6) 0.7 else if (height * width < 10) 1.0 else 1.5
+  box.tickness <- if (height * width <= 6) 0.3 else if (height * width < 10) 0.4 else 0.5
+
+  pdf(sprintf("%s/dualYplot.%s.%s%s%s.pdf",
+              out_path, project,
+              ifelse(is.null(Line1), "", paste0(Line1, ".")),
+              ifelse(is.null(name),  "", paste0(name,  ".")),
+              format(Sys.Date(), "%y%m%d")),
+      height = height, width = width)
+
+  for (mvar in cate.vars) {
+
+    if (length(unique(base_df[[mvar]])) < 2) next
+
+    # NA handling
+    df_w         <- base_df
+    df_w[[mvar]] <- as.character(df_w[[mvar]])
+    df_w[[mvar]][df_w[[mvar]] == ""] <- NA
+    df_w         <- df_w[!is.na(df_w[[mvar]]), ]
+    df_w[[mvar]] <- factor(df_w[[mvar]],
+                           levels = if (length(orders) >= 1) orders else sort(unique(df_w[[mvar]])))
+
+    if (length(unique(df_w[[mvar]])) < 2) next
+
+    # add n to labels
+    if (isTRUE(addnumber)) {
+      lvls <- levels(df_w[[mvar]])
+      new_lvls <- sapply(lvls, function(lv) {
+        paste0(lv, " (n=", sum(df_w[[mvar]] == lv), ")")
+      })
+      levels(df_w[[mvar]]) <- new_lvls
+    }
+
+    message(sprintf("## %s (n=%d) ##", mvar, nrow(df_w)))
+
+    # ── auto scale factor for secondary axis ──────────────────────────────
+    box_vals  <- as.numeric(df_w[[Box]])
+    line1_grp <- aggregate(df_w[[Line1]], list(df_w[[mvar]]), FUN = mean, na.rm = TRUE)
+    colnames(line1_grp) <- c(mvar, Line1)
+    line1_vals <- line1_grp[[Line1]]
+
+    box_range  <- range(box_vals,  na.rm = TRUE)
+    line1_range <- range(line1_vals, na.rm = TRUE)
+
+    # scale: map line1 range onto box range
+    if (diff(line1_range) == 0) {
+      scale_fac <- 1; offset <- 0
+    } else {
+      scale_fac <- diff(box_range) / diff(line1_range)
+      offset    <- box_range[1] - line1_range[1] * scale_fac
+    }
+
+    line1_grp[[Line1]] <- line1_grp[[Line1]] * scale_fac + offset
+
+    # ── base boxplot ──────────────────────────────────────────────────────
+    p <- ggplot() +
+      theme_bw() +
+      theme(strip.background = element_blank(),
+            text = element_text(size = 9),
+            axis.text.x = element_text(angle = xangle, hjust = 1, vjust = 0.5),
+            plot.title = element_text(size = 9, face = "bold")) +
+      geom_boxplot(data = df_w,
+                   mapping = aes(x = !!sym(mvar), y = !!sym(Box), colour = !!sym(mvar)),
+                   outlier.shape = NA, show.legend = FALSE, linewidth = box.tickness)
+
+    if (!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
+
+    # jitter by sample size
+    n_max <- max(table(df_w[[mvar]]))
+    dot_alpha <- if (n_max > 500) 0.4 else 0.8
+    dot_sz    <- if (n_max > 500) dot.size / 3 else if (n_max > 250) dot.size / 2 else dot.size
+
+    p <- p + geom_jitter(data = df_w,
+                         mapping = aes(x = !!sym(mvar), y = !!sym(Box), colour = !!sym(mvar)),
+                         shape = 16, alpha = dot_alpha, size = dot_sz,
+                         position = position_jitter(0.2), show.legend = FALSE)
+
+    # ── line(s) ───────────────────────────────────────────────────────────
+    if (!is.null(Line2)) {
+      line2_grp <- aggregate(df_w[[Line2]], list(df_w[[mvar]]), FUN = mean, na.rm = TRUE)
+      colnames(line2_grp) <- c(mvar, Line2)
+      line2_range <- range(line2_grp[[Line2]], na.rm = TRUE)
+      if (diff(line2_range) == 0) {
+        scale_fac2 <- 1; offset2 <- 0
+      } else {
+        scale_fac2 <- diff(box_range) / diff(line2_range)
+        offset2    <- box_range[1] - line2_range[1] * scale_fac2
+      }
+      line2_grp[[Line2]] <- line2_grp[[Line2]] * scale_fac2 + offset2
+
+      line_combined <- merge(line1_grp, line2_grp, by = mvar)
+      line_long <- tidyr::pivot_longer(line_combined, cols = c(Line1, Line2),
+                                       names_to = "variable", values_to = "value")
+
+      last_pts <- do.call(rbind, lapply(c(Line1, Line2), function(v) {
+        sub <- line_long[line_long$variable == v, ]
+        sub[nrow(sub), ]
+      }))
+
+      p <- p +
+        geom_line(data = line_long,
+                  mapping = aes(x = !!sym(mvar), y = value,
+                                group = variable, color = variable),
+                  linewidth = 1, inherit.aes = FALSE) +
+        geom_text_repel(data = last_pts,
+                        aes(x = !!sym(mvar), y = value,
+                            label = gsub("_", " ", variable)),
+                        size = 3, fontface = "italic") +
+        guides(color = "none") +
+        scale_y_continuous(
+          sec.axis = sec_axis(~ (. - offset) / scale_fac, name = Line1)
+        )
+
+    } else {
+      line1_long <- tidyr::pivot_longer(line1_grp, cols = Line1,
+                                        names_to = "variable", values_to = "value")
+      last_pt <- line1_long[nrow(line1_long), ]
+
+      p <- p +
+        geom_line(data = line1_long,
+                  mapping = aes(x = !!sym(mvar), y = value,
+                                group = variable, color = variable),
+                  linewidth = 1, inherit.aes = FALSE) +
+        geom_text_repel(data = last_pt,
+                        aes(x = !!sym(mvar), y = value,
+                            label = gsub("_", " ", variable)),
+                        size = 3, fontface = "italic") +
+        guides(color = "none") +
+        scale_y_continuous(
+          sec.axis = sec_axis(~ (. - offset) / scale_fac, name = Line1)
+        )
+    }
+
+    p <- p + ggtitle(if (!is.null(title)) title else mvar)
+    print(p)
+  }
+
+  dev.off()
+  invisible(p)
+}

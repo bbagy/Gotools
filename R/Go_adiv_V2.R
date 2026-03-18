@@ -24,11 +24,11 @@
 Go_adiv <- function(psIN, project, alpha_metrics, name=NULL){
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   out_adiv <- file.path(sprintf("%s_%s/table/adiv",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_adiv)) dir.create(out_adiv)
+  if(!dir.exists(out_adiv)) dir.create(out_adiv)
 
   print("You can measure Observed, Chao1, ACE, Shannon, Simpson, InvSimpson, Fisher, and PD (Phylogenetic diversity:Faith’s PD).")
 

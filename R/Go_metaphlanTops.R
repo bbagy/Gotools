@@ -22,13 +22,13 @@
 #' @export
 
 
-Go_mpaTops <- function(project,
+Go_metaphlanTops <- function(project,
                        mpa,
                        kingdom = "d__Bacteria") {
 
   print(sprintf("Currently kingdom is %s", kingdom))
   rds <- file.path(sprintf("%s", "2_rds"))
-  if (!file_test("-d", rds)) dir.create(rds)
+  if (!dir.exists(rds)) dir.create(rds)
 
   # read kraken mpa
   mpatable <- read.table(mpa, header=T, as.is=T, sep="\t", comment.char="", row.names=1, quote="")

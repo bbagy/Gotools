@@ -35,11 +35,11 @@ Go_ancom_plot <- function(project, file_path,files, type="taxonomy", mycols=NULL
   
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   out_AC <- file.path(sprintf("%s_%s/pdf/AC_plot",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_AC)) dir.create(out_AC)
+  if(!dir.exists(out_AC)) dir.create(out_AC)
   
   # add input files
   path <- file_path
@@ -50,12 +50,12 @@ Go_ancom_plot <- function(project, file_path,files, type="taxonomy", mycols=NULL
   
   # out file
   # "name" definition
-  if (class(name) == "function"){
+  if (is.function(name)){
     name <- NULL
   }
   
   tt <- try(mycols,T)
-  if(class(tt) == "try-error"){
+  if(inherits(tt, "try-error")){
     print("mycols is not defined.")
     mycols <- NULL
   }

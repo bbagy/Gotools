@@ -214,9 +214,9 @@ Go_Maaslin2 <- function(psIN,
 
   ## ---------------- outputs ----------------
   out_root  <- sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d"))
-  if (!file_test("-d", out_root)) dir.create(out_root)
-  out_table <- file.path(out_root, "table"); if (!file_test("-d", out_table)) dir.create(out_table)
-  out_DA    <- file.path(out_table, "MaAsLin2"); if (!file_test("-d", out_DA)) dir.create(out_DA, recursive = TRUE)
+  if (!dir.exists(out_root)) dir.create(out_root)
+  out_table <- file.path(out_root, "table"); if (!dir.exists(out_table)) dir.create(out_table)
+  out_DA    <- file.path(out_table, "MaAsLin2"); if (!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE)
 
   FE_all <- fixed_effects
   FE_tag <- .tag_FE(FE_all)
@@ -227,7 +227,7 @@ Go_Maaslin2 <- function(psIN,
 
   out_dir_default <- file.path(out_DA, subdir)
   if (is.null(out_dir)) out_dir <- out_dir_default
-  if (!file_test("-d", out_dir)) dir.create(out_dir, recursive = TRUE)
+  if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
   message(sprintf("[INFO] MaAsLin2 base output -> %s", out_dir))
 
   ## ---------------- data ----------------
@@ -336,7 +336,7 @@ Go_Maaslin2 <- function(psIN,
   ## ----------------------------------------
   .run_one <- function(otu_df, meta_df, FE_all, out_dir_run){
 
-    if (!file_test("-d", out_dir_run)) dir.create(out_dir_run, recursive = TRUE)
+    if (!dir.exists(out_dir_run)) dir.create(out_dir_run, recursive = TRUE)
     set.seed(seed)
 
     fit <- Maaslin2::Maaslin2(

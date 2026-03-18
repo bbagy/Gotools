@@ -20,7 +20,7 @@
 Go_tabByAntibiotic <- function(df, antibiotics, SubjectID, save_CSV=FALSE){
   # out dir
   out <- file.path("3_map")
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   
   # 새로 생성된 열 이름을 저장할 리스트
   new_columns <- c()

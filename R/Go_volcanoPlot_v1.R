@@ -41,11 +41,11 @@ Go_volcanoPlot <- function(project,
 
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   out_DA <- file.path(sprintf("%s_%s/pdf/DA_plot",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_DA)) dir.create(out_DA)
+  if(!dir.exists(out_DA)) dir.create(out_DA)
 
 
   # add input files
@@ -57,12 +57,12 @@ Go_volcanoPlot <- function(project,
 
   # out file
   # "name" definition
-  if (class(name) == "function"){
+  if (is.function(name)){
     name <- NULL
   }
 
   tt <- try(mycols,T)
-  if(class(tt) == "try-error"){
+  if(inherits(tt, "try-error")){
     print("mycols is not defined.")
     mycols <- NULL
   }

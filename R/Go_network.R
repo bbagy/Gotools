@@ -411,13 +411,13 @@ Go_network <- function(
 
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_pdf <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_pdf)) dir.create(out_pdf)
+  if(!dir.exists(out_pdf)) dir.create(out_pdf)
   out_table <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_table)) dir.create(out_table)
+  if(!dir.exists(out_table)) dir.create(out_table)
   out_network <- file.path(sprintf("%s_%s/table/network",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_network)) dir.create(out_network)
+  if(!dir.exists(out_network)) dir.create(out_network)
 
 
   # 네트워크 시각화

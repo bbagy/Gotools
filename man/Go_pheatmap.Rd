@@ -7,7 +7,7 @@
 Go_pheatmap(
   psIN,
   project,
-  title,
+  title = NULL,
   group1 = NULL,
   group2 = NULL,
   group3 = NULL,

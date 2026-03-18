@@ -2,79 +2,78 @@
 % Please edit documentation in R/Go_correlation_V3.R
 \name{Go_correlation}
 \alias{Go_correlation}
-\title{Perform Correlation Analysis on Phyloseq Data}
+\title{Correlation Analysis Between Microbiome Taxa and External Data}
 \usage{
 Go_correlation(
   psIN,
   project,
   rank,
-  pvalue = 0.05,
-  maingroup = NULL,
-  top = NULL,
   Table,
-  facet = "TAB",
-  X = "GROUP",
-  Y = "PS",
   method = "spearman",
+  top = 50,
+  min_prev = 0.1,
+  pvalue = 0.05,
   padj = TRUE,
-  xanlgle = 90,
-  ncols = 23,
-  name = NULL,
+  group = NULL,
   orders = NULL,
+  xangle = 90,
+  ncols = NULL,
+  name = NULL,
   height,
   width
 )
 }
 \arguments{
-\item{psIN}{Phyloseq object containing the data for analysis.}
+\item{psIN}{Phyloseq object containing microbiome data.}
 
-\item{project}{Name of the project or analysis.}
+\item{project}{Project name for output file naming.}
 
-\item{rank}{Taxonomic rank to consider for correlation analysis.}
+\item{rank}{Taxonomic rank to aggregate taxa (e.g., "Genus", "Species").}
 
-\item{pvalue}{P-value threshold for significance in the analysis.}
+\item{Table}{Data frame of external variables (rows = samples, cols = variables).}
 
-\item{maingroup}{Main group for correlation analysis.}
+\item{method}{Correlation method: "spearman" (default), "pearson", or "kendall".}
 
-\item{top}{Number of top taxa to consider for analysis (if NULL, all taxa are considered).}
+\item{top}{Number of top taxa by mean abundance to include. Default 50.}
 
-\item{Table}{Data frame containing additional data for correlation with Phyloseq data.}
+\item{min_prev}{Minimum prevalence (fraction of samples) for taxa to be included. Default 0.1.}
 
-\item{facet}{Faceting variable for the plot.}
+\item{pvalue}{Significance threshold for display. Default 0.05.}
 
-\item{X}{Name of the variable to be used on the X-axis of the plot.}
+\item{padj}{Logical. Apply BH-FDR correction across all tests. Default TRUE.}
 
-\item{Y}{Name of the variable to be used on the Y-axis of the plot.}
+\item{group}{Optional column name in sample_data for stratified analysis. If provided, correlation is calculated separately per group level.}
 
-\item{method}{Correlation method to use, such as "spearman", "kendall", or "pearson".}
+\item{orders}{Optional vector to order group levels.}
 
-\item{padj}{Logical value indicating whether to adjust p-values for multiple testing.}
+\item{xangle}{Angle for x-axis labels. Default 90.}
 
-\item{xanlgle}{Angle for x-axis text in the plot.}
+\item{ncols}{Number of columns for facet wrap (group panels). Default NULL (auto).}
 
-\item{ncols}{Number of columns for facet wrapping in the plot.}
+\item{name}{Optional suffix for output file name.}
 
-\item{name}{Optional name for the analysis.}
+\item{height}{Height of the output PDF.}
 
-\item{orders}{Order of levels in the categorical variables.}
-
-\item{height}{Height of the output plot.}
-
-\item{width}{Width of the output plot.}
+\item{width}{Width of the output PDF.}
 }
 \value{
-Generates a plot of the correlation analysis and saves it as a PDF file.
+Saves a PDF heatmap and a CSV of correlation results. Returns the result data frame invisibly.
 }
 \description{
-This function conducts a correlation analysis on data from a Phyloseq object.
-It supports various correlation methods and allows adjustment for multiple testing.
-The function can filter the top taxa, apply log transformation, and generate correlation plots.
+Calculates pairwise Spearman (or Pearson/Kendall) correlations between
+aggregated microbiome taxa and an external data table (e.g., metabolomics,
+clinical variables). Taxa are filtered by prevalence and top N abundance
+before correlation. FDR correction is applied across all tests at once.
+}
+\details{
+Taxa are aggregated to the specified rank, filtered by prevalence (min_prev),
+then the top N by mean relative abundance are selected. Log(1+x) transformation
+is applied if data are not already on a relative scale. FDR (BH) correction is
+applied across all taxa x variable pairs (and groups if stratified).
 }
 \examples{
-# Assuming 'ps' is a Phyloseq object and 'additional_data' is a data frame
-Go_correlation(ps, "MyProject", "Genus", pvalue = 0.05, "SampleGroup", top = 10,
-               Table = additional_data, facet = "SampleType", X = "EnvFactor",
-               Y = "Taxa", method = "spearman", padj = TRUE, xanlgle = 90,
-               ncols = 5, height = 10, width = 10)
+Go_correlation(psIN = ps, project = "MyProject", rank = "Genus",
+               Table = metabolite_df, top = 30, min_prev = 0.1,
+               method = "spearman", padj = TRUE, height = 10, width = 8)
 
 }

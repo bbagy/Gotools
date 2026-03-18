@@ -61,11 +61,11 @@ Go_extendedBarplot <- function(psIN,
   if(!is.null(dev.list())) dev.off()
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out, recursive = TRUE)
+  if(!dir.exists(out)) dir.create(out, recursive = TRUE)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path, recursive = TRUE)
+  if(!dir.exists(out_path)) dir.create(out_path, recursive = TRUE)
   out_table_path <- file.path(sprintf("%s_%s/table/extendedBarplot",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_table_path)) dir.create(out_table_path, recursive = TRUE)
+  if(!dir.exists(out_table_path)) dir.create(out_table_path, recursive = TRUE)
 
   # input
 

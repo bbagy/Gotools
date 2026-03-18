@@ -61,11 +61,11 @@ Go_mirkat<- function(psIN, project, cate.vars, cate.conf = NULL,  orders,name=NU
   
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   out_table <- file.path(sprintf("%s_%s/table/mirkat",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_table)) dir.create(out_table)
+  if(!dir.exists(out_table)) dir.create(out_table)
   
 
   
@@ -167,7 +167,7 @@ Go_mirkat<- function(psIN, project, cate.vars, cate.conf = NULL,  orders,name=NU
           tt <- try(permutation <- MiRKAT(y = df[,mvar], Ks = Ks, X = df.covar, out_type = "D", method = "davies"
                                           ,omnibus = "permutation", returnKRV = FALSE, returnR2 = FALSE), T)
           
-          if (class(tt) == "try-error"){
+          if (inherits(tt, "try-error")){
             print(sprintf("Fail comparison %s vs %s",basline,smvar))
             
             next

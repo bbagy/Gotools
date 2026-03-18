@@ -24,7 +24,7 @@
 Go_tabByTimepoint <- function(df, project, SubjectID, Timepoint, orders, filled_by=NULL){
   # out dir 설정
   out <- file.path("3_map")
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
 
   # Timepoint 순서 지정
   df[[Timepoint]] <- factor(df[[Timepoint]], levels = orders)

@@ -1,4 +1,4 @@
-#' Go_kraken2Extraction
+#' Go_kraken2Tops
 #'
 #' Parse Kraken2 (and optional Bracken) MPA output into a phyloseq object
 #' with unified taxonomy for Bacteria, Virus, and Fungi.
@@ -31,7 +31,7 @@
 #' # Example 1: Bacteria
 #' # Requires both Kraken2 and Bracken MPA files
 #' # -----------------------
-#' ps_bac <- Go_kraken2Extraction(
+#' ps_bac <- Go_kraken2Tops(
 #'   kraken2 = "1_out/20251111_kraken2_mpa.txt",
 #'   bracken = "1_out/20251111_bracken_mpa.txt",
 #'   kingdom = "Bacteria"
@@ -43,7 +43,7 @@
 #' # Example 2: Virus
 #' # Kraken2 only (Bracken not needed)
 #' # -----------------------
-#' ps_vir <- Go_kraken2Extraction(
+#' ps_vir <- Go_kraken2Tops(
 #'   kraken2 = "1_out/20251111_kraken2_mpa.txt",
 #'   kingdom = "Virus"
 #' )
@@ -54,7 +54,7 @@
 #' # Example 3: Fungi
 #' # Kraken2 only (Bracken not needed)
 #' # -----------------------
-#' ps_fun <- Go_kraken2Extraction(
+#' ps_fun <- Go_kraken2Tops(
 #'   kraken2 = "1_out/20251111_kraken2_mpa.txt",
 #'   kingdom = "Fungi"
 #' )
@@ -65,7 +65,7 @@
 #' @export
 
 
-Go_kraken2Extraction <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Virus","Fungi")) {
+Go_kraken2Tops <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Virus","Fungi")) {
 
   library(dplyr)
   library(phyloseq)

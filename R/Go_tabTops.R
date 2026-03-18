@@ -5,6 +5,7 @@
 #'
 #' @param csv The file path of the CSV file containing OTU data and taxonomy information.
 #' @param project A string representing the name of the project.
+#' @param cleanMito Logical. If TRUE, removes mitochondrial taxa (Order == "Rickettsiales") and taxa with NA Phylum. Default is FALSE. (Previously Go_cleanMito())
 #'
 #' @return
 #' A phyloseq object created from the provided CSV data.
@@ -15,12 +16,13 @@
 #' @examples
 #' # Example usage:
 #' ps_object <- Go_tabTops(csv = "path/to/otu_data.csv", project = "MyMicrobiomeProject")
+#' ps_object <- Go_tabTops(csv = "path/to/otu_data.csv", project = "MyMicrobiomeProject", cleanMito = TRUE)
 #'
 #' @export
 
-Go_tabTops <- function(csv, project){
+Go_tabTops <- function(csv, project, cleanMito = FALSE){
   rds <- file.path("2_rds")
-  if(!file_test("-d", rds)) dir.create(rds)
+  if(!dir.exists(rds)) dir.create(rds)
 
   tab <- read.csv(csv, row.names = 1, check.names = FALSE)
 
@@ -43,6 +45,15 @@ Go_tabTops <- function(csv, project){
 
   # Create the phyloseq object
   ps <- phyloseq(otu_table(otu, taxa_are_rows=F), tax_table(as.matrix(tax)))
+
+  # cleanMito: remove Rickettsiales (mitochondria) and NA Phylum taxa
+  if (isTRUE(cleanMito)) {
+    n_before <- ntaxa(ps)
+    ps <- subset_taxa(ps, !is.na(Phylum) & !Order %in% "Rickettsiales")
+    n_after <- ntaxa(ps)
+    message(sprintf("[cleanMito] removed %d taxa (Rickettsiales + NA Phylum): %d -> %d taxa.",
+                    n_before - n_after, n_before, n_after))
+  }
 
   # Save the phyloseq object
   saveRDS(ps, sprintf("%s/ps.tabTops.%s.%s.rds", rds, project, format(Sys.Date(), "%y%m%d")))

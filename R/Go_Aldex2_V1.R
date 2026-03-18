@@ -44,14 +44,14 @@ Go_Aldex2 <- function(psIN,  project,
   ########################################################
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   out_DA <- file.path(sprintf("%s_%s/table/Aldex2",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_DA)) dir.create(out_DA)
+  if(!dir.exists(out_DA)) dir.create(out_DA)
 
   #out_DA.Tab <- file.path(sprintf("%s_%s/table/Aldex2/tab",project, format(Sys.Date(), "%y%m%d")))
-  #if(!file_test("-d", out_DA.Tab)) dir.create(out_DA.Tab)
+  #if(!dir.exists(out_DA.Tab)) dir.create(out_DA.Tab)
 
 
 
@@ -357,7 +357,7 @@ Go_Aldex2 <- function(psIN,  project,
                                                  "NS"),T)
 
 
-          if (class(tt) == "try-error"){
+          if (inherits(tt, "try-error")){
             # Create the pval column name
             # holm_col_name <- sprintf("%s%s.pval.holm", mvar, smvar)
             holm_col_name <- sprintf("%s%s.pval.padj", mvar, smvar)

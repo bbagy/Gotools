@@ -48,17 +48,17 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
 
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out, recursive = TRUE)
+  if(!dir.exists(out)) dir.create(out, recursive = TRUE)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path, recursive = TRUE)
+  if(!dir.exists(out_path)) dir.create(out_path, recursive = TRUE)
   out_table <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_table)) dir.create(out_table, recursive = TRUE)
+  if(!dir.exists(out_table)) dir.create(out_table, recursive = TRUE)
   out_dist <- file.path(sprintf("%s_%s/table/dist",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_dist)) dir.create(out_dist, recursive = TRUE)
+  if(!dir.exists(out_dist)) dir.create(out_dist, recursive = TRUE)
 
   # NEW: perm dir (PERMANOVA 결과 저장 경로)  # <<< NEW
   out_perm <- file.path(sprintf("%s_%s/table/perm",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_perm)) dir.create(out_perm, recursive = TRUE)
+  if(!dir.exists(out_perm)) dir.create(out_perm, recursive = TRUE)
 
   title_suffix <- ""
   build_plot_subtitle <- function(cate.conf, strata_var) {

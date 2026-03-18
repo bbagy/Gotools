@@ -79,13 +79,13 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
 
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
   out_tab <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_tab)) dir.create(out_tab)
+  if(!dir.exists(out_tab)) dir.create(out_tab)
   out_taxa <- file.path(sprintf("%s_%s/table/taxa",project, format(Sys.Date(), "%y%m%d")))
-  if(!file_test("-d", out_taxa)) dir.create(out_taxa)
+  if(!dir.exists(out_taxa)) dir.create(out_taxa)
 
   if(!is.null(x_label)){
     x_label = x_label
@@ -93,18 +93,18 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     x_label="SampleIDfactor"
   }
 
-  if (class(name) == "function"){
+  if (is.function(name)){
     name <- NULL
   }
 
   tt <- try(mycols,T)
-  if(class(tt) == "try-error"){
+  if(inherits(tt, "try-error")){
     print("mycols is not defined.")
     mycols <- NULL
   }
 
   tt <- try(orders,T)
-  if(class(tt) == "try-error"){
+  if(inherits(tt, "try-error")){
     print("orders is not defined.")
     orders <- NULL
   }
@@ -234,7 +234,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
     otu.filt <- as.data.frame(otu_table(psIN))
     tt <- try(otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i]),T)
 
-    if(class(tt) == "try-error"){
+    if(inherits(tt, "try-error")){
       print("DADA2 table")
       otu.filt <- as.data.frame(t(otu_table(psIN)))
       otu.filt[,taxanames[i]] <- getTaxonomy(otus=rownames(otu.filt), tax_tab=tax_table(psIN), taxRanks=colnames(tax_table(psIN)),level=taxanames[i])

@@ -22,7 +22,7 @@
 
 Go_psTotab <- function(psIN, project){
   out <- file.path("1_out")
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
 
   #====== step 1 read ps object
   seqtab.nochim <- as.matrix(otu_table(psIN))
@@ -52,7 +52,7 @@ Go_psTotab <- function(psIN, project){
 
 
   tt <- try( otuTable <- cbind(otu,tax),T)
-  if(class(tt) == "try-error"){
+  if(inherits(tt, "try-error")){
     otu <- as.data.frame(otu_table(psIN));dim(otu)
     tax <- tax_table(psIN);dim(tax)
     otuTable <- cbind(otu,tax)

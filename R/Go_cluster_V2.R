@@ -33,10 +33,10 @@ Go_cluster <- function(psIN, project,db, percent){
   
   # out dir
   rds <- file.path("2_rds") 
-  if(!file_test("-d", rds)) dir.create(rds)
+  if(!dir.exists(rds)) dir.create(rds)
   
   out <- file.path("1_out") 
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   
   # ----- Input ------#
   project.name <-sprintf("%s_%s",project,percent);project.name

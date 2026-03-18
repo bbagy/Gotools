@@ -43,9 +43,9 @@ Go_regDA_fore <- function(project,
   if(!is.null(dev.list())) dev.off()
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out)) dir.create(out)
+  if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d"))) 
-  if(!file_test("-d", out_path)) dir.create(out_path)
+  if(!dir.exists(out_path)) dir.create(out_path)
 
   # add input files
   path <- file_path
@@ -56,18 +56,18 @@ Go_regDA_fore <- function(project,
   
   # out file
   # "name" definition
-  if (class(name) == "function"){
+  if (is.function(name)){
     name <- NULL
   }
   
   tt <- try(mycols,T)
-  if(class(tt) == "try-error"){
+  if(inherits(tt, "try-error")){
     print("mycols is not defined.")
     mycols <- NULL
   }
 
   tt <- try(orders,T)
-  if(class(tt) == "try-error"){
+  if(inherits(tt, "try-error")){
     print("orders is not defined.")
     orders <- NULL
   }

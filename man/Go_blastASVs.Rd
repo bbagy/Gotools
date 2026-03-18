@@ -13,14 +13,19 @@ Go_blastASVs(project, asvsTable, blastDB)
 For example, "/Users/username/DB/blastDB/16S_ribosomal_RNA".}
 }
 \value{
-Writes a CSV file to "1_out/updated_sequences_with_blast_results.csv"
-with the original ASV data and added columns for BLAST hits.
-The function also prints a message upon successful completion.
+Writes two CSV files to \verb{1_out/}:
+\enumerate{
+\item \code{project.updated_sequences_with_blast_results.YYMMDD.csv}
+\item \code{project.final_asvTable.YYMMDD.csv}
+}
 }
 \description{
 This function takes a CSV file containing ASV sequences, converts them to FASTA format,
-runs BLAST searches against a specified database, parses the results, and returns
-a CSV file with added BLAST hit information.
+runs BLAST searches against a specified database, parses the results, and writes:
+\enumerate{
+\item the original BLAST-annotated table
+\item a final ASV table with blast-guided species correction
+}
 }
 \details{
 #===== download DB in local
@@ -32,13 +37,15 @@ update_blastdb.pl --decompress refseq_rna
 Or download the 16S microbial database
 update_blastdb.pl --decompress 16S_ribosomal_RNA
 
-The function processes each sequence individually, creates a temporary FASTA file,
-runs a BLAST search, and parses the output to extract the hit number and hit definition.
-It assumes that the BLAST tool is properly installed and accessible in the system's PATH.
-The results include the genus and species extracted from the hit definitions.
+The final ASV table keeps existing DADA2 species names when they are already
+non-missing genus+species assignments. When species is effectively \verb{Genus NA},
+the function uses the BLAST species only if the BLAST genus matches the existing genus.
+Missing taxonomic ranks from phylum through genus are filled with the most recent
+available higher rank so the taxonomy remains report-friendly.
 }
 \examples{
-Go_blastASVs(asvsTable="path/to/your/asvTable.csv",
-             blastDB="/path/to/your/blastDB/16S_ribosomal_RNA")
+Go_blastASVs(project = "Example",
+             asvsTable = "path/to/your/asvTable.csv",
+             blastDB = "/path/to/your/blastDB/16S_ribosomal_RNA")
 
 }
