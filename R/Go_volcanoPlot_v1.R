@@ -233,6 +233,18 @@ Go_volcanoPlot <- function(project,
     # Clean the dataframe
     df[df == ""] <- "NA"
     df.na <- df[!is.na(df[, pval]), ]
+
+    # Create unique display label: Species name, disambiguated by ASV when duplicated
+    if ("Species" %in% colnames(df.na)) {
+      asv_col <- if ("ASV" %in% colnames(df.na)) "ASV" else
+                 if ("Row.names" %in% colnames(df.na)) "Row.names" else NULL
+      df.na$plot_label <- as.character(df.na$Species)
+      if (!is.null(asv_col)) {
+        dups <- duplicated(df.na$plot_label) | duplicated(df.na$plot_label, fromLast = TRUE) |
+                is.na(df.na$plot_label) | df.na$plot_label %in% c("NA", "")
+        df.na$plot_label[dups] <- paste0(df.na$plot_label[dups], " [", df.na[[asv_col]][dups], "]")
+      }
+    }
     table_name_token <- NULL
     if ("name_token" %in% colnames(df.na)) {
       table_name_vals <- unique(as.character(df.na$name_token))
@@ -335,9 +347,9 @@ Go_volcanoPlot <- function(project,
     p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE)
 
     if (type == "taxonomy" | type == "taxanomy" | type == "bacmet") {
-      label_name <- "Species"
+      label_name <- "plot_label"
       label_condition <- sprintf(
-        "ifelse(%s != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(%s), '')",
+        "ifelse(df.na[, '%s'] != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(df.na[, '%s']), '')",
         label_name, p, x_var, label_name
       )
 

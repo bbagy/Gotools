@@ -60,13 +60,16 @@ Go_Aldex2 <- function(psIN,  project,
   ########################################################
   detect_abundance_type <- function(physeq) {
     lib_sizes <- sample_sums(physeq)
-    mean_lib <- mean(lib_sizes)
+    mean_lib <- mean(lib_sizes, na.rm = TRUE)
+    mat <- as(otu_table(physeq), "matrix")
+    if (!taxa_are_rows(physeq)) mat <- t(mat)
+    is_integer_like <- mean(abs(mat - round(mat)) < 1e-8, na.rm = TRUE) > 0.99
+    prop_like <- mean(abs(lib_sizes - 1) < 0.05, na.rm = TRUE) > 0.8
+    percent_like <- mean(abs(lib_sizes - 100) < 5, na.rm = TRUE) > 0.8
 
-    if (mean_lib >= 0.5 && mean_lib <= 1.5) {
-      return("relative")  # sum to ~1.0
-    } else if (abs(mean_lib - 100) < 5) {
-      return("relative")  # sum to ~100
-    } else if (mean_lib > 1000) {
+    if (prop_like || percent_like) {
+      return("relative")
+    } else if (is_integer_like && mean_lib > 1000) {
       return("absolute")
     } else {
       return("unknown")
@@ -134,14 +137,18 @@ Go_Aldex2 <- function(psIN,  project,
 
   # fix outcome column types
   map <- data.frame(sample_data(psIN))
-  if(!is.null(cate.outs)){
+  if(!is.null(cate.outs) && length(cate.outs) > 0){
     for (cate.out in  cate.outs) {
-      map[,cate.out] <- factor(map[,cate.out], levels = intersect(orders, map[,cate.out]))
+      if (!is.null(orders)) {
+        map[,cate.out] <- factor(map[,cate.out], levels = intersect(orders, map[,cate.out]))
+      } else {
+        map[,cate.out] <- factor(map[,cate.out])
+      }
     }
     outcomes <- c(cate.outs)
   }
 
-  if(!is.null(cont.outs)){
+  if(!is.null(cont.outs) && length(cont.outs) > 0){
     for (cont in  cont.outs) {
       # NA 제거
 
@@ -152,7 +159,7 @@ Go_Aldex2 <- function(psIN,  project,
   }
 
 
-  if(!is.null(cate.outs) || !is.null(cont.outs)){
+  if((!is.null(cate.outs) && length(cate.outs) > 0) || (!is.null(cont.outs) && length(cont.outs) > 0)){
     outcomes <- unique(c(cate.outs, cont.outs))
     print(outcomes)
   }
@@ -161,7 +168,7 @@ Go_Aldex2 <- function(psIN,  project,
 
 
   # fix confounders column types
-  if(!is.null(cate.conf)){
+  if(!is.null(cate.conf) && length(cate.conf) > 0){
     for (cvar in cate.conf) {
       map[,cvar] <- factor(map[,cvar])
     }
@@ -170,21 +177,22 @@ Go_Aldex2 <- function(psIN,  project,
     confounders <- NULL
   }
 
-  if(!is.null(cont.conf)){
+  if(!is.null(cont.conf) && length(cont.conf) > 0){
     for (cont in  cont.conf) {
       # NA 제거
       map[,cont] <- as.character(map[[cont]]);map[,cont]
       map[,cont][map[,cont]==""] <- "NA";map[,cont]
       map[,cont] <- as.numeric(map[[cont]])
     }
-    confounders <- c(cont.outs)
+    confounders <- c(confounders, cont.conf)
   }else{
-    confounders <- NULL
+    confounders <- confounders %||% NULL
   }
 
 
-  if(!is.null(cate.conf) || !is.null(cont.conf)){
+  if((!is.null(cate.conf) && length(cate.conf) > 0) || (!is.null(cont.conf) && length(cont.conf) > 0)){
     confounders <- unique(c(cate.conf, cont.conf))
+    confounders <- confounders[!is.na(confounders) & nzchar(confounders)]
     print(confounders)
   } else {
     confounders <- NULL
@@ -289,7 +297,7 @@ Go_Aldex2 <- function(psIN,  project,
 
         # Run ALDEx2 analysis using the 'conditions' argument
 
-        if(!is.null(confounders)){ #========= confounding variation
+        if(!is.null(confounders) && length(confounders) > 0){ #========= confounding variation
           print("GLM")
           model <- "GLM"
           form <-as.formula(sprintf("~ %s + %s", mvar, paste(setdiff(confounders, "SampleType"), collapse="+")))
@@ -351,40 +359,44 @@ Go_Aldex2 <- function(psIN,  project,
           aldex_df <- aldex_df[order(aldex_df$wi.ep, decreasing = F), ]
 
         }else if(model == "GLM"){
-          tt<- try(aldex_df$aldex2.FDR <- ifelse(aldex_df[, sprintf("%s%s.pval.holm", mvar,smvar)] < 0.05,
-                                                 ifelse(sign(aldex_df[, sprintf("%s%s.Est", mvar,smvar)]) == 1, "up", "down"),
-                                                 "NS"),T)
+          find_glm_col <- function(df, suffixes, keys) {
+            nms <- colnames(df)
+            for (key in keys) {
+              hits <- nms[vapply(nms, function(x) {
+                any(vapply(suffixes, function(suf) grepl(suf, x, fixed = TRUE), logical(1))) &&
+                  grepl(key, x, fixed = TRUE)
+              }, logical(1))]
+              if (length(hits) > 0) return(hits[1])
+            }
+            fallback <- nms[vapply(nms, function(x) any(vapply(suffixes, function(suf) grepl(suf, x, fixed = TRUE), logical(1))), logical(1))]
+            if (length(fallback) > 0) return(fallback[1])
+            NA_character_
+          }
 
+          glm_keys <- unique(c(
+            paste0(mvar, smvar),
+            gsub("[^[:alnum:]_]+", ".", paste0(mvar, smvar)),
+            smvar,
+            gsub("[^[:alnum:]_]+", ".", smvar)
+          ))
+          holm_col_name <- find_glm_col(aldex_df, c(".pval.holm", ".pval.padj"), glm_keys)
+          est_col_name <- find_glm_col(aldex_df, c(".Est"), glm_keys)
+          pvalue_col_name <- find_glm_col(aldex_df, c(".pval"), glm_keys)
 
-          if (inherits(tt, "try-error")){
-            # Create the pval column name
-            # holm_col_name <- sprintf("%s%s.pval.holm", mvar, smvar)
-            holm_col_name <- sprintf("%s%s.pval.padj", mvar, smvar)
-            holm_col_name <- gsub("\\+", ".", holm_col_name)
-
-            # Create the Est column name
-            est_col_name <- sprintf("%s%s.Est", mvar, smvar)
-            est_col_name <- gsub("\\+", ".", est_col_name)
-
-            pvalue_col_name <- sprintf("%s%s.pval", mvar,smvar)
-            pvalue_col_name <- gsub("\\+", ".", pvalue_col_name)
-
-            # Use the modified column names in the ifelse function
+          if (!is.na(holm_col_name) && !is.na(est_col_name)) {
             aldex_df$aldex2.FDR <- ifelse(aldex_df[, holm_col_name] < 0.05,
                                           ifelse(sign(aldex_df[, est_col_name]) == 1, "up", "down"), "NS")
+          } else {
+            aldex_df$aldex2.FDR <- "NS"
+          }
 
+          if (!is.na(pvalue_col_name) && !is.na(est_col_name)) {
             aldex_df$aldex2.P <- ifelse(aldex_df[, pvalue_col_name] < 0.05,
-                                          ifelse(sign(aldex_df[, est_col_name]) == 1, "up", "down"), "NS")
-
-
-            aldex_df <- aldex_df[order(aldex_df[, pvalue_col_name], decreasing = F),]
-
-          }else(
-            aldex_df$aldex2.P <- ifelse(aldex_df[, sprintf("%s%s.pval", mvar,smvar)] < 0.05,
-                                        ifelse(sign(aldex_df[, sprintf("%s%s.Est", mvar,smvar)]) == 1, "up", "down"),
-                                        "NS")
-          )
-
+                                        ifelse(sign(aldex_df[, est_col_name]) == 1, "up", "down"), "NS")
+            aldex_df <- aldex_df[order(aldex_df[, pvalue_col_name], decreasing = FALSE), ]
+          } else {
+            aldex_df$aldex2.P <- "NS"
+          }
         }
 
 
@@ -523,4 +535,3 @@ Go_Aldex2 <- function(psIN,  project,
   }
   invisible(out_DA)
 }
-
