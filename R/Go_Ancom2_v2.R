@@ -79,11 +79,18 @@ Go_Ancom2 <- function(psIN, project,
   ########################################################
   detect_abundance_type <- function(physeq) {
     lib_sizes <- sample_sums(physeq)
-    mean_lib <- mean(lib_sizes)
-    # 100 ± 0.1 → relative, 1000 초과 → absolute, 그 외 unknown
-    if (abs(mean_lib - 100) < 0.1) {
+    mean_lib <- mean(lib_sizes, na.rm = TRUE)
+    mat <- as(otu_table(physeq), "matrix")
+    if (!taxa_are_rows(physeq)) {
+      mat <- t(mat)
+    }
+    is_integer_like <- mean(abs(mat - round(mat)) < 1e-8, na.rm = TRUE) > 0.99
+    prop_like <- mean(abs(lib_sizes - 1) < 0.05, na.rm = TRUE) > 0.8
+    percent_like <- mean(abs(lib_sizes - 100) < 5, na.rm = TRUE) > 0.8
+
+    if (prop_like || percent_like) {
       return("relative")
-    } else if (mean_lib > 1000) {
+    } else if (is_integer_like && mean_lib > 1000) {
       return("absolute")
     } else {
       return("unknown")
@@ -253,13 +260,16 @@ Go_Ancom2 <- function(psIN, project,
       }
 
       ### categorical/continuous confounder
-      if (length(cate.conf) >= 1) {
+      has_cate_conf <- !is.null(cate.conf) && length(cate.conf) >= 1
+      has_cont_conf <- !is.null(cont.conf) && length(cont.conf) >= 1
+
+      if (has_cate_conf) {
         for(cate in cate.conf){
           mapping.sel.cb[, cate] <- as.factor(mapping.sel.cb[, cate])
           sample_data(psIN.cb) <- mapping.sel.cb
         }
       }
-      if (length(cont.conf) >= 1) {
+      if (has_cont_conf) {
         for(cont in cont.conf){
           mapping.sel.cb[, cont] <- as.numeric(mapping.sel.cb[, cont])
           sample_data(psIN.cb) <- mapping.sel.cb
@@ -267,8 +277,9 @@ Go_Ancom2 <- function(psIN, project,
       }
 
       # fixed_formula
-      if (!is.null(cate.conf) | !is.null(cont.conf)) {
-        confounder <- c(cate.conf, cont.conf)
+      confounder <- unique(c(cate.conf, cont.conf))
+      confounder <- confounder[!is.na(confounder) & nzchar(confounder)]
+      if (length(confounder) > 0) {
         fixed_formula <- sprintf("%s + %s", mvar, paste(setdiff(confounder, "SampleType"), collapse = " + "))
       } else {
         confounder <- NULL
