@@ -74,23 +74,6 @@ Go_volcanoPlot <- function(project,
       lbl
     }, character(1))
 
-    dup_group <- split(seq_along(labels), labels)
-    for (idx in dup_group) {
-      if (length(idx) <= 1) {
-        next
-      }
-      for (j in seq_along(idx)) {
-        suffix <- if (!is.null(asv_col)) {
-          asv_val <- as.character(df[idx[j], asv_col])
-          short_id <- substr(asv_val, 1, 10)
-          paste0(" [", short_id, "]")
-        } else {
-          paste0(" [", j, "]")
-        }
-        labels[idx[j]] <- paste0(labels[idx[j]], suffix)
-      }
-    }
-
     labels
   }
 
