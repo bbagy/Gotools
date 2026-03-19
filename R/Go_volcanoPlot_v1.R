@@ -39,6 +39,61 @@ Go_volcanoPlot <- function(project,
                        font,
                        height, width){
 
+  build_taxonomy_plot_label <- function(df) {
+    if (nrow(df) == 0) {
+      return(character(0))
+    }
+
+    pick_first_valid <- function(candidates) {
+      vals <- as.character(candidates)
+      vals <- vals[!is.na(vals) & nzchar(trimws(vals)) & !vals %in% c("NA", "NA NA", "__", "s__", "g__", "f__", "o__", "c__", "p__", "k__")]
+      if (length(vals) == 0) {
+        return(NA_character_)
+      }
+      vals[1]
+    }
+
+    taxonomy_priority <- intersect(c("Species", "Genus", "Family", "Order", "Class", "Phylum", "TaxaName"), colnames(df))
+    asv_col <- if ("ASV" %in% colnames(df)) {
+      "ASV"
+    } else if ("Row.names" %in% colnames(df)) {
+      "Row.names"
+    } else {
+      NULL
+    }
+
+    labels <- vapply(seq_len(nrow(df)), function(i) {
+      vals <- vapply(taxonomy_priority, function(col) df[i, col], character(1))
+      lbl <- pick_first_valid(vals)
+      if (is.na(lbl) && !is.null(asv_col)) {
+        lbl <- as.character(df[i, asv_col])
+      }
+      if (is.na(lbl) || !nzchar(trimws(lbl))) {
+        lbl <- paste0("Feature_", i)
+      }
+      lbl
+    }, character(1))
+
+    dup_group <- split(seq_along(labels), labels)
+    for (idx in dup_group) {
+      if (length(idx) <= 1) {
+        next
+      }
+      for (j in seq_along(idx)) {
+        suffix <- if (!is.null(asv_col)) {
+          asv_val <- as.character(df[idx[j], asv_col])
+          short_id <- substr(asv_val, 1, 10)
+          paste0(" [", short_id, "]")
+        } else {
+          paste0(" [", j, "]")
+        }
+        labels[idx[j]] <- paste0(labels[idx[j]], suffix)
+      }
+    }
+
+    labels
+  }
+
   if(!is.null(dev.list())) dev.off()
 
   # out dir
@@ -234,16 +289,8 @@ Go_volcanoPlot <- function(project,
     df[df == ""] <- "NA"
     df.na <- df[!is.na(df[, pval]), ]
 
-    # Create unique display label: Species name, disambiguated by ASV when duplicated
-    if ("Species" %in% colnames(df.na)) {
-      asv_col <- if ("ASV" %in% colnames(df.na)) "ASV" else
-                 if ("Row.names" %in% colnames(df.na)) "Row.names" else NULL
-      df.na$plot_label <- as.character(df.na$Species)
-      if (!is.null(asv_col)) {
-        dups <- duplicated(df.na$plot_label) | duplicated(df.na$plot_label, fromLast = TRUE) |
-                is.na(df.na$plot_label) | df.na$plot_label %in% c("NA", "")
-        df.na$plot_label[dups] <- paste0(df.na$plot_label[dups], " [", df.na[[asv_col]][dups], "]")
-      }
+    if (type == "taxonomy") {
+      df.na$plot_label <- build_taxonomy_plot_label(df.na)
     }
     table_name_token <- NULL
     if ("name_token" %in% colnames(df.na)) {
