@@ -20,6 +20,8 @@
 #'   Must contain levels specified in \code{orders}.
 #' @param method Character; one of
 #'   \code{c("randomforest","xgboost","lightgbm")}.
+#' @param name Optional character label used as a prefix in the output
+#'   directory name \verb{<project_YYMMDD>/<name>_<method>/}.
 #' @param bacteriaSet Logical; include microbiome features (relative abundances
 #'   after filtering). If \code{FALSE}, only clinical features are used.
 #' @param testSet Logical; if \code{FALSE} (default) runs CV-only. If \code{TRUE},
@@ -65,6 +67,9 @@
 #'
 #' \strong{Outputs (side effects):}
 #' \itemize{
+#'   \item Output directory:
+#'     \verb{<project_YYMMDD>/<name>_<method>/}
+#'     when \code{name} is provided, otherwise \verb{<project_YYMMDD>/<method>/}
 #'   \item \code{random_search_results.csv}
 #'   \item \code{predictions.csv}
 #'     (out-of-fold predictions for CV-only;
@@ -82,14 +87,13 @@
 #' }
 #'
 #' @return
-#' (Invisibly) a list containing mode (\code{"CV-only"} or \code{"Holdout+CV"}),
-#' key metrics (OOF AUC/AUPRC for CV-only or Train/Test metrics for holdout),
-#' \code{best_param}, and \code{outdir}. In CV-only mode, a standardized
-#' out-of-fold performance summary is also written to disk.
+#' (Invisibly) the output directory path \code{outdir}. All prediction
+#' artifacts, metadata, and summary files are written to disk and can be
+#' consumed later by \code{Go_prediction_plot()}.
 #'
 #' @examples
 #' \dontrun{
-#' res <- Go_prediction(
+#' outdir <- Go_prediction(
 #'   psIN = ps,
 #'   project = "ACR",
 #'   outcome = "Rejection",
@@ -100,6 +104,7 @@
 #'   taxrank = "Genus",
 #'   orders = c("Control","Case")
 #' )
+#' Go_prediction_plot(outdir)
 #' }
 #'
 #' @seealso
@@ -166,6 +171,12 @@ Go_prediction <- function(
     if (all(is.na(a)) || all(is.na(b))) return(NA_real_)
     if (length(unique(a[!is.na(a)])) < 2) return(NA_real_)
     suppressWarnings(cor(a, b, method="spearman", use="pairwise.complete.obs"))
+  }
+
+  clean_tag <- function(x) {
+    x <- gsub("[^A-Za-z0-9._-]+", "_", x)
+    x <- gsub("_+", "_", x)
+    gsub("^_|_$", "", x)
   }
 
   get_auc <- function(obs_fac, prob, orders){
@@ -301,8 +312,12 @@ Go_prediction <- function(
     "lightgbm"     = "LightGBM",
     stop("Unknown method: ", method)
   )
-  if (!is.null(name) && nzchar(name)) method_label <- paste0(method_label, "_", name)
-  root <- file.path(sprintf("%s_%s", project, today), method_label)
+  dir_label <- if (!is.null(name) && nzchar(name)) {
+    paste0(clean_tag(name), "_", method_label)
+  } else {
+    method_label
+  }
+  root <- file.path(sprintf("%s_%s", project, today), dir_label)
   dir.create(root, recursive=TRUE, showWarnings=FALSE)
   message("[OutDir] ", root)
 
@@ -504,7 +519,7 @@ Go_prediction <- function(
     saveRDS(final_rf, file.path(root, "rf_final_model.rds"))
     saveRDS(list(outcome=outcome, StudyID_col=StudyID_col, positive_class=positive_class,
                  best_param=best_param, num.trees=num.trees, folds=cv$folds,
-                 seed=seed, levels=orders),
+                 seed=seed, levels=orders, name=name, method=method, outdir=root),
             file.path(root, "rf_meta.rds"))
 
     write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac,
@@ -524,8 +539,7 @@ Go_prediction <- function(
                        positive_class=positive_class, orders=orders)
 
     if (!testSet) {
-      return(invisible(list(mode="CV-only", AUC=AUC_oof, AUPRC=AUPRC_oof,
-                            best_param=best_param, outdir=root)))
+      return(invisible(root))
     }
 
     ## --- Holdout 75/25 -------------------------------------------------------
@@ -577,9 +591,7 @@ Go_prediction <- function(
     png(file.path(root, "PR_Test.rf.png"), width=900, height=900, res=130)
     plot(pr_te, main=sprintf("Test PR (AUPRC=%.3f)", pr_te$auc.integral)); dev.off()
 
-    return(invisible(list(mode="Holdout+CV", AUC_train=auc_tr, AUC_test=auc_te,
-                          AUPRC_train=pr_tr$auc.integral, AUPRC_test=pr_te$auc.integral,
-                          best_param=best_param, outdir=root)))
+    return(invisible(root))
   }
 
   ## ======================== XGBoost ==========================================
@@ -638,7 +650,7 @@ Go_prediction <- function(
     saveRDS(full_bst, file.path(root, "xgb_final_model.rds"))
     saveRDS(list(outcome=outcome, StudyID_col=StudyID_col, positive_class=positive_class,
                  best_param=best_param, best_iter=best_iter, seed=seed,
-                 folds=folds_main, levels=orders),
+                 folds=folds_main, levels=orders, name=name, method=method, outdir=root),
             file.path(root, "xgb_meta.rds"))
 
     write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac,
@@ -678,8 +690,7 @@ Go_prediction <- function(
     .write_importance_files(imp_tbl, root)
 
     if (!testSet) {
-      return(invisible(list(mode="CV-only", AUC=AUC_oof, AUPRC=AUPRC_oof,
-                            best_param=best_param, outdir=root)))
+      return(invisible(root))
     }
 
     ## --- Holdout (Train OOF, Test Holdout) ------------------------------------
@@ -761,9 +772,7 @@ Go_prediction <- function(
     png(file.path(root, "PR_Test.xgb.png"), width=900, height=900, res=130)
     plot(pr_te, main=sprintf("Test PR (AUPRC=%.3f)", pr_te$auc.integral)); dev.off()
 
-    return(invisible(list(mode="Holdout+CV", AUC_train=auc_tr, AUC_test=auc_te,
-                          AUPRC_train=pr_tr$auc.integral, AUPRC_test=pr_te$auc.integral,
-                          best_param=best_in$param, outdir=root)))
+    return(invisible(root))
   }
 
   ## ======================== LightGBM ==========================================
@@ -830,7 +839,7 @@ Go_prediction <- function(
       saveRDS(final_lgb, file.path(root, "lgb_final_model.rds"))
       saveRDS(list(outcome=outcome, StudyID_col=StudyID_col, positive_class=positive_class,
                    best_param=best_param, num.trees=num.trees, folds=folds_main,
-                   seed=seed, levels=orders),
+                   seed=seed, levels=orders, name=name, method=method, outdir=root),
               file.path(root, "lgb_meta.rds"))
 
       write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac,
@@ -843,8 +852,7 @@ Go_prediction <- function(
                          CV_best_iter=NA_integer_, oof_prob=oof, yfac=yfac,
                          positive_class=positive_class, orders=orders)
 
-      return(invisible(list(mode="CV-only", AUC=AUC_oof, AUPRC=AUPRC_oof,
-                            best_param=best_param, outdir=root)))
+      return(invisible(root))
     }
 
     # ========================= Holdout + inner CV =========================
@@ -887,7 +895,8 @@ Go_prediction <- function(
     saveRDS(bst_tr, file.path(root, "lgb_final_model.rds"))
     saveRDS(list(outcome=outcome, StudyID_col=StudyID_col, positive_class=positive_class,
                  best_param=best_param, num.trees=num.trees, seed=seed, folds=folds_tr,
-                 levels=orders, holdout=list(tr_idx=tr_idx, te_idx=te_idx)),
+                 levels=orders, holdout=list(tr_idx=tr_idx, te_idx=te_idx),
+                 name=name, method=method, outdir=root),
             file.path(root, "lgb_meta.rds"))
 
     write_importance_lgb(bst_tr, Xtr, ph_tr, root)
@@ -903,9 +912,6 @@ Go_prediction <- function(
     png(file.path(root, "PR_Test.lgb.png"), width=900, height=900, res=130)
     plot(pr_te, main=sprintf("Test PR (AUPRC=%.3f)", pr_te$auc.integral)); dev.off()
 
-    return(invisible(list(mode="Holdout+CV",
-                          AUC_train=auc_tr, AUC_test=auc_te,
-                          AUPRC_train=pr_tr$auc.integral, AUPRC_test=pr_te$auc.integral,
-                          best_param=best_param, outdir=root)))
+    return(invisible(root))
   }
 }
