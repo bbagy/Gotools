@@ -84,9 +84,6 @@ Go_volcanoPlot <- function(project,
   if(!dir.exists(out)) dir.create(out)
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
   if(!dir.exists(out_path)) dir.create(out_path)
-  out_DA <- file.path(sprintf("%s_%s/pdf/DA_plot",project, format(Sys.Date(), "%y%m%d")))
-  if(!dir.exists(out_DA)) dir.create(out_DA)
-
   # build file list
   plot = "volcano"
   if (!is.null(result)) {
@@ -102,8 +99,8 @@ Go_volcanoPlot <- function(project,
     filenames <- list.files(file_path, pattern = files)
     file_list <- data.frame(path = file_path, file = filenames, stringsAsFactors = FALSE)
 
-  } else {
-    tool_dirs <- c("deseq2", "aldex2", "ancom2")
+    } else {
+    tool_dirs <- c("deseq2", "aldex2", "ancom2", "corncob", "maaslin2")
     file_list <- do.call(rbind, lapply(tool_dirs, function(tool) {
       tool_path <- sprintf("%s_%s/table/%s", project, format(Sys.Date(), "%y%m%d"), tool)
       if (!dir.exists(tool_path)) return(NULL)
@@ -131,7 +128,8 @@ Go_volcanoPlot <- function(project,
 
   for (fn in seq_len(nrow(file_list))) {
     filename1 <- file.path(file_list$path[fn], file_list$file[fn])
-    df <- read.csv(filename1, row.names=NULL ,check.names=FALSE,quote = "")
+    df <- read.csv(filename1, row.names=NULL ,check.names=FALSE)
+    colnames(df) <- gsub('^"|"$', "", colnames(df))
 
     df$aldex2.FDR
 
@@ -139,6 +137,11 @@ Go_volcanoPlot <- function(project,
     tools <- sapply(filename1, function(filename1) {
       if (grepl("deseq2", filename1)) return("deseq2")
       if (grepl("aldex2", filename1)) return("aldex2")
+      if (grepl("condadist", filename1)) return("condadist")
+      if (grepl("maaslin2", filename1)) return("maaslin2")
+      if (grepl("maaslin", filename1)) return("maaslin2")
+      if (grepl("corncob", filename1)) return("corncob")
+      if (grepl("ancombc2", filename1)) return("ancom2")
       if (grepl("ancom2", filename1)) return("ancom2")
       return(NA) # if none of the tools are matched
     })
@@ -147,6 +150,8 @@ Go_volcanoPlot <- function(project,
     print(unique_tools)
 
     if (unique_tools == "deseq2") {
+      out_DA <- file.path(sprintf("%s_%s/pdf/DA_plot",project, format(Sys.Date(), "%y%m%d")))
+      if(!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE, showWarnings = FALSE)
       x_var <- "log2FoldChange"
       y_var <- "-log10(pvalue)"
       z_var <- "log2(baseMean +1)"
@@ -161,6 +166,8 @@ Go_volcanoPlot <- function(project,
       vy <- "-log10 (p-value)"
 
     } else if (unique_tools == "aldex2") {
+      out_DA <- file.path(sprintf("%s_%s/pdf/DA_plot",project, format(Sys.Date(), "%y%m%d")))
+      if(!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE, showWarnings = FALSE)
       tool <- "aldex2"
       vy <- "-log10 (p-value)"
       print(tool)
@@ -225,6 +232,8 @@ Go_volcanoPlot <- function(project,
         model1 <- "corr-spearman"
       }
     } else if (unique_tools == "ancom2") {
+      out_DA <- file.path(sprintf("%s_%s/pdf/DA_plot",project, format(Sys.Date(), "%y%m%d")))
+      if(!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE, showWarnings = FALSE)
       x_var <- "lfc_ancombc"
       y_var <- "-log10(pvalue_ancombc)"
       pval <- "ancom2.P"
@@ -236,6 +245,48 @@ Go_volcanoPlot <- function(project,
       print(tool)
       vx <- "log fold change"
       vy <- "-log10 (p-value)"
+    } else if (unique_tools == "corncob") {
+      out_DA <- file.path(sprintf("%s_%s/pdf/DA_plot",project, format(Sys.Date(), "%y%m%d")))
+      if(!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE, showWarnings = FALSE)
+      x_var <- "corncob_coef"
+      y_var <- "-log10(corncob_pvalue)"
+      pval <- "corncob.P"
+      p <- "corncob_pvalue"
+      fdr <- "corncob.FDR"
+      padj <- "corncob_qvalue"
+      tool <- "corncob"
+      model <- NULL
+      print(tool)
+      vx <- "coefficient"
+      vy <- "-log10 (p-value)"
+    } else if (unique_tools == "maaslin2") {
+      out_DA <- file.path(sprintf("%s_%s/pdf/DA_plot",project, format(Sys.Date(), "%y%m%d")))
+      if(!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE, showWarnings = FALSE)
+      x_var <- "maaslin2_coef"
+      y_var <- "-log10(maaslin2_pvalue)"
+      pval <- "maaslin2.P"
+      p <- "maaslin2_pvalue"
+      fdr <- "maaslin2.FDR"
+      padj <- "maaslin2_qvalue"
+      tool <- "maaslin2"
+      model <- NULL
+      print(tool)
+      vx <- "coefficient"
+      vy <- "-log10 (p-value)"
+    } else if (unique_tools == "condadist") {
+      out_DA <- file.path(sprintf("%s_%s/pdf/ConDa_plot",project, format(Sys.Date(), "%y%m%d")))
+      if(!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE, showWarnings = FALSE)
+      x_var <- "median_effect_size"
+      y_var <- "-log10(fisher_combined_p)"
+      pval <- "condadist.P"
+      p <- "fisher_combined_p"
+      fdr <- "condadist.FDR"
+      padj <- "fisher_combined_q"
+      tool <- "ConDA-dist"
+      model <- NULL
+      print(tool)
+      vx <- "Consensus median effect size"
+      vy <- "-log10 (combined p-value)"
     }
 
     # Check if any filename has "confounder"

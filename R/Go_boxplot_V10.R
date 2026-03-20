@@ -117,6 +117,39 @@ Go_boxplot <- function(df          = NULL,
 
   sanitize_tag <- function(x) gsub("[^A-Za-z0-9._-]+", "-", x)
 
+  build_y_limits <- function(dat, oc, stat_res, ylim) {
+    if (!is.null(ylim) && !oc %in% c("Chao1", "pi_global_mean")) {
+      return(ylim)
+    }
+    if (oc != "pi_global_mean") {
+      return(NULL)
+    }
+
+    y_vals <- suppressWarnings(as.numeric(dat[[oc]]))
+    y_vals <- y_vals[is.finite(y_vals)]
+    if (length(y_vals) == 0) {
+      return(NULL)
+    }
+
+    y_min <- min(y_vals, na.rm = TRUE)
+    y_max <- max(y_vals, na.rm = TRUE)
+    ann_max <- y_max
+    if (!is.null(stat_res$annotation) &&
+        nrow(stat_res$annotation) > 0 &&
+        "y.position" %in% names(stat_res$annotation)) {
+      ann_pos <- suppressWarnings(as.numeric(stat_res$annotation$y.position))
+      ann_pos <- ann_pos[is.finite(ann_pos)]
+      if (length(ann_pos) > 0) ann_max <- max(ann_pos, na.rm = TRUE)
+    }
+
+    upper_ref <- max(y_max, ann_max, na.rm = TRUE)
+    span <- max(y_max - y_min, abs(upper_ref) * 0.15, 1e-6)
+    lower <- if (all(y_vals >= 0, na.rm = TRUE)) 0 else y_min - span * 0.05
+    upper <- upper_ref + span * 0.05
+
+    c(lower, upper)
+  }
+
   make_base_plot <- function(dat, mvar, oc) {
     ggplot(dat, aes(x = !!sym(mvar), y = !!sym(oc))) +
       labs(y = oc, x = NULL) +
@@ -324,7 +357,11 @@ Go_boxplot <- function(df          = NULL,
                                          my_comparisons = my_comparisons,
                                          paired = paired, cutoff = cutoff)
 
-      if (!is.null(ylim) && oc != "Chao1") p1 <- p1 + ylim(ylim[1], ylim[2])
+      y_limits <- build_y_limits(dat, oc, stat_res, ylim)
+      if (!is.null(y_limits)) {
+        p1 <- p1 + scale_y_continuous(limits = y_limits,
+                                      expand = expansion(mult = c(0.02, 0.05)))
+      }
 
       p1 <- add_facet_and_guides(p1, facet, ncol, df)
 
