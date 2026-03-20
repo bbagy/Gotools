@@ -128,11 +128,41 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
 
     if (use_nonparam) {
       form_np <- stats::as.formula(sprintf("%s ~ %s", oc, mvar))
+      kw_pval <- NULL
       if (nlevels(dat_sub[[mvar]]) > 2) {
         test <- stats::kruskal.test(form_np, dat_sub)
-        return(list(test.name = "KW", pval = round(test$p.value, 4), testmethod = "wilcox.test", annotation = NULL))
+        kw_pval <- round(test$p.value, 4)
       }
-      return(list(test.name = "KW", pval = NULL, testmethod = "wilcox.test", annotation = NULL))
+
+      raw_pvals <- vapply(comparisons, function(comp) {
+        sub_dat <- dat_sub[dat_sub[[mvar]] %in% comp, , drop = FALSE]
+        sub_dat[[mvar]] <- droplevels(factor(sub_dat[[mvar]]))
+        if (nlevels(sub_dat[[mvar]]) < 2) return(NA_real_)
+        wt <- try(stats::wilcox.test(
+          stats::as.formula(sprintf("%s ~ %s", oc, mvar)),
+          data = sub_dat,
+          exact = FALSE
+        ), silent = TRUE)
+        if (inherits(wt, "try-error")) return(NA_real_)
+        as.numeric(wt$p.value)
+      }, numeric(1))
+
+      adj_pvals <- stats::p.adjust(raw_pvals, method = p_adjust)
+      ann_y <- compute_annotation_positions(dat_sub[[oc]], dat_sub[[mvar]], length(comparisons))
+      ann <- data.frame(
+        group1 = vapply(comparisons, `[`, character(1), 1),
+        group2 = vapply(comparisons, `[`, character(1), 2),
+        p = raw_pvals,
+        p.adj = adj_pvals,
+        y.position = ann_y,
+        stringsAsFactors = FALSE
+      )
+      ann <- ann[is.finite(ann$p), , drop = FALSE]
+      if (nrow(ann) > 0) {
+        ann$label <- as.character(signif(ann$p.adj, 3))
+      }
+
+      return(list(test.name = "KW", pval = kw_pval, testmethod = NULL, annotation = ann))
     }
 
     if (use_lmm) {
@@ -273,54 +303,6 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
         y.position = "y.position",
         inherit.aes = FALSE,
         size = 2
-      )
-    )
-  }
-
-  label_type <- "p.format"
-  size_val <- 2
-  label_y <- label_y_override
-  if (is.null(label_y) && !is.null(dat) && !is.null(oc) && oc %in% names(dat)) {
-    group_vals <- if (!is.null(mvar) && mvar %in% names(dat)) dat[[mvar]] else NULL
-    label_y <- compute_boxplot_label_y(dat[[oc]], group_vals, length(my_comparisons))
-  }
-
-  if (identical(stat_res$test.name, "KW")) {
-    if (!is.null(stat_res$pval) && stat_res$pval >= cutoff) return(p1)
-    if (is.null(stat_res$testmethod)) return(p1)
-    return(
-      p1 + ggpubr::stat_compare_means(
-        aes(label = after_stat(gsub("^p = ", "", p.format))),
-        method = stat_res$testmethod,
-        comparisons = my_comparisons,
-        label.y = label_y,
-        hide.ns = FALSE,
-        size = size_val
-      )
-    )
-  }
-
-  if (!is.null(stat_res$testmethod) && identical(stat_res$testmethod, "wilcox.test")) {
-    if (is.null(paired)) {
-      return(
-        p1 + ggpubr::stat_compare_means(
-          aes(label = after_stat(gsub("^p = ", "", p.format))),
-          method = stat_res$testmethod,
-          comparisons = my_comparisons,
-          label.y = label_y,
-          hide.ns = FALSE,
-          size = size_val
-        )
-      )
-    }
-    return(
-      p1 + ggpubr::stat_compare_means(
-        aes(label = after_stat(gsub("^p = ", "", p.format))),
-        method = stat_res$testmethod,
-        comparisons = my_comparisons,
-        label.y = label_y,
-        size = 2,
-        paired = TRUE
       )
     )
   }
