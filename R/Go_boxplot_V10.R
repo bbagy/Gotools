@@ -116,6 +116,15 @@ Go_boxplot <- function(df          = NULL,
   }
 
   sanitize_tag <- function(x) gsub("[^A-Za-z0-9._-]+", "-", x)
+  paired_line_threshold <- 25
+
+  should_draw_paired_lines <- function(dat, paired, threshold = paired_line_threshold) {
+    if (is.null(paired) || !paired %in% names(dat)) {
+      return(FALSE)
+    }
+    n_ids <- length(unique(stats::na.omit(dat[[paired]])))
+    isTRUE(n_ids < threshold)
+  }
 
   build_y_limits <- function(dat, oc, stat_res, ylim) {
     if (!is.null(ylim) && !oc %in% c("Chao1", "pi_global_mean")) {
@@ -143,9 +152,9 @@ Go_boxplot <- function(df          = NULL,
     }
 
     upper_ref <- max(y_max, ann_max, na.rm = TRUE)
-    span <- max(y_max - y_min, abs(upper_ref) * 0.15, 1e-6)
+    span <- max(y_max - y_min, abs(upper_ref) * 0.06, 1e-5)
     lower <- if (all(y_vals >= 0, na.rm = TRUE)) 0 else y_min - span * 0.05
-    upper <- upper_ref + span * 0.05
+    upper <- upper_ref + span * 0.02
 
     c(lower, upper)
   }
@@ -162,15 +171,19 @@ Go_boxplot <- function(df          = NULL,
 
   add_geom_layers <- function(p1, dat, mvar, paired, mycols, dot.size, box.tickness) {
     if (!is.null(paired)) {
+      draw_paired_lines <- should_draw_paired_lines(dat, paired)
       if (!is.null(mycols)) p1 <- p1 + scale_color_manual(values = mycols)
-      p1 +
+      p1 <- p1 +
         geom_boxplot(aes(colour = !!sym(mvar)), outlier.shape = NA,
                      linewidth = box.tickness, show.legend = FALSE) +
         geom_point(aes(colour = !!sym(mvar), group = !!sym(paired)),
                    alpha = 0.8, size = dot.size, position = position_dodge(0.3),
-                   show.legend = FALSE) +
-        geom_line(aes(group = !!sym(paired)), color = "grey50",
-                  linewidth = 0.3, position = position_dodge(0.3)) +
+                   show.legend = FALSE)
+      if (draw_paired_lines) {
+        p1 <- p1 + geom_line(aes(group = !!sym(paired)), color = "grey50",
+                             linewidth = 0.3, position = position_dodge(0.3))
+      }
+      p1 +
         theme(legend.title = element_blank(), legend.position = "bottom",
               legend.justification = "left",
               legend.box.margin = ggplot2::margin(0, 0, 0, -1, "cm"))
@@ -347,6 +360,13 @@ Go_boxplot <- function(df          = NULL,
                                         stat_res$test.name, stat_res$pval)
       subtitle_text <- if (statistics)
         build_plot_subtitle(stat_res, p_adjust, use_covariates, covariates_label) else NULL
+      if (!is.null(paired) && paired %in% names(dat)) {
+        n_paired_ids <- length(unique(stats::na.omit(dat[[paired]])))
+        if (n_paired_ids >= paired_line_threshold) {
+          message(sprintf("[Go_boxplot] paired IDs=%d: connection lines suppressed (threshold=%d)",
+                          n_paired_ids, paired_line_threshold))
+        }
+      }
 
       p1 <- make_base_plot(dat, mvar, oc)
       p1 <- p1 + labs(title = title_text, subtitle = subtitle_text)
@@ -355,7 +375,8 @@ Go_boxplot <- function(df          = NULL,
       if (statistics)
         p1 <- Go_boxplot_add_stats_layer(p1 = p1, stat_res = stat_res,
                                          my_comparisons = my_comparisons,
-                                         paired = paired, cutoff = cutoff)
+                                         paired = paired, cutoff = cutoff,
+                                         dat = dat, oc = oc)
 
       y_limits <- build_y_limits(dat, oc, stat_res, ylim)
       if (!is.null(y_limits)) {
