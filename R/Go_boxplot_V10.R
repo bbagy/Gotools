@@ -94,20 +94,15 @@ Go_boxplot <- function(df          = NULL,
   }
 
   build_plot_title <- function(base_title, test_name, pval) {
-    sprintf("%s%s%s%s",
-            base_title,
-            ifelse(is.null(test_name), "", paste0("\n", test_name, " ")),
-            ifelse(is.null(pval),      "", "p= "),
-            ifelse(is.null(pval),      "", paste0(pval, " ")))
+    base_title
   }
 
   build_plot_subtitle <- function(stat_res, p_adjust, use_covariates, covariates_label) {
     parts <- character(0)
-    method_label <- if (!is.null(stat_res$test.name) &&
-                        stat_res$test.name %in% c("ANCOVA", "LMM")) stat_res$test.name else NULL
+    method_label <- stat_res$test.name
     if (!is.null(method_label))
       parts <- c(parts, paste0("method=", method_label))
-    if (!is.null(stat_res$annotation) && !is.null(method_label))
+    if (!is.null(stat_res$annotation))
       parts <- c(parts, sprintf("pairwise (adjust=%s)", p_adjust))
     if (isTRUE(use_covariates))
       parts <- c(parts, sprintf("covariates=%s", covariates_label))
@@ -126,7 +121,35 @@ Go_boxplot <- function(df          = NULL,
     isTRUE(n_ids < threshold)
   }
 
-  build_y_limits <- function(dat, oc, stat_res, ylim) {
+  compute_visible_boxplot_bound <- function(y, groups = NULL, which = c("upper", "lower")) {
+    which <- match.arg(which)
+    y_vals <- suppressWarnings(as.numeric(y))
+    keep <- is.finite(y_vals)
+    y_vals <- y_vals[keep]
+    if (!length(y_vals)) {
+      return(NA_real_)
+    }
+
+    if (is.null(groups)) {
+      groups <- rep("all", length(y))
+    }
+    groups <- as.character(groups)[keep]
+    split_vals <- split(y_vals, groups, drop = TRUE)
+    idx <- if (which == "upper") 5 else 1
+    bounds <- vapply(split_vals, function(vals) {
+      vals <- vals[is.finite(vals)]
+      if (!length(vals)) return(NA_real_)
+      stats::boxplot.stats(vals)$stats[idx]
+    }, numeric(1))
+
+    out <- if (which == "upper") max(bounds, na.rm = TRUE) else min(bounds, na.rm = TRUE)
+    if (!is.finite(out)) {
+      out <- if (which == "upper") max(y_vals, na.rm = TRUE) else min(y_vals, na.rm = TRUE)
+    }
+    out
+  }
+
+  build_y_limits <- function(dat, mvar, oc, stat_res, ylim) {
     if (!is.null(ylim) && !oc %in% c("Chao1", "pi_global_mean")) {
       return(ylim)
     }
@@ -140,8 +163,10 @@ Go_boxplot <- function(df          = NULL,
       return(NULL)
     }
 
-    y_min <- min(y_vals, na.rm = TRUE)
-    y_max <- max(y_vals, na.rm = TRUE)
+    y_min <- compute_visible_boxplot_bound(dat[[oc]], dat[[mvar]], which = "lower")
+    y_max <- compute_visible_boxplot_bound(dat[[oc]], dat[[mvar]], which = "upper")
+    if (!is.finite(y_min)) y_min <- min(y_vals, na.rm = TRUE)
+    if (!is.finite(y_max)) y_max <- max(y_vals, na.rm = TRUE)
     ann_max <- y_max
     if (!is.null(stat_res$annotation) &&
         nrow(stat_res$annotation) > 0 &&
@@ -376,9 +401,9 @@ Go_boxplot <- function(df          = NULL,
         p1 <- Go_boxplot_add_stats_layer(p1 = p1, stat_res = stat_res,
                                          my_comparisons = my_comparisons,
                                          paired = paired, cutoff = cutoff,
-                                         dat = dat, oc = oc)
+                                         dat = dat, oc = oc, mvar = mvar)
 
-      y_limits <- build_y_limits(dat, oc, stat_res, ylim)
+      y_limits <- build_y_limits(dat, mvar, oc, stat_res, ylim)
       if (!is.null(y_limits)) {
         p1 <- p1 + scale_y_continuous(limits = y_limits,
                                       expand = expansion(mult = c(0.02, 0.05)))

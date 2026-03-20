@@ -283,6 +283,8 @@ Go_lollipopPlot <- function(project,
     return(invisible(NULL))
   }
 
+  print(file_list)
+
   for (fn in seq_len(nrow(file_list))) {
     filename1 <- file.path(file_list$path[fn], file_list$file[fn])
     df <- utils::read.csv(filename1, row.names = NULL, check.names = FALSE, stringsAsFactors = FALSE)
@@ -292,6 +294,7 @@ Go_lollipopPlot <- function(project,
     if (is.na(tool)) {
       next
     }
+    print(tool)
 
     plot_df <- build_plot_df(df, tool)
     if (is.null(plot_df) || nrow(plot_df) == 0) {
@@ -303,7 +306,15 @@ Go_lollipopPlot <- function(project,
     } else {
       dircolors <- c("#f8766d", "grey70", "#7cae00")
     }
+    bas.count <- if ("bas.count" %in% colnames(df)) unique(df$bas.count)[1] else NA
+    smvar.count <- if ("smvar.count" %in% colnames(df)) unique(df$smvar.count)[1] else NA
     names(dircolors) <- c(plot_df$basline[1], "NS", plot_df$smvar[1])
+    legend.labs <- c(
+      if (is.na(bas.count)) plot_df$basline[1] else paste0(plot_df$basline[1], " (n=", bas.count, ")"),
+      "NS",
+      if (is.na(smvar.count)) plot_df$smvar[1] else paste0(plot_df$smvar[1], " (n=", smvar.count, ")")
+    )
+    names(legend.labs) <- c(plot_df$basline[1], "NS", plot_df$smvar[1])
 
     out_dir <- file.path(sprintf("%s_%s/pdf/%s", project, format(Sys.Date(), "%y%m%d"), plot_df$out_subdir[1]))
     if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
@@ -333,7 +344,7 @@ Go_lollipopPlot <- function(project,
       ) +
       ggplot2::geom_point(size = 3) +
       ggplot2::geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.7, color = "grey40") +
-      ggplot2::scale_color_manual(values = dircolors, drop = FALSE) +
+      ggplot2::scale_color_manual(values = dircolors, labels = legend.labs, drop = FALSE) +
       ggplot2::labs(
         title = sprintf("%s, %s (top=%s)", plot_df$mvar[1], plot_df$title_tool[1], top_n),
         x = plot_df$score_label[1],
@@ -348,6 +359,9 @@ Go_lollipopPlot <- function(project,
         panel.grid.major.y = ggplot2::element_blank(),
         panel.grid.minor = ggplot2::element_blank(),
         legend.position = "bottom",
+        legend.justification = c(0, 0),
+        legend.box.just = "left",
+        legend.key = ggplot2::element_blank(),
         aspect.ratio = 1/1.35
       )
 
@@ -363,6 +377,7 @@ Go_lollipopPlot <- function(project,
     )
 
     ggplot2::ggsave(filename = pdf_file, plot = p, width = width, height = height, device = "pdf")
+    print(pdf_file)
   }
 
   invisible(NULL)
