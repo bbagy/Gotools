@@ -33,7 +33,7 @@ compute_visible_boxplot_bound <- function(y, groups = NULL, which = c("upper", "
   bounds <- vapply(split_vals, function(vals) {
     vals <- vals[is.finite(vals)]
     if (!length(vals)) return(NA_real_)
-    stats::boxplot.stats(vals)$stats[idx]
+    grDevices::boxplot.stats(vals)$stats[idx]
   }, numeric(1))
 
   out <- if (which == "upper") max(bounds, na.rm = TRUE) else min(bounds, na.rm = TRUE)
