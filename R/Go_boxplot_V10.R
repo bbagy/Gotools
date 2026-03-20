@@ -107,6 +107,7 @@ Go_boxplot <- function(df          = NULL,
 
   sanitize_tag <- function(x) gsub("[^A-Za-z0-9._-]+", "-", x)
   paired_line_threshold <- 25
+  dense_point_threshold <- 150
 
   auto_select_method <- function(paired, covariates) {
     has_paired <- !is.null(paired) && length(paired) > 0
@@ -130,6 +131,16 @@ Go_boxplot <- function(df          = NULL,
     }
     n_ids <- length(unique(stats::na.omit(dat[[paired]])))
     isTRUE(n_ids < threshold)
+  }
+
+  should_draw_paired_points <- function(dat, mvar, method_label, threshold = dense_point_threshold) {
+    if (!identical(method_label, "LMM")) {
+      return(TRUE)
+    }
+    if (is.null(mvar) || !mvar %in% names(dat)) {
+      return(TRUE)
+    }
+    isTRUE(max(table(dat[[mvar]])) <= threshold)
   }
 
   compute_visible_boxplot_bound <- function(y, groups = NULL, which = c("upper", "lower")) {
@@ -205,16 +216,20 @@ Go_boxplot <- function(df          = NULL,
             plot.subtitle     = element_text(size = 6, lineheight = 0.9))
   }
 
-  add_geom_layers <- function(p1, dat, mvar, paired, mycols, dot.size, box.tickness) {
+  add_geom_layers <- function(p1, dat, mvar, paired, mycols, dot.size, box.tickness,
+                              method_label = NULL) {
     if (!is.null(paired)) {
       draw_paired_lines <- should_draw_paired_lines(dat, paired)
+      draw_paired_points <- should_draw_paired_points(dat, mvar, method_label)
       if (!is.null(mycols)) p1 <- p1 + scale_color_manual(values = mycols)
       p1 <- p1 +
         geom_boxplot(aes(colour = !!sym(mvar)), outlier.shape = NA,
-                     linewidth = box.tickness, show.legend = FALSE) +
-        geom_point(aes(colour = !!sym(mvar), group = !!sym(paired)),
-                   alpha = 0.8, size = dot.size, position = position_dodge(0.3),
-                   show.legend = FALSE)
+                     linewidth = box.tickness, show.legend = FALSE)
+      if (draw_paired_points) {
+        p1 <- p1 + geom_point(aes(colour = !!sym(mvar), group = !!sym(paired)),
+                              alpha = 0.8, size = dot.size, position = position_dodge(0.3),
+                              show.legend = FALSE)
+      }
       if (draw_paired_lines) {
         p1 <- p1 + geom_line(aes(group = !!sym(paired)), color = "grey50",
                              linewidth = 0.3, position = position_dodge(0.3))
@@ -391,10 +406,15 @@ Go_boxplot <- function(df          = NULL,
                           n_paired_ids, paired_line_threshold))
         }
       }
+      if (identical(method_label, "LMM") && max(table(dat[[mvar]])) > dense_point_threshold) {
+        message(sprintf("[Go_boxplot] max group size=%d: points suppressed for LMM (threshold=%d)",
+                        max(table(dat[[mvar]])), dense_point_threshold))
+      }
 
       p1 <- make_base_plot(dat, mvar, oc)
       p1 <- p1 + labs(title = title_text, subtitle = subtitle_text)
-      p1 <- add_geom_layers(p1, dat, mvar, paired, mycols, dot.size, box.tickness)
+      p1 <- add_geom_layers(p1, dat, mvar, paired, mycols, dot.size, box.tickness,
+                            method_label = method_label)
 
       if (statistics)
         p1 <- Go_boxplot_add_stats_layer(p1 = p1, stat_res = stat_res,

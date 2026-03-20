@@ -201,7 +201,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
     )
     ann <- ann[is.finite(ann$p), , drop = FALSE]
     if (nrow(ann) > 0) {
-      ann$label <- paste0("p=", signif(ann$p.adj, 3))
+      ann$label <- as.character(signif(ann$p.adj, 3))
     }
 
     list(
@@ -289,8 +289,8 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
     if (is.null(stat_res$testmethod)) return(p1)
     return(
       p1 + ggpubr::stat_compare_means(
+        aes(label = after_stat(gsub("^p = ", "", p.format))),
         method = stat_res$testmethod,
-        label = label_type,
         comparisons = my_comparisons,
         label.y = label_y,
         hide.ns = FALSE,
@@ -303,8 +303,8 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
     if (is.null(paired)) {
       return(
         p1 + ggpubr::stat_compare_means(
+          aes(label = after_stat(gsub("^p = ", "", p.format))),
           method = stat_res$testmethod,
-          label = label_type,
           comparisons = my_comparisons,
           label.y = label_y,
           hide.ns = FALSE,
@@ -314,8 +314,8 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
     }
     return(
       p1 + ggpubr::stat_compare_means(
+        aes(label = after_stat(gsub("^p = ", "", p.format))),
         method = stat_res$testmethod,
-        label = "p.format",
         comparisons = my_comparisons,
         label.y = label_y,
         size = 2,
