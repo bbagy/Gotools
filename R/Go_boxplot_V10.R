@@ -30,7 +30,7 @@
 #' @details
 #' PDF dimensions are calculated automatically from the data:
 #' \itemize{
-#'   \item \strong{Width}: \code{max(min_width, n_groups * 0.5) * plotCols}
+#'   \item \strong{Width}: \code{max(min_width, n_groups * 0.4) * plotCols}
 #'   \item \strong{Panel height}: \code{max(min_height, 2 + n_comparisons * 0.3) * plotRows}
 #'   \item \strong{Label height}: \code{max(0.5, max_label_chars * 0.09)} added for rotated x-axis labels
 #' }
@@ -47,6 +47,8 @@
 #'            outcomes = c("Shannon", "Chao1"))
 #'
 #' @export
+
+`%||%` <- function(a, b) if (!is.null(a)) a else b
 
 Go_boxplot <- function(df          = NULL,
                        psIN        = NULL,
@@ -272,6 +274,28 @@ Go_boxplot <- function(df          = NULL,
     }
   }
 
+  multiplot <- function(..., plotlist = NULL, cols = 1, rows = 1) {
+    plots    <- c(list(...), plotlist)
+    numPlots <- length(plots)
+    i <- 1
+    while (i <= numPlots) {
+      numToPlot <- min(numPlots - i + 1, cols * rows)
+      layout    <- matrix(seq(i, i + cols * rows - 1), ncol = cols, nrow = rows, byrow = TRUE)
+      if (numToPlot == 1) {
+        print(plots[[i]])
+      } else {
+        grid::grid.newpage()
+        grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow(layout), ncol(layout))))
+        for (j in seq(i, i + numToPlot - 1)) {
+          idx <- as.data.frame(which(layout == j, arr.ind = TRUE))
+          print(plots[[j]], vp = grid::viewport(layout.pos.row = idx$row,
+                                                layout.pos.col = idx$col))
+        }
+      }
+      i <- i + numToPlot
+    }
+  }
+
   # Finalize panel style and store sizing metadata as attributes
   finalize_plot <- function(p1, n_grp, n_comp, max_lbl_chars) {
     p1 <- p1 + theme(panel.grid       = element_blank(),
@@ -389,7 +413,7 @@ Go_boxplot <- function(df          = NULL,
     message(sprintf("## %s (without NA: %d/%d) ##", mvar, nrow(df.na), nrow(df)))
     if (length(unique(df.na[[mvar]])) == 1) next
 
-    run_stats <- function(dat, comparisons) {
+    run_stats <- function(dat, comparisons, oc) {
       if (!statistics)
         return(list(test.name = NULL, pval = NULL, testmethod = NULL, annotation = NULL))
       Go_boxplot_stats_engine(
@@ -400,8 +424,8 @@ Go_boxplot <- function(df          = NULL,
       )
     }
 
-    assemble_plot <- function(dat, my_comparisons) {
-      stat_res      <- run_stats(dat, my_comparisons)
+    assemble_plot <- function(dat, my_comparisons, oc) {
+      stat_res      <- run_stats(dat, my_comparisons, oc)
       method_label  <- if (!is.null(stat_res$test.name)) stat_res$test.name else method_label_default
       label_y       <- NULL
       if (statistics &&
@@ -480,7 +504,7 @@ Go_boxplot <- function(df          = NULL,
         }
         for (oc in outcomes) {
           message(oc)
-          plotlist[[length(plotlist) + 1]] <- assemble_plot(df.cbn, my_comparisons)
+          plotlist[[length(plotlist) + 1]] <- assemble_plot(df.cbn, my_comparisons, oc)
         }
       }
 
@@ -498,7 +522,7 @@ Go_boxplot <- function(df          = NULL,
       }
       for (oc in outcomes) {
         message(oc)
-        plotlist[[length(plotlist) + 1]] <- assemble_plot(df.na, my_comparisons)
+        plotlist[[length(plotlist) + 1]] <- assemble_plot(df.na, my_comparisons, oc)
       }
     }
   }
@@ -523,36 +547,11 @@ Go_boxplot <- function(df          = NULL,
   pdf_w   <- max(min_width, max_n_grp * 0.4) * plotCols
 
   message(sprintf("[Go_boxplot] PDF: %.1f x %.1f in  (panel=%.1f, labels=%.1f, w/grp=%.2f)",
-                  pdf_w, pdf_h, panel_h, label_h, max_n_grp * 0.5))
+                  pdf_w, pdf_h, panel_h, label_h, max_n_grp * 0.4))
 
   # ── render ───────────────────────────────────────────────────────────────────
   pdf(file.path(out_path, file_name), height = pdf_h, width = pdf_w)
-
-  multiplot <- function(..., plotlist = NULL, cols = 1, rows = 1) {
-    plots    <- c(list(...), plotlist)
-    numPlots <- length(plots)
-    i <- 1
-    while (i <= numPlots) {
-      numToPlot <- min(numPlots - i + 1, cols * rows)
-      layout    <- matrix(seq(i, i + cols * rows - 1), ncol = cols, nrow = rows, byrow = TRUE)
-      if (numToPlot == 1) {
-        print(plots[[i]])
-      } else {
-        grid::grid.newpage()
-        grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow(layout), ncol(layout))))
-        for (j in seq(i, i + numToPlot - 1)) {
-          idx <- as.data.frame(which(layout == j, arr.ind = TRUE))
-          print(plots[[j]], vp = grid::viewport(layout.pos.row = idx$row,
-                                                layout.pos.col = idx$col))
-        }
-      }
-      i <- i + numToPlot
-    }
-  }
-
   multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
   dev.off()
 }
 
-# null-coalescing operator (local to this file's scope via environment)
-`%||%` <- function(a, b) if (!is.null(a)) a else b

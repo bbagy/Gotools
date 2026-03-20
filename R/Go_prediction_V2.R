@@ -110,6 +110,8 @@
 #' @name Go_prediction
 #' @export
 
+`%||%` <- function(a, b) if (!is.null(a)) a else b
+
 suppressPackageStartupMessages({
   library(phyloseq)
   library(ranger)
@@ -129,8 +131,8 @@ Go_prediction <- function(
     outcome,
     method = c("randomforest","xgboost","lightgbm"),
     name = NULL,
-    bacteriaSet = TRUE,             # 마이크로바이옴 피처 포함 여부
-    testSet = FALSE,                # TRUE면 75/25 holdout + inner-CV
+    bacteriaSet = TRUE,
+    testSet = FALSE,
     clinical_vari = character(0),
     StudyID_col   = "StudyID",
     taxrank       = "ASV",
@@ -148,11 +150,9 @@ Go_prediction <- function(
 
   ## --- 내부 유틸 --------------------------------------------------------------
   .map_direction_safe <- function(feature_names, dir_lookup) {
-    # 1차: 원본 이름 매칭
     res <- unname(dir_lookup[feature_names])
     miss <- is.na(res)
     if (any(miss)) {
-      # 2차: make.names()로 정규화 이름 매칭
       dn <- dir_lookup
       names(dn) <- make.names(names(dn))
       res[miss] <- unname(dn[make.names(feature_names[miss])])
@@ -160,17 +160,20 @@ Go_prediction <- function(
     res[is.na(res)] <- "Neutral"
     res
   }
+
   safe_spearman <- function(a, b){
     if (is.null(a) || is.null(b)) return(NA_real_)
     if (all(is.na(a)) || all(is.na(b))) return(NA_real_)
     if (length(unique(a[!is.na(a)])) < 2) return(NA_real_)
     suppressWarnings(cor(a, b, method="spearman", use="pairwise.complete.obs"))
   }
+
   get_auc <- function(obs_fac, prob, orders){
     prob <- as.numeric(prob)
     if (all(is.na(prob)) || length(unique(stats::na.omit(prob))) < 2) return(0.5)
     as.numeric(pROC::auc(pROC::roc(obs_fac, prob, levels=orders, direction="<", quiet=TRUE)))
   }
+
   make_group_strat_folds <- function(groups, ybin, K=5, seed=123){
     set.seed(seed)
     df <- data.frame(g=groups, y=ybin)
@@ -190,6 +193,7 @@ Go_prediction <- function(
     ff[is.na(ff)] <- sample(1:max(fmap$f), sum(is.na(ff)), replace=TRUE)
     lapply(1:max(ff), function(k) which(ff == k))
   }
+
   make_strat_folds <- function(ybin, K=5, seed=123){
     set.seed(seed)
     idx0 <- which(ybin==0); idx1 <- which(ybin==1)
@@ -201,42 +205,76 @@ Go_prediction <- function(
     lapply(1:max(ff), function(k) which(ff == k))
   }
 
-
-
-  # ---- CV vs OOF 요약 저장 ----
   log_cv_oof_summary <- function(outdir, model_name,
                                  CV_best_AUC, CV_best_iter = NA_integer_,
                                  oof_prob, yfac, positive_class, orders) {
     if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
-    # OOF 성능
-    AUC_oof <- get_auc(yfac, oof_prob, orders)
-    pr <- PRROC::pr.curve(scores.class0 = oof_prob[yfac==positive_class],
-                          scores.class1 = oof_prob[yfac!=positive_class], curve=TRUE)
+    AUC_oof  <- get_auc(yfac, oof_prob, orders)
+    pr       <- PRROC::pr.curve(scores.class0 = oof_prob[yfac==positive_class],
+                                scores.class1 = oof_prob[yfac!=positive_class], curve=TRUE)
     AUPRC_oof <- pr$auc.integral
-
-    # 저장
-    sum_df <- data.frame(
-      Model        = model_name,
-      CV_best_AUC  = CV_best_AUC,
-      CV_best_iter = CV_best_iter,
-      OOF_AUC      = AUC_oof,
-      OOF_AUPRC    = AUPRC_oof
-    )
-
-    write.csv(sum_df, file.path(outdir, paste0(model_name, "_cv_oof_summary.csv")), row.names = FALSE)
-
-    # 그림(선택)
+    write.csv(data.frame(Model=model_name, CV_best_AUC=CV_best_AUC,
+                         CV_best_iter=CV_best_iter, OOF_AUC=AUC_oof, OOF_AUPRC=AUPRC_oof),
+              file.path(outdir, paste0(model_name, "_cv_oof_summary.csv")), row.names=FALSE)
     png(file.path(outdir, paste0("ROC_OOF_", model_name, ".png")), width=900, height=900, res=130)
     plot.roc(pROC::roc(yfac, oof_prob, levels=orders, direction="<", quiet=TRUE),
-             main=sprintf("%s OOF ROC (AUC=%.3f)", model_name, AUC_oof), lwd=2); abline(0,1,lty=2); dev.off()
+             main=sprintf("%s OOF ROC (AUC=%.3f)", model_name, AUC_oof), lwd=2)
+    abline(0,1,lty=2); dev.off()
     png(file.path(outdir, paste0("PR_OOF_", model_name, ".png")), width=900, height=900, res=130)
     plot(pr, main=sprintf("%s OOF PR (AUPRC=%.3f)", model_name, AUPRC_oof)); dev.off()
-
     invisible(list(CV_best_AUC=CV_best_AUC, CV_best_iter=CV_best_iter,
                    OOF_AUC=AUC_oof, OOF_AUPRC=AUPRC_oof))
   }
-  ## --- 0) 메타 준비: 레벨/StudyID 고정 --------------------------------------
-  meta0 <- data.frame(sample_data(psIN), check.names = FALSE, stringsAsFactors = FALSE)
+
+  # StudyID-aware 75/25 holdout split — RF/XGB/LGB 공통
+  .make_holdout_split <- function(gid, ybin, group_mode, seed=123) {
+    set.seed(seed)
+    if (group_mode) {
+      df_g    <- data.frame(gid=gid, y=ybin)
+      rep_lab <- aggregate(y ~ gid, df_g, function(z) round(mean(z)))
+      labs    <- rep_lab$gid
+      g0 <- rep_lab$gid[rep_lab$y==0]; g1 <- rep_lab$gid[rep_lab$y==1]
+      tr_g <- c(sample(g0, floor(length(g0)*0.75)), sample(g1, floor(length(g1)*0.75)))
+      list(tr_idx=which(gid %in% tr_g), te_idx=which(gid %in% setdiff(labs, tr_g)))
+    } else {
+      pos_idx <- which(ybin==1); neg_idx <- which(ybin==0)
+      tr_idx  <- sort(c(sample(pos_idx, floor(0.75*length(pos_idx))),
+                        sample(neg_idx, floor(0.75*length(neg_idx)))))
+      list(tr_idx=tr_idx, te_idx=setdiff(seq_along(ybin), tr_idx))
+    }
+  }
+
+  # Taxon-level importance 집계 — 모든 메서드 공통
+  .agg_importance_taxon <- function(imp_tbl) {
+    imp_tbl %>%
+      group_by(Taxon) %>%
+      summarise(
+        SumImportance  = sum(PermImportance, na.rm=TRUE),
+        MeanImportance = mean(PermImportance, na.rm=TRUE),
+        Direction = {
+          s <- sum(ifelse(Direction=="Positive", 1, ifelse(Direction=="Negative",-1,0)) *
+                     PermImportance, na.rm=TRUE)
+          ifelse(s > 0, "Positive", ifelse(s < 0, "Negative", "Neutral"))
+        },
+        .groups="drop"
+      ) %>% arrange(desc(SumImportance))
+  }
+
+  # Taxon 라벨 부착 + importance_feature.csv / importance_taxon.csv 저장
+  # feat2lab 은 step 4 이후 클로저에서 참조
+  .write_importance_files <- function(imp_tbl, root) {
+    imp_tbl$Taxon <- ifelse(imp_tbl$Feature %in% names(feat2lab),
+                            feat2lab[imp_tbl$Feature], imp_tbl$Feature)
+    imp_tbl <- imp_tbl[order(-imp_tbl$PermImportance), ]
+    write.csv(imp_tbl,
+              file.path(root, "importance_feature.csv"), row.names=FALSE)
+    write.csv(.agg_importance_taxon(imp_tbl),
+              file.path(root, "importance_taxon.csv"), row.names=FALSE)
+    invisible(imp_tbl)
+  }
+
+  ## --- 0) 메타 준비 -----------------------------------------------------------
+  meta0 <- data.frame(sample_data(psIN), check.names=FALSE, stringsAsFactors=FALSE)
   stopifnot(outcome %in% names(meta0))
   if (!(StudyID_col %in% names(meta0)) || all(is.na(meta0[[StudyID_col]]))) {
     message(sprintf("[Info] '%s'가 없어 rownames를 사용합니다.", StudyID_col))
@@ -247,16 +285,15 @@ Go_prediction <- function(
     stop(sprintf("[Error] outcome(levels=%s)에 orders(%s) 중 일부가 없습니다.",
                  paste(levels(yy0), collapse=", "), paste(orders, collapse=", ")))
   }
-  yy0 <- factor(yy0, levels = orders)
+  yy0 <- factor(yy0, levels=orders)
   meta0[[outcome]] <- yy0
   sample_data(psIN)[[outcome]] <- yy0
   if (!(StudyID_col %in% colnames(sample_data(psIN))))
     sample_data(psIN)[[StudyID_col]] <- meta0[[StudyID_col]]
   positive_class <- orders[2]
 
-  ## --- 1) 출력 폴더 ----------------------------------------------------------
+  ## --- 1) 출력 폴더 -----------------------------------------------------------
   today <- format(Sys.Date(), "%y%m%d")
-
   method_label <- switch(
     tolower(method),
     "randomforest" = "Randomforest",
@@ -264,39 +301,31 @@ Go_prediction <- function(
     "lightgbm"     = "LightGBM",
     stop("Unknown method: ", method)
   )
-
-  if (!is.null(name) && nzchar(name)) {
-    method_label <- paste0(method_label, "_", name)
-  }
-
-  root <- file.path(
-    sprintf("%s_%s", project, today),
-    method_label
-  )
-  dir.create(root, recursive = TRUE, showWarnings = FALSE)
+  if (!is.null(name) && nzchar(name)) method_label <- paste0(method_label, "_", name)
+  root <- file.path(sprintf("%s_%s", project, today), method_label)
+  dir.create(root, recursive=TRUE, showWarnings=FALSE)
   message("[OutDir] ", root)
 
-  ## --- 2) phyloseq → feature table ------------------------------------------
+  ## --- 2) phyloseq → feature table -------------------------------------------
   ps <- psIN
   if (!identical(taxrank, "ASV")) {
-    if (is.null(tax_table(ps)) || !(taxrank %in% colnames(tax_table(ps)))) {
+    if (is.null(tax_table(ps)) || !(taxrank %in% colnames(tax_table(ps))))
       stop(sprintf("[Error] taxrank '%s' not found in tax_table.", taxrank))
-    }
-    ps <- tax_glom(ps, taxrank = taxrank, NArm = TRUE)
+    ps <- tax_glom(ps, taxrank=taxrank, NArm=TRUE)
   }
   relab <- NULL
   if (bacteriaSet) {
-    OTU <- as(otu_table(ps), "matrix")
+    OTU   <- as(otu_table(ps), "matrix")
     if (taxa_are_rows(ps)) OTU <- t(OTU)
     relab0 <- sweep(OTU, 1, pmax(1e-12, rowSums(OTU)), "/")
-    keep  <- (colMeans(relab0 > 0) >= prev_min) | (colMeans(relab0) >= relab_min)
-    relab <- relab0[, keep, drop = FALSE]
+    keep   <- (colMeans(relab0 > 0) >= prev_min) | (colMeans(relab0) >= relab_min)
+    relab  <- relab0[, keep, drop=FALSE]
   }
 
-  ## --- 3) Taxon 라벨 맵 ------------------------------------------------------
+  ## --- 3) Taxon 라벨 맵 -------------------------------------------------------
   tax_map <- NULL
   if (!is.null(tax_table(ps)) && bacteriaSet) {
-    tt <- as.data.frame(tax_table(ps), stringsAsFactors = FALSE)
+    tt   <- as.data.frame(tax_table(ps), stringsAsFactors=FALSE)
     prio <- intersect(c("Species","Genus","Family","Order","Class","Phylum","Kingdom"),
                       colnames(tt))
     make_tax_label <- function(row) {
@@ -315,27 +344,28 @@ Go_prediction <- function(
   }
 
   ## --- 4) 디자인 매트릭스 ----------------------------------------------------
-  meta <- data.frame(sample_data(ps), check.names = FALSE, stringsAsFactors = FALSE)
+  meta  <- data.frame(sample_data(ps), check.names=FALSE, stringsAsFactors=FALSE)
   X_micro <- if (bacteriaSet) relab else NULL
-
-  X_cli <- NULL
+  X_cli   <- NULL
   if (length(clinical_vari)) {
     miss_cli <- setdiff(clinical_vari, colnames(meta))
     if (length(miss_cli)) warning(sprintf("[Warn] clinical vars not found: %s", paste(miss_cli, collapse=", ")))
     clinical_vari <- setdiff(clinical_vari, miss_cli)
     if (length(clinical_vari)) {
-      X_cli <- meta[, clinical_vari, drop = FALSE]
+      X_cli <- meta[, clinical_vari, drop=FALSE]
       for (j in colnames(X_cli)) if (is.factor(X_cli[[j]])) X_cli[[j]] <- as.character(X_cli[[j]])
       char_cols <- names(Filter(is.character, X_cli))
       if (length(char_cols)) {
         dummies <- do.call(cbind, lapply(char_cols, function(cn){
-          mm <- model.matrix(~.-1, data = data.frame(val = factor(X_cli[[cn]])))
+          mm <- model.matrix(~.-1, data=data.frame(val=factor(X_cli[[cn]])))
           colnames(mm) <- paste(cn, colnames(mm), sep="__"); mm
         }))
         X_cli <- cbind(X_cli[, setdiff(colnames(X_cli), char_cols), drop=FALSE], dummies)
       }
       X_cli <- data.matrix(X_cli)
-      for (j in seq_len(ncol(X_cli))) { v <- X_cli[, j]; if (anyNA(v)) v[is.na(v)] <- median(v, na.rm=TRUE); X_cli[, j] <- v }
+      for (j in seq_len(ncol(X_cli))) {
+        v <- X_cli[, j]; if (anyNA(v)) v[is.na(v)] <- median(v, na.rm=TRUE); X_cli[, j] <- v
+      }
       X_cli <- scale(X_cli)
     }
   }
@@ -343,14 +373,25 @@ Go_prediction <- function(
   X <- if (!is.null(X_cli) && !is.null(X_micro)) cbind(X_micro, X_cli) else (X_cli %||% X_micro)
   X <- as.matrix(X); storage.mode(X) <- "double"
 
-  yfac <- meta[[outcome]]                 # factor(levels=orders)
+  yfac <- meta[[outcome]]
   gid  <- meta[[StudyID_col]]
   stopifnot(nrow(X) == length(yfac), length(gid) == length(yfac))
   ybin <- as.integer(yfac == positive_class)
 
+  # Feature → Taxon 라벨 맵 (이후 모든 importance 출력에 공유)
+  feat2lab <- {
+    base_feat <- colnames(relab %||% matrix(ncol=0, nrow=0))
+    lab_vec   <- if (!is.null(tax_map) && length(base_feat))
+      ifelse(base_feat %in% names(tax_map), tax_map[base_feat], base_feat)
+    else base_feat
+    setNames(as.character(lab_vec), base_feat)
+  }
+
   ## --- 5) 폴드 ---------------------------------------------------------------
   group_mode <- !all(meta[[StudyID_col]] == rownames(meta))
-  folds_main <- if (group_mode) make_group_strat_folds(gid, ybin, n_folds, seed) else make_strat_folds(ybin, n_folds, seed)
+  folds_main <-
+    if (group_mode) make_group_strat_folds(gid, ybin, n_folds, seed)
+    else            make_strat_folds(ybin, n_folds, seed)
 
   ## --- 6) 탐색공간 -----------------------------------------------------------
   sample_grid_rf <- function(n, p){
@@ -375,42 +416,33 @@ Go_prediction <- function(
       stringsAsFactors = FALSE
     )
   }
-
   sample_grid_lgb <- function(n){
     data.frame(
-      learning_rate     = runif(n, 0.01, 0.2),
-      num_leaves        = sample(c(15, 31, 63, 127), n, replace=TRUE),
-      max_depth         = sample(c(-1, 3, 5, 7, 9), n, replace=TRUE),
-      min_data_in_leaf  = sample(c(5, 10, 20, 40), n, replace=TRUE),
-      feature_fraction  = runif(n, 0.6, 0.95),
-      bagging_fraction  = runif(n, 0.6, 0.95),
-      bagging_freq      = sample(c(0, 1), n, replace=TRUE),
-      lambda_l2         = 10^runif(n, -3, 1),
-      lambda_l1         = 10^runif(n, -3, 1),
+      learning_rate    = runif(n, 0.01, 0.2),
+      num_leaves       = sample(c(15, 31, 63, 127), n, replace=TRUE),
+      max_depth        = sample(c(-1, 3, 5, 7, 9), n, replace=TRUE),
+      min_data_in_leaf = sample(c(5, 10, 20, 40), n, replace=TRUE),
+      feature_fraction = runif(n, 0.6, 0.95),
+      bagging_fraction = runif(n, 0.6, 0.95),
+      bagging_freq     = sample(c(0, 1), n, replace=TRUE),
+      lambda_l2        = 10^runif(n, -3, 1),
+      lambda_l1        = 10^runif(n, -3, 1),
       stringsAsFactors = FALSE
     )
   }
 
   .lgb_train <- function(Xtr, ytr, par, nrounds){
-    dtrain <- lightgbm::lgb.Dataset(data = Xtr, label = ytr)
+    dtrain <- lightgbm::lgb.Dataset(data=Xtr, label=ytr)
     lightgbm::lgb.train(
       params = list(
-        objective = "binary",
-        metric = "auc",
-        learning_rate    = par$learning_rate,
-        num_leaves       = par$num_leaves,
-        max_depth        = par$max_depth,
-        min_data_in_leaf = par$min_data_in_leaf,
-        feature_fraction = par$feature_fraction,
-        bagging_fraction = par$bagging_fraction,
-        bagging_freq     = par$bagging_freq,
-        lambda_l2        = par$lambda_l2,
-        lambda_l1        = par$lambda_l1,
-        verbosity = -1
+        objective="binary", metric="auc",
+        learning_rate=par$learning_rate, num_leaves=par$num_leaves,
+        max_depth=par$max_depth, min_data_in_leaf=par$min_data_in_leaf,
+        feature_fraction=par$feature_fraction, bagging_fraction=par$bagging_fraction,
+        bagging_freq=par$bagging_freq, lambda_l2=par$lambda_l2, lambda_l1=par$lambda_l1,
+        verbosity=-1
       ),
-      data = dtrain,
-      nrounds = nrounds,
-      verbose = -1
+      data=dtrain, nrounds=nrounds, verbose=-1
     )
   }
 
@@ -420,36 +452,24 @@ Go_prediction <- function(
     class.weights <- as.numeric(max(taby) / taby); names(class.weights) <- names(taby)
 
     eval_cv_auc_rf <- function(X, yfac, groups=NULL, params, n_folds=5, seed=123){
-      folds <- if (!is.null(groups)) make_group_strat_folds(groups, as.integer(yfac==positive_class), n_folds, seed)
+      folds <- if (!is.null(groups))
+        make_group_strat_folds(groups, as.integer(yfac==positive_class), n_folds, seed)
       else make_strat_folds(as.integer(yfac==positive_class), n_folds, seed)
-      oof <- rep(NA_real_, length(yfac))
+      oof     <- rep(NA_real_, length(yfac))
       fold_id <- rep(NA_integer_, length(yfac))
       for (k in seq_along(folds)) {
         te <- folds[[k]]; tr <- setdiff(seq_along(yfac), te)
         fold_id[te] <- k
         df_tr <- data.frame(X[tr,,drop=FALSE]); df_tr[[outcome]] <- yfac[tr]
         rf <- ranger::ranger(
-          formula = as.formula(paste(outcome, "~ .")),
-          data = df_tr,
-          num.trees = num.trees,
-          mtry = params$mtry,
-          min.node.size = params$min.node.size,
-          sample.fraction = params$sample.fraction,
-          probability = TRUE,
-          classification = TRUE,
-          importance = "permutation",
-          class.weights = class.weights,
-          seed = seed
+          formula=as.formula(paste(outcome, "~ .")), data=df_tr,
+          num.trees=num.trees, mtry=params$mtry, min.node.size=params$min.node.size,
+          sample.fraction=params$sample.fraction, probability=TRUE, classification=TRUE,
+          importance="permutation", class.weights=class.weights, seed=seed
         )
         oof[te] <- predict(rf, data.frame(X[te,,drop=FALSE]))$predictions[, positive_class]
       }
-      auc <- get_auc(yfac, oof, orders)
-      list(
-        auc     = auc,
-        pred    = oof,
-        fold_id = fold_id,
-        folds   = folds
-      )
+      list(auc=get_auc(yfac, oof, orders), pred=oof, fold_id=fold_id, folds=folds)
     }
 
     grid <- sample_grid_rf(n_candidates, ncol(X))
@@ -463,34 +483,23 @@ Go_prediction <- function(
                   i, nrow(grid), cv$auc, grid$mtry[i], grid$min.node.size[i], grid$sample.fraction[i]))
     }
     eval_df <- do.call(rbind, evals); eval_df <- eval_df[order(-eval_df$AUC), ]
-    write.csv(eval_df, file.path(root, "random_search_results.csv"), row.names = FALSE)
+    write.csv(eval_df, file.path(root, "random_search_results.csv"), row.names=FALSE)
     best_param <- grid[best_ix, ]
     cat(sprintf("[Best CV] AUC=%.3f (RF)\n", best_auc))
 
-    # OOF 예측 + PR
-    cv <- eval_cv_auc_rf(X, yfac, if (group_mode) gid else NULL, best_param, n_folds, seed)
-    oof <- cv$pred
-    fold_id <- cv$fold_id
+    cv      <- eval_cv_auc_rf(X, yfac, if (group_mode) gid else NULL, best_param, n_folds, seed)
+    oof     <- cv$pred; fold_id <- cv$fold_id
     AUC_oof <- get_auc(yfac, oof, orders)
-    pr <- PRROC::pr.curve(scores.class0 = oof[yfac==positive_class],
-                          scores.class1 = oof[yfac!=positive_class], curve=TRUE)
+    pr      <- PRROC::pr.curve(scores.class0=oof[yfac==positive_class],
+                               scores.class1=oof[yfac!=positive_class], curve=TRUE)
     AUPRC_oof <- pr$auc.integral
 
-    # 최종 모델 (전체)
     df_all <- data.frame(X); df_all[[outcome]] <- yfac
     final_rf <- ranger::ranger(
-      formula = as.formula(paste(outcome, "~ .")),
-      data = df_all,
-      num.trees = num.trees,
-      mtry = best_param$mtry,
-      min.node.size = best_param$min.node.size,
-      sample.fraction = best_param$sample.fraction,
-      probability = TRUE,
-      classification = TRUE,
-      importance = "permutation",
-      class.weights = class.weights,
-      oob.error = TRUE,
-      seed = seed
+      formula=as.formula(paste(outcome, "~ .")), data=df_all,
+      num.trees=num.trees, mtry=best_param$mtry, min.node.size=best_param$min.node.size,
+      sample.fraction=best_param$sample.fraction, probability=TRUE, classification=TRUE,
+      importance="permutation", class.weights=class.weights, oob.error=TRUE, seed=seed
     )
     saveRDS(final_rf, file.path(root, "rf_final_model.rds"))
     saveRDS(list(outcome=outcome, StudyID_col=StudyID_col, positive_class=positive_class,
@@ -498,112 +507,54 @@ Go_prediction <- function(
                  seed=seed, levels=orders),
             file.path(root, "rf_meta.rds"))
 
-    write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", fold = fold_id, pred=oof),
-              file.path(root, "predictions.csv"), row.names = FALSE)
+    write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac,
+                         set="OOF", fold=fold_id, pred=oof),
+              file.path(root, "predictions.csv"), row.names=FALSE)
 
-    # 중요도 + 방향성 (OOF 기반) — 안전 매핑
+    # 중요도 + 방향성 (OOF 기반)
     dir_val <- sapply(seq_len(ncol(X)), function(j) safe_spearman(X[,j], oof))
     dir_lab <- ifelse(dir_val > 0, "Positive", ifelse(dir_val < 0, "Negative", "Neutral"))
     imp <- as.data.frame(ranger::importance(final_rf))
     colnames(imp) <- "PermImportance"; imp$Feature <- rownames(imp)
     imp$Direction <- .map_direction_safe(imp$Feature, setNames(dir_lab, colnames(X)))
+    .write_importance_files(imp, root)
 
-    base_feat <- colnames(relab %||% matrix(nrow=nrow(X), ncol=0))
-    lab_vec <- if (!is.null(tax_map) && length(base_feat)) {
-      ifelse(base_feat %in% names(tax_map), tax_map[base_feat], base_feat)
-    } else base_feat
-    feat2lab <- setNames(as.character(lab_vec), base_feat)
-    imp$Taxon <- ifelse(imp$Feature %in% names(feat2lab), feat2lab[imp$Feature], imp$Feature)
-    imp <- imp[order(-imp$PermImportance), ]
-    write.csv(imp, file.path(root, "importance_feature.csv"), row.names = FALSE)
-
-    importance_taxon <- imp %>%
-      group_by(Taxon) %>%
-      summarise(
-        SumImportance  = sum(PermImportance, na.rm=TRUE),
-        MeanImportance = mean(PermImportance, na.rm=TRUE),
-        Direction = {
-          s <- sum(ifelse(Direction=="Positive", 1, ifelse(Direction=="Negative",-1,0)) * PermImportance, na.rm=TRUE)
-          ifelse(s > 0, "Positive", ifelse(s < 0, "Negative", "Neutral"))
-        },
-        .groups="drop"
-      ) %>% arrange(desc(SumImportance))
-    write.csv(importance_taxon, file.path(root, "importance_taxon.csv"), row.names = FALSE)
-
-
-    CV_best_AUC <- best_auc   # random search에서 선택된 CV AUC
-
-    log_cv_oof_summary(
-      outdir = root,
-      model_name = "rf",
-      CV_best_AUC = CV_best_AUC,
-      CV_best_iter = NA_integer_,
-      oof_prob = oof,
-      yfac = yfac,
-      positive_class = positive_class,
-      orders = orders
-    )
-
-    #png(file.path(root, "ROC_OOF.png"), width=900, height=900, res=130)
-    #plot.roc(pROC::roc(yfac, oof, levels=orders, direction="<", quiet=TRUE),
-    #         main=sprintf("OOF ROC (AUC=%.3f)", AUC_oof), col="#1f77b4", lwd=2); abline(0,1,lty=2,col="grey60"); dev.off()
-    #png(file.path(root, "PR_OOF.png"), width=900, height=900, res=130)
-    #plot(pr, main=sprintf("OOF PR (AUPRC=%.3f)", AUPRC_oof)); dev.off()
+    log_cv_oof_summary(outdir=root, model_name="rf", CV_best_AUC=best_auc,
+                       CV_best_iter=NA_integer_, oof_prob=oof, yfac=yfac,
+                       positive_class=positive_class, orders=orders)
 
     if (!testSet) {
       return(invisible(list(mode="CV-only", AUC=AUC_oof, AUPRC=AUPRC_oof,
                             best_param=best_param, outdir=root)))
     }
 
-    ## --- Holdout 75/25 (Train=OOB, Test=Holdout) -----------------------------
-    set.seed(seed)
-    if (group_mode) {
-      df_g <- data.frame(gid=gid, y=ybin)
-      rep_lab <- aggregate(y ~ gid, df_g, function(z) round(mean(z)))
-      labs <- rep_lab$gid
-      g0 <- rep_lab$gid[rep_lab$y==0]; g1 <- rep_lab$gid[rep_lab$y==1]
-      n0_tr <- floor(length(g0)*0.75); n1_tr <- floor(length(g1)*0.75)
-      tr_g <- c(sample(g0, n0_tr), sample(g1, n1_tr))
-      te_g <- setdiff(labs, tr_g)
-      tr_idx <- which(gid %in% tr_g); te_idx <- which(gid %in% te_g)
-    } else {
-      pos_idx <- which(ybin==1); neg_idx <- which(ybin==0)
-      tr_pos <- sample(pos_idx, floor(0.75*length(pos_idx)))
-      tr_neg <- sample(neg_idx, floor(0.75*length(neg_idx)))
-      tr_idx <- sort(c(tr_pos, tr_neg)); te_idx <- setdiff(seq_along(ybin), tr_idx)
-    }
-
-    Xtr <- X[tr_idx,,drop=FALSE]; ytr <- yfac[tr_idx]; Xte <- X[te_idx,,drop=FALSE]; yte <- yfac[te_idx]
+    ## --- Holdout 75/25 -------------------------------------------------------
+    split  <- .make_holdout_split(gid, ybin, group_mode, seed)
+    tr_idx <- split$tr_idx; te_idx <- split$te_idx
+    Xtr <- X[tr_idx,,drop=FALSE]; ytr <- yfac[tr_idx]
+    Xte <- X[te_idx,,drop=FALSE]; yte <- yfac[te_idx]
 
     df_tr <- data.frame(Xtr); df_tr[[outcome]] <- ytr
     bst <- ranger::ranger(
-      formula = as.formula(paste(outcome, "~ .")),
-      data = df_tr,
-      num.trees = num.trees,
-      mtry = best_param$mtry,
-      min.node.size = best_param$min.node.size,
-      sample.fraction = best_param$sample.fraction,
-      probability = TRUE,
-      classification = TRUE,
-      importance = "permutation",
-      class.weights = class.weights,
-      oob.error = TRUE,     # Train 성능은 OOB로
-      seed = seed
+      formula=as.formula(paste(outcome, "~ .")), data=df_tr,
+      num.trees=num.trees, mtry=best_param$mtry, min.node.size=best_param$min.node.size,
+      sample.fraction=best_param$sample.fraction, probability=TRUE, classification=TRUE,
+      importance="permutation", class.weights=class.weights, oob.error=TRUE, seed=seed
     )
-    ph_tr <- bst$predictions[, positive_class]                                   # OOB
-    ph_te <- predict(bst, data.frame(Xte))$predictions[, positive_class]         # Holdout
+    ph_tr <- bst$predictions[, positive_class]
+    ph_te <- predict(bst, data.frame(Xte))$predictions[, positive_class]
     auc_tr <- get_auc(ytr, ph_tr, orders); auc_te <- get_auc(yte, ph_te, orders)
-    pr_tr  <- PRROC::pr.curve(scores.class0 = ph_tr[ytr==positive_class],
-                              scores.class1 = ph_tr[ytr!=positive_class], curve=TRUE)
-    pr_te  <- PRROC::pr.curve(scores.class0 = ph_te[yte==positive_class],
-                              scores.class1 = ph_te[yte!=positive_class], curve=TRUE)
+    pr_tr  <- PRROC::pr.curve(scores.class0=ph_tr[ytr==positive_class],
+                              scores.class1=ph_tr[ytr!=positive_class], curve=TRUE)
+    pr_te  <- PRROC::pr.curve(scores.class0=ph_te[yte==positive_class],
+                              scores.class1=ph_te[yte!=positive_class], curve=TRUE)
 
     write.csv(rbind(
       data.frame(SampleID=rownames(Xtr), StudyID=gid[tr_idx], outcome=ytr, set="Train", pred=ph_tr),
       data.frame(SampleID=rownames(Xte), StudyID=gid[te_idx], outcome=yte, set="Test",  pred=ph_te)
-    ), file.path(root, "predictions.csv"), row.names = FALSE)
+    ), file.path(root, "predictions.csv"), row.names=FALSE)
 
-    # 중요도 + 방향성 (테스트 기준 가능하면 test, 아니면 train OOB)
+    # 중요도 + 방향성 (test ≥ 5면 test 기반, 아니면 train OOB 기반)
     dir_base <- if (length(ph_te) >= 5) ph_te else ph_tr
     X_base   <- if (length(ph_te) >= 5) Xte   else Xtr
     dir_val  <- sapply(seq_len(ncol(X_base)), function(j) safe_spearman(X_base[,j], dir_base))
@@ -611,35 +562,16 @@ Go_prediction <- function(
     imp2 <- as.data.frame(ranger::importance(bst))
     colnames(imp2) <- "PermImportance"; imp2$Feature <- rownames(imp2)
     imp2$Direction <- .map_direction_safe(imp2$Feature, setNames(dir_lab, colnames(X_base)))
-
-    base_feat <- colnames(relab %||% matrix(nrow=nrow(X), ncol=0))
-    lab_vec <- if (!is.null(tax_map) && length(base_feat)) {
-      ifelse(base_feat %in% names(tax_map), tax_map[base_feat], base_feat)
-    } else base_feat
-    feat2lab <- setNames(as.character(lab_vec), base_feat)
-    imp2$Taxon <- ifelse(imp2$Feature %in% names(feat2lab), feat2lab[imp2$Feature], imp2$Feature)
-    imp2 <- imp2[order(-imp2$PermImportance), ]
-    write.csv(imp2, file.path(root, "importance_feature.csv"), row.names = FALSE)
-
-    importance_taxon2 <- imp2 %>%
-      group_by(Taxon) %>%
-      summarise(
-        SumImportance  = sum(PermImportance, na.rm=TRUE),
-        MeanImportance = mean(PermImportance, na.rm=TRUE),
-        Direction = {
-          s <- sum(ifelse(Direction=="Positive", 1, ifelse(Direction=="Negative",-1,0)) * PermImportance, na.rm=TRUE)
-          ifelse(s > 0, "Positive", ifelse(s < 0, "Negative", "Neutral"))
-        },
-        .groups="drop"
-      ) %>% arrange(desc(SumImportance))
-    write.csv(importance_taxon2, file.path(root, "importance_taxon.csv"), row.names = FALSE)
+    .write_importance_files(imp2, root)
 
     png(file.path(root, "ROC_Train.rf.png"), width=900, height=900, res=130)
     plot.roc(pROC::roc(ytr, ph_tr, levels=orders, direction="<", quiet=TRUE),
-             main=sprintf("Train ROC (AUC=%.3f)", auc_tr), col="#1f77b4", lwd=2); abline(0,1,lty=2,col="grey60"); dev.off()
+             main=sprintf("Train ROC (AUC=%.3f)", auc_tr), col="#1f77b4", lwd=2)
+    abline(0,1,lty=2,col="grey60"); dev.off()
     png(file.path(root, "ROC_Test.rf.png"), width=900, height=900, res=130)
     plot.roc(pROC::roc(yte, ph_te, levels=orders, direction="<", quiet=TRUE),
-             main=sprintf("Test ROC (AUC=%.3f)", auc_te), col="#d62728", lwd=2); abline(0,1,lty=2,col="grey60"); dev.off()
+             main=sprintf("Test ROC (AUC=%.3f)", auc_te), col="#d62728", lwd=2)
+    abline(0,1,lty=2,col="grey60"); dev.off()
     png(file.path(root, "PR_Train.rf.png"), width=900, height=900, res=130)
     plot(pr_tr, main=sprintf("Train PR (AUPRC=%.3f)", pr_tr$auc.integral)); dev.off()
     png(file.path(root, "PR_Test.rf.png"), width=900, height=900, res=130)
@@ -652,37 +584,27 @@ Go_prediction <- function(
 
   ## ======================== XGBoost ==========================================
   else if (method == "xgboost") {
-    dmat_all <- xgb.DMatrix(data = X, label = ybin, missing = NA)
+    dmat_all         <- xgb.DMatrix(data=X, label=ybin, missing=NA)
     scale_pos_weight <- if (sum(ybin==1)>0) sum(ybin==0)/sum(ybin==1) else 1
 
     eval_candidate <- function(par, folds){
       param <- list(
-        objective = "binary:logistic",
-        eval_metric = "auc",
-        tree_method = "hist",
-        scale_pos_weight = scale_pos_weight,
-        eta = par$eta,
-        max_depth = par$max_depth,
-        min_child_weight = par$min_child_weight,
-        subsample = par$subsample,
-        colsample_bytree = par$colsample_bytree,
-        gamma = par$gamma,
-        lambda = par$lambda,
-        alpha  = par$alpha
+        objective="binary:logistic", eval_metric="auc", tree_method="hist",
+        scale_pos_weight=scale_pos_weight,
+        eta=par$eta, max_depth=par$max_depth, min_child_weight=par$min_child_weight,
+        subsample=par$subsample, colsample_bytree=par$colsample_bytree,
+        gamma=par$gamma, lambda=par$lambda, alpha=par$alpha
       )
-      cv <- xgb.cv(params = param, data = dmat_all, nrounds = num.trees, folds = folds,
-                   early_stopping_rounds = par$early_stopping_rounds, verbose = 0, maximize = TRUE)
-      list(auc = cv$evaluation_log$test_auc_mean[cv$best_iteration],
-           best_iter = cv$best_iteration,
-           param = param,
-           esr = par$early_stopping_rounds)
+      cv <- xgb.cv(params=param, data=dmat_all, nrounds=num.trees, folds=folds,
+                   early_stopping_rounds=par$early_stopping_rounds, verbose=0, maximize=TRUE)
+      list(auc=cv$evaluation_log$test_auc_mean[cv$best_iteration],
+           best_iter=cv$best_iteration, param=param, esr=par$early_stopping_rounds)
     }
 
     set.seed(seed)
     grid <- sample_grid_xgb(n_candidates)
     cat(sprintf("[TUNE] random search (XGB): %d candidates\n", nrow(grid)))
-    best <- list(auc=-Inf)
-    res_list <- vector("list", nrow(grid))
+    best <- list(auc=-Inf); res_list <- vector("list", nrow(grid))
     for (i in seq_len(nrow(grid))) {
       r <- eval_candidate(grid[i,], folds_main)
       res_list[[i]] <- data.frame(idx=i, AUC=r$auc, best_iter=r$best_iter, grid[i,])
@@ -692,96 +614,68 @@ Go_prediction <- function(
       if (!is.na(r$auc) && r$auc > best$auc) best <- r
     }
     res_df <- do.call(rbind, res_list); res_df <- res_df[order(-res_df$AUC), ]
-    write.csv(res_df, file.path(root, "random_search_results.csv"), row.names = FALSE)
+    write.csv(res_df, file.path(root, "random_search_results.csv"), row.names=FALSE)
     cat(sprintf("[Best CV] AUC=%.3f | best_iter=%d (XGB)\n", best$auc, best$best_iter))
 
-
-
     ## OOF 예측
-    fold_id <- rep(NA_integer_, length(ybin))
-    oof <- rep(NA_real_, length(ybin))
+    fold_id    <- rep(NA_integer_, length(ybin))
+    oof        <- rep(NA_real_, length(ybin))
     best_param <- best$param; best_iter <- best$best_iter
     for (k in seq_along(folds_main)) {
       te <- folds_main[[k]]; tr <- setdiff(seq_along(ybin), te)
       fold_id[te] <- k
       dtr <- xgb.DMatrix(X[tr,,drop=FALSE], label=ybin[tr], missing=NA)
       dte <- xgb.DMatrix(X[te,,drop=FALSE], label=ybin[te], missing=NA)
-      bst <- xgb.train(params = best_param, data = dtr, nrounds = best_iter, verbose = 0)
+      bst <- xgb.train(params=best_param, data=dtr, nrounds=best_iter, verbose=0)
       oof[te] <- predict(bst, dte)
     }
-    AUC_oof <- get_auc(yfac, oof, orders)
-    pr <- PRROC::pr.curve(scores.class0 = oof[yfac==positive_class],
-                          scores.class1 = oof[yfac!=positive_class], curve=TRUE)
+    AUC_oof   <- get_auc(yfac, oof, orders)
+    pr        <- PRROC::pr.curve(scores.class0=oof[yfac==positive_class],
+                                 scores.class1=oof[yfac!=positive_class], curve=TRUE)
     AUPRC_oof <- pr$auc.integral
 
-    full_bst <- xgb.train(params = best_param, data = dmat_all, nrounds = best_iter, verbose = 0)
+    full_bst <- xgb.train(params=best_param, data=dmat_all, nrounds=best_iter, verbose=0)
     saveRDS(full_bst, file.path(root, "xgb_final_model.rds"))
     saveRDS(list(outcome=outcome, StudyID_col=StudyID_col, positive_class=positive_class,
-                 best_param=best_param, best_iter=best_iter, seed=seed, folds=folds_main,
-                 levels=orders),
+                 best_param=best_param, best_iter=best_iter, seed=seed,
+                 folds=folds_main, levels=orders),
             file.path(root, "xgb_meta.rds"))
 
-    write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", fold = fold_id, pred=oof),
-              file.path(root, "predictions.csv"), row.names = FALSE)
+    write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac,
+                         set="OOF", fold=fold_id, pred=oof),
+              file.path(root, "predictions.csv"), row.names=FALSE)
 
+    log_cv_oof_summary(outdir=root, model_name="xgb", CV_best_AUC=best$auc,
+                       CV_best_iter=best$best_iter, oof_prob=oof, yfac=yfac,
+                       positive_class=positive_class, orders=orders)
 
-
-
-    CV_best_AUC  <- best$auc
-    CV_best_iter <- best$best_iter
-    log_cv_oof_summary(outdir = root, model_name = "xgb",
-                       CV_best_AUC = CV_best_AUC, CV_best_iter = CV_best_iter,
-                       oof_prob = oof, yfac = yfac,
-                       positive_class = positive_class, orders = orders)
-
-
-
-    ## 중요도 + 방향성 (SHAP 우선, 실패시 Spearman) — 안전 매핑
-    shap_ok <- TRUE
-    shap_mat <- try(predict(full_bst, dmat_all, predcontrib=TRUE), silent=TRUE)
-    if (inherits(shap_mat, "try-error")) shap_ok <- FALSE
+    # 중요도 + 방향성 (SHAP 우선, 실패 시 Spearman)
     feat_names <- colnames(X)
-    if (shap_ok) {
-      shap_mat <- matrix(shap_mat, ncol = ncol(X)+1, byrow = TRUE)
+    shap_mat   <- try(predict(full_bst, dmat_all, predcontrib=TRUE), silent=TRUE)
+    if (!inherits(shap_mat, "try-error")) {
+      shap_mat <- matrix(shap_mat, ncol=ncol(X)+1, byrow=TRUE)
       colnames(shap_mat) <- c(feat_names, "BIAS")
       MeanAbsShap <- colMeans(abs(shap_mat[, feat_names, drop=FALSE]))
       MeanShap    <- colMeans(shap_mat[, feat_names, drop=FALSE])
-      Direction <- ifelse(MeanShap > 0, "Positive", ifelse(MeanShap < 0, "Negative", "Neutral"))
-      imp_tbl <- data.frame(Feature=feat_names, PermImportance=MeanAbsShap, Direction=Direction, check.names=FALSE)
+      imp_tbl <- data.frame(
+        Feature=feat_names, PermImportance=MeanAbsShap,
+        Direction=ifelse(MeanShap>0,"Positive",ifelse(MeanShap<0,"Negative","Neutral")),
+        check.names=FALSE
+      )
     } else {
-      dir_val <- sapply(seq_len(ncol(X)), function(j) safe_spearman(X[,j], oof))
+      dir_val   <- sapply(seq_len(ncol(X)), function(j) safe_spearman(X[,j], oof))
       Direction <- ifelse(dir_val > 0, "Positive", ifelse(dir_val < 0, "Negative", "Neutral"))
-      names(Direction) <- colnames(X)
-      imp_xgb <- try(xgb.importance(model = full_bst), silent=TRUE)
+      names(Direction) <- feat_names
+      imp_xgb <- try(xgb.importance(model=full_bst), silent=TRUE)
       if (inherits(imp_xgb, "try-error") || is.null(imp_xgb)) {
-        imp_tbl <- data.frame(Feature=feat_names, PermImportance=NA_real_, Direction=Direction, check.names=FALSE)
+        imp_tbl <- data.frame(Feature=feat_names, PermImportance=NA_real_,
+                              Direction=Direction, check.names=FALSE)
       } else {
         imp_tbl <- imp_xgb[, c("Feature","Gain")]; colnames(imp_tbl) <- c("Feature","PermImportance")
         imp_tbl$Direction <- .map_direction_safe(imp_tbl$Feature, Direction)
       }
     }
-
-    base_feat <- colnames(relab %||% matrix(nrow=nrow(X), ncol=0))
-    lab_vec <- if (!is.null(tax_map) && length(base_feat)) {
-      ifelse(base_feat %in% names(tax_map), tax_map[base_feat], base_feat)
-    } else base_feat
-    feat2lab <- setNames(as.character(lab_vec), base_feat)
-    imp_tbl$Taxon <- ifelse(imp_tbl$Feature %in% names(feat2lab), feat2lab[imp_tbl$Feature], imp_tbl$Feature)
-    imp_tbl <- imp_tbl[order(-imp_tbl$PermImportance), ]
-    write.csv(imp_tbl, file.path(root, "importance_feature.csv"), row.names = FALSE)
-
-    importance_taxon <- imp_tbl %>%
-      group_by(Taxon) %>%
-      summarise(
-        SumImportance  = sum(PermImportance, na.rm=TRUE),
-        MeanImportance = mean(PermImportance, na.rm=TRUE),
-        Direction = {
-          s <- sum(ifelse(Direction=="Positive", 1, ifelse(Direction=="Negative",-1, 0)) * PermImportance, na.rm=TRUE)
-          ifelse(s > 0, "Positive", ifelse(s < 0, "Negative", "Neutral"))
-        },
-        .groups="drop"
-      ) %>% arrange(desc(SumImportance))
-    write.csv(importance_taxon, file.path(root, "importance_taxon.csv"), row.names = FALSE)
+    .write_importance_files(imp_tbl, root)
 
     if (!testSet) {
       return(invisible(list(mode="CV-only", AUC=AUC_oof, AUPRC=AUPRC_oof,
@@ -789,44 +683,30 @@ Go_prediction <- function(
     }
 
     ## --- Holdout (Train OOF, Test Holdout) ------------------------------------
-    set.seed(seed)
-    if (group_mode) {
-      df_g <- data.frame(gid=gid, y=ybin)
-      rep_lab <- aggregate(y ~ gid, df_g, function(z) round(mean(z)))
-      labs <- rep_lab$gid
-      g0 <- rep_lab$gid[rep_lab$y==0]; g1 <- rep_lab$gid[rep_lab$y==1]
-      n0_tr <- floor(length(g0)*0.75); n1_tr <- floor(length(g1)*0.75)
-      tr_g <- c(sample(g0, n0_tr), sample(g1, n1_tr))
-      te_g <- setdiff(labs, tr_g)
-      tr_idx <- which(gid %in% tr_g); te_idx <- which(gid %in% te_g)
-    } else {
-      pos_idx <- which(ybin==1); neg_idx <- which(ybin==0)
-      tr_pos <- sample(pos_idx, floor(0.75*length(pos_idx)))
-      tr_neg <- sample(neg_idx, floor(0.75*length(neg_idx)))
-      tr_idx <- sort(c(tr_pos, tr_neg)); te_idx <- setdiff(seq_along(ybin), tr_idx)
-    }
-
+    split  <- .make_holdout_split(gid, ybin, group_mode, seed)
+    tr_idx <- split$tr_idx; te_idx <- split$te_idx
     Xtr <- X[tr_idx,,drop=FALSE]; ytr <- ybin[tr_idx]; ytr_fac <- yfac[tr_idx]
     Xte <- X[te_idx,,drop=FALSE]; yte <- ybin[te_idx]; yte_fac <- yfac[te_idx]
 
-    dtr_all <- xgb.DMatrix(Xtr, label=ytr, missing=NA)
-    folds_tr <- if (group_mode) make_group_strat_folds(gid[tr_idx], ytr, n_folds, seed) else make_strat_folds(ytr, n_folds, seed)
-    grid_in <- sample_grid_xgb(n_candidates)
-    best_in <- list(auc=-Inf)
+    dtr_all  <- xgb.DMatrix(Xtr, label=ytr, missing=NA)
+    folds_tr <-
+      if (group_mode) make_group_strat_folds(gid[tr_idx], ytr, n_folds, seed)
+      else            make_strat_folds(ytr, n_folds, seed)
+    grid_in <- sample_grid_xgb(n_candidates); best_in <- list(auc=-Inf)
     for (i in seq_len(nrow(grid_in))) {
       par <- grid_in[i, ]
       param <- list(
         objective="binary:logistic", eval_metric="auc", tree_method="hist",
-        scale_pos_weight = if (sum(ytr==1)>0) sum(ytr==0)/sum(ytr==1) else 1,
+        scale_pos_weight=if (sum(ytr==1)>0) sum(ytr==0)/sum(ytr==1) else 1,
         eta=par$eta, max_depth=par$max_depth, min_child_weight=par$min_child_weight,
         subsample=par$subsample, colsample_bytree=par$colsample_bytree,
         gamma=par$gamma, lambda=par$lambda, alpha=par$alpha
       )
-      cv <- xgb.cv(params=param, data=dtr_all, nrounds=num.trees, folds=folds_tr,
-                   early_stopping_rounds=par$early_stopping_rounds, verbose=0, maximize=TRUE)
+      cv    <- xgb.cv(params=param, data=dtr_all, nrounds=num.trees, folds=folds_tr,
+                      early_stopping_rounds=par$early_stopping_rounds, verbose=0, maximize=TRUE)
       auc_i <- cv$evaluation_log$test_auc_mean[cv$best_iteration]
       if (!is.na(auc_i) && auc_i > best_in$auc)
-        best_in <- list(auc=auc_i, best_iter=cv$best_iteration, param=param, esr=par$early_stopping_rounds)
+        best_in <- list(auc=auc_i, best_iter=cv$best_iteration, param=param)
     }
     cat(sprintf("[InnerCV] best AUC=%.3f | best_iter=%d (XGB)\n", best_in$auc, best_in$best_iter))
 
@@ -836,60 +716,39 @@ Go_prediction <- function(
     # Train 성능: 내부 폴드 OOF로 계산 (ROC=1 방지)
     ph_tr <- rep(NA_real_, length(ytr))
     for (k in seq_along(folds_tr)) {
-      te_k <- folds_tr[[k]]
-      tr_k <- setdiff(seq_along(ytr), te_k)
+      te_k <- folds_tr[[k]]; tr_k <- setdiff(seq_along(ytr), te_k)
       dtr_k <- xgb.DMatrix(Xtr[tr_k,,drop=FALSE], label=ytr[tr_k], missing=NA)
       dte_k <- xgb.DMatrix(Xtr[te_k,,drop=FALSE], label=ytr[te_k], missing=NA)
       bst_k <- xgb.train(params=best_in$param, data=dtr_k, nrounds=best_in$best_iter, verbose=0)
       ph_tr[te_k] <- predict(bst_k, dte_k)
     }
-    # Test: train 전체로 학습 후 holdout 예측
     bst_tr <- xgb.train(params=best_in$param, data=dtr, nrounds=best_in$best_iter, verbose=0)
     ph_te  <- predict(bst_tr, dte)
 
     auc_tr <- get_auc(ytr_fac, ph_tr, orders); auc_te <- get_auc(yte_fac, ph_te, orders)
-    pr_tr  <- PRROC::pr.curve(scores.class0 = ph_tr[ytr_fac==positive_class],
-                              scores.class1 = ph_tr[ytr_fac!=positive_class], curve=TRUE)
-    pr_te  <- PRROC::pr.curve(scores.class0 = ph_te[yte_fac==positive_class],
-                              scores.class1 = ph_te[yte_fac!=positive_class], curve=TRUE)
+    pr_tr  <- PRROC::pr.curve(scores.class0=ph_tr[ytr_fac==positive_class],
+                              scores.class1=ph_tr[ytr_fac!=positive_class], curve=TRUE)
+    pr_te  <- PRROC::pr.curve(scores.class0=ph_te[yte_fac==positive_class],
+                              scores.class1=ph_te[yte_fac!=positive_class], curve=TRUE)
 
     write.csv(rbind(
       data.frame(SampleID=rownames(Xtr), StudyID=gid[tr_idx], outcome=ytr_fac, set="Train", pred=ph_tr),
       data.frame(SampleID=rownames(Xte), StudyID=gid[te_idx], outcome=yte_fac, set="Test",  pred=ph_te)
-    ), file.path(root, "predictions.csv"), row.names = FALSE)
+    ), file.path(root, "predictions.csv"), row.names=FALSE)
 
-    # 중요도 + 방향성 (Train OOF 기반 방향, 안전 매핑)
-    dir_val <- sapply(seq_len(ncol(Xtr)), function(j) safe_spearman(Xtr[,j], ph_tr))
+    # 중요도 + 방향성 (Train OOF 기반)
+    dir_val   <- sapply(seq_len(ncol(Xtr)), function(j) safe_spearman(Xtr[,j], ph_tr))
     Direction <- ifelse(dir_val > 0, "Positive", ifelse(dir_val < 0, "Negative", "Neutral"))
     names(Direction) <- colnames(Xtr)
-    imp_x <- try(xgb.importance(model = bst_tr), silent=TRUE)
+    imp_x <- try(xgb.importance(model=bst_tr), silent=TRUE)
     if (inherits(imp_x, "try-error") || is.null(imp_x)) {
-      imp_hold <- data.frame(Feature=colnames(Xtr), PermImportance=NA_real_, Direction=Direction, check.names=FALSE)
+      imp_hold <- data.frame(Feature=colnames(Xtr), PermImportance=NA_real_,
+                             Direction=Direction, check.names=FALSE)
     } else {
       imp_hold <- imp_x[, c("Feature","Gain")]; colnames(imp_hold) <- c("Feature","PermImportance")
       imp_hold$Direction <- .map_direction_safe(imp_hold$Feature, Direction)
     }
-    base_feat <- colnames(relab %||% matrix(nrow=nrow(X), ncol=0))
-    lab_vec <- if (!is.null(tax_map) && length(base_feat)) {
-      ifelse(base_feat %in% names(tax_map), tax_map[base_feat], base_feat)
-    } else base_feat
-    feat2lab <- setNames(as.character(lab_vec), base_feat)
-    imp_hold$Taxon <- ifelse(imp_hold$Feature %in% names(feat2lab), feat2lab[imp_hold$Feature], imp_hold$Feature)
-    imp_hold <- imp_hold[order(-imp_hold$PermImportance), ]
-    write.csv(imp_hold, file.path(root, "importance_feature.csv"), row.names = FALSE)
-
-    importance_taxon_h <- imp_hold %>%
-      group_by(Taxon) %>%
-      summarise(
-        SumImportance  = sum(PermImportance, na.rm=TRUE),
-        MeanImportance = mean(PermImportance, na.rm=TRUE),
-        Direction = {
-          s <- sum(ifelse(Direction=="Positive", 1, ifelse(Direction=="Negative",-1, 0)) * PermImportance, na.rm=TRUE)
-          ifelse(s > 0, "Positive", ifelse(s < 0, "Negative", "Neutral"))
-        },
-        .groups="drop"
-      ) %>% arrange(desc(SumImportance))
-    write.csv(importance_taxon_h, file.path(root, "importance_taxon.csv"), row.names = FALSE)
+    .write_importance_files(imp_hold, root)
 
     png(file.path(root, "ROC_Train.xgb.png"), width=900, height=900, res=130)
     plot.roc(pROC::roc(ytr_fac, ph_tr, levels=orders, direction="<", quiet=TRUE),
@@ -905,115 +764,68 @@ Go_prediction <- function(
     return(invisible(list(mode="Holdout+CV", AUC_train=auc_tr, AUC_test=auc_te,
                           AUPRC_train=pr_tr$auc.integral, AUPRC_test=pr_te$auc.integral,
                           best_param=best_in$param, outdir=root)))
+  }
 
-}
   ## ======================== LightGBM ==========================================
   else if (method == "lightgbm") {
-
     ybin <- as.integer(yfac == positive_class)
 
-    # ---------- helper: OOF for a given param (folds given) ----------
     eval_oof_lgb <- function(X, ybin, yfac, folds, par, nrounds, orders){
-      oof <- rep(NA_real_, length(ybin))
+      oof     <- rep(NA_real_, length(ybin))
       fold_id <- rep(NA_integer_, length(ybin))
       for (k in seq_along(folds)) {
-        te <- folds[[k]]
-        tr <- setdiff(seq_along(ybin), te)
+        te <- folds[[k]]; tr <- setdiff(seq_along(ybin), te)
         fold_id[te] <- k
-        mdl <- .lgb_train(X[tr,,drop=FALSE], ybin[tr], par, nrounds)
+        mdl    <- .lgb_train(X[tr,,drop=FALSE], ybin[tr], par, nrounds)
         oof[te] <- predict(mdl, X[te,,drop=FALSE])
       }
-      auc <- get_auc(yfac, oof, orders)
-      list(auc = auc, pred = oof, fold_id = fold_id)
+      list(auc=get_auc(yfac, oof, orders), pred=oof, fold_id=fold_id)
     }
 
-    # ---------- helper: importance + direction (OOF Spearman + LGB Gain) ----------
-    write_importance_lgb <- function(model, X, oof, root){
+    # LGB 전용 importance 조립 후 공통 .write_importance_files 로 위임
+    write_importance_lgb <- function(model, X, oof, root) {
       dir_val <- sapply(seq_len(ncol(X)), function(j) safe_spearman(X[,j], oof))
       dir_lab <- ifelse(dir_val > 0, "Positive", ifelse(dir_val < 0, "Negative", "Neutral"))
       names(dir_lab) <- colnames(X)
-
-      imp_lgb <- try(lightgbm::lgb.importance(model, percentage = FALSE), silent = TRUE)
-
-      if (inherits(imp_lgb, "try-error") || is.null(imp_lgb) || nrow(imp_lgb) == 0) {
-        imp_tbl <- data.frame(
-          Feature = colnames(X),
-          PermImportance = NA_real_,
-          Direction = dir_lab[colnames(X)],
-          check.names = FALSE
-        )
+      imp_lgb <- try(lightgbm::lgb.importance(model, percentage=FALSE), silent=TRUE)
+      if (inherits(imp_lgb, "try-error") || is.null(imp_lgb) || nrow(imp_lgb)==0) {
+        imp_tbl <- data.frame(Feature=colnames(X), PermImportance=NA_real_,
+                              Direction=dir_lab[colnames(X)], check.names=FALSE)
       } else {
-        # lgb.importance columns usually: Feature, Gain, Cover, Frequency
-        if (!("Gain" %in% colnames(imp_lgb))) {
-          # fallback: take first numeric column
+        gain_col <- if ("Gain" %in% colnames(imp_lgb)) "Gain" else {
           numc <- names(Filter(is.numeric, imp_lgb))
-          if (length(numc)==0) numc <- colnames(imp_lgb)[2]
-          imp_tbl <- data.frame(Feature=imp_lgb$Feature, PermImportance=imp_lgb[[numc[1]]], check.names=FALSE)
-        } else {
-          imp_tbl <- data.frame(Feature=imp_lgb$Feature, PermImportance=imp_lgb$Gain, check.names=FALSE)
+          if (!length(numc)) colnames(imp_lgb)[2] else numc[1]
         }
+        imp_tbl <- data.frame(Feature=imp_lgb$Feature,
+                              PermImportance=imp_lgb[[gain_col]], check.names=FALSE)
         imp_tbl$Direction <- .map_direction_safe(imp_tbl$Feature, dir_lab)
       }
-
-      # Taxon label mapping (same logic as RF/XGB)
-      base_feat <- colnames(relab %||% matrix(nrow=nrow(X), ncol=0))
-      lab_vec <- if (!is.null(tax_map) && length(base_feat)) {
-        ifelse(base_feat %in% names(tax_map), tax_map[base_feat], base_feat)
-      } else base_feat
-      feat2lab <- setNames(as.character(lab_vec), base_feat)
-      imp_tbl$Taxon <- ifelse(imp_tbl$Feature %in% names(feat2lab), feat2lab[imp_tbl$Feature], imp_tbl$Feature)
-
-      imp_tbl <- imp_tbl[order(-imp_tbl$PermImportance), ]
-      write.csv(imp_tbl, file.path(root, "importance_feature.csv"), row.names = FALSE)
-
-      importance_taxon <- imp_tbl %>%
-        group_by(Taxon) %>%
-        summarise(
-          SumImportance  = sum(PermImportance, na.rm=TRUE),
-          MeanImportance = mean(PermImportance, na.rm=TRUE),
-          Direction = {
-            s <- sum(ifelse(Direction=="Positive", 1, ifelse(Direction=="Negative",-1,0)) * PermImportance, na.rm=TRUE)
-            ifelse(s > 0, "Positive", ifelse(s < 0, "Negative", "Neutral"))
-          },
-          .groups="drop"
-        ) %>% arrange(desc(SumImportance))
-
-      write.csv(importance_taxon, file.path(root, "importance_taxon.csv"), row.names = FALSE)
+      .write_importance_files(imp_tbl, root)
     }
 
-    # ========================= CV-only mode =========================
+    # ========================= CV-only =========================
     if (!testSet) {
-
       grid <- sample_grid_lgb(n_candidates)
       cat(sprintf("[TUNE] random search (LightGBM): %d candidates\n", nrow(grid)))
-
-      best_auc <- -Inf
-      best_ix <- 1
-      evals <- vector("list", nrow(grid))
-
+      best_auc <- -Inf; best_ix <- 1; evals <- vector("list", nrow(grid))
       for (i in seq_len(nrow(grid))) {
         cv <- eval_oof_lgb(X, ybin, yfac, folds_main, grid[i,], num.trees, orders)
         evals[[i]] <- cbind(grid[i,], AUC=cv$auc)
         if (!is.na(cv$auc) && cv$auc > best_auc) { best_auc <- cv$auc; best_ix <- i }
         cat(sprintf("  - cand %2d/%2d: AUC=%.3f\n", i, nrow(grid), cv$auc))
       }
-
       eval_df <- do.call(rbind, evals); eval_df <- eval_df[order(-eval_df$AUC), ]
-      write.csv(eval_df, file.path(root, "random_search_results.csv"), row.names = FALSE)
-
+      write.csv(eval_df, file.path(root, "random_search_results.csv"), row.names=FALSE)
       best_param <- grid[best_ix, ]
       cat(sprintf("[Best CV] AUC=%.3f (LightGBM)\n", best_auc))
 
-      cv <- eval_oof_lgb(X, ybin, yfac, folds_main, best_param, num.trees, orders)
-      oof <- cv$pred
-      fold_id <- cv$fold_id
-      AUC_oof <- get_auc(yfac, oof, orders)
-
-      pr <- PRROC::pr.curve(scores.class0 = oof[yfac==positive_class],
-                            scores.class1 = oof[yfac!=positive_class], curve=TRUE)
+      cv        <- eval_oof_lgb(X, ybin, yfac, folds_main, best_param, num.trees, orders)
+      oof       <- cv$pred; fold_id <- cv$fold_id
+      AUC_oof   <- get_auc(yfac, oof, orders)
+      pr        <- PRROC::pr.curve(scores.class0=oof[yfac==positive_class],
+                                   scores.class1=oof[yfac!=positive_class], curve=TRUE)
       AUPRC_oof <- pr$auc.integral
 
-      # Final model on ALL data
       final_lgb <- .lgb_train(X, ybin, best_param, num.trees)
       saveRDS(final_lgb, file.path(root, "lgb_final_model.rds"))
       saveRDS(list(outcome=outcome, StudyID_col=StudyID_col, positive_class=positive_class,
@@ -1021,64 +833,31 @@ Go_prediction <- function(
                    seed=seed, levels=orders),
               file.path(root, "lgb_meta.rds"))
 
-      write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac, set="OOF", fold = fold_id, pred=oof),
-                file.path(root, "predictions.csv"), row.names = FALSE)
+      write.csv(data.frame(SampleID=rownames(X), StudyID=gid, outcome=yfac,
+                           set="OOF", fold=fold_id, pred=oof),
+                file.path(root, "predictions.csv"), row.names=FALSE)
 
-      # importance + direction
       write_importance_lgb(final_lgb, X, oof, root)
 
-      log_cv_oof_summary(
-        outdir = root,
-        model_name = "lgb",
-        CV_best_AUC = best_auc,
-        CV_best_iter = NA_integer_,
-        oof_prob = oof,
-        yfac = yfac,
-        positive_class = positive_class,
-        orders = orders
-      )
-
-      # ROC/PR
-      #png(file.path(root, "ROC_OOF.png"), width=900, height=900, res=130)
-      #plot.roc(pROC::roc(yfac, oof, levels=orders, direction="<", quiet=TRUE),
-      #         main=sprintf("OOF ROC (AUC=%.3f)", AUC_oof), lwd=2)
-      #abline(0,1,lty=2); dev.off()
-
-      #png(file.path(root, "PR_OOF.png"), width=900, height=900, res=130)
-      #plot(pr, main=sprintf("OOF PR (AUPRC=%.3f)", AUPRC_oof)); dev.off()
+      log_cv_oof_summary(outdir=root, model_name="lgb", CV_best_AUC=best_auc,
+                         CV_best_iter=NA_integer_, oof_prob=oof, yfac=yfac,
+                         positive_class=positive_class, orders=orders)
 
       return(invisible(list(mode="CV-only", AUC=AUC_oof, AUPRC=AUPRC_oof,
                             best_param=best_param, outdir=root)))
     }
 
     # ========================= Holdout + inner CV =========================
-    set.seed(seed)
-
-    # --- split 75/25 (StudyID-aware if group_mode)
-    if (group_mode) {
-      df_g <- data.frame(gid=gid, y=ybin)
-      rep_lab <- aggregate(y ~ gid, df_g, function(z) round(mean(z)))
-      labs <- rep_lab$gid
-      g0 <- rep_lab$gid[rep_lab$y==0]; g1 <- rep_lab$gid[rep_lab$y==1]
-      n0_tr <- floor(length(g0)*0.75); n1_tr <- floor(length(g1)*0.75)
-      tr_g <- c(sample(g0, n0_tr), sample(g1, n1_tr))
-      te_g <- setdiff(labs, tr_g)
-      tr_idx <- which(gid %in% tr_g); te_idx <- which(gid %in% te_g)
-    } else {
-      pos_idx <- which(ybin==1); neg_idx <- which(ybin==0)
-      tr_pos <- sample(pos_idx, floor(0.75*length(pos_idx)))
-      tr_neg <- sample(neg_idx, floor(0.75*length(neg_idx)))
-      tr_idx <- sort(c(tr_pos, tr_neg)); te_idx <- setdiff(seq_along(ybin), tr_idx)
-    }
-
+    split  <- .make_holdout_split(gid, ybin, group_mode, seed)
+    tr_idx <- split$tr_idx; te_idx <- split$te_idx
     Xtr <- X[tr_idx,,drop=FALSE]; ytr <- ybin[tr_idx]; ytr_fac <- yfac[tr_idx]
     Xte <- X[te_idx,,drop=FALSE]; yte <- ybin[te_idx]; yte_fac <- yfac[te_idx]
 
-    folds_tr <- if (group_mode) make_group_strat_folds(gid[tr_idx], ytr, n_folds, seed) else make_strat_folds(ytr, n_folds, seed)
+    folds_tr <-
+      if (group_mode) make_group_strat_folds(gid[tr_idx], ytr, n_folds, seed)
+      else            make_strat_folds(ytr, n_folds, seed)
 
-    # inner random search on TRAIN only
-    grid_in <- sample_grid_lgb(n_candidates)
-    best_auc <- -Inf; best_ix <- 1
+    grid_in <- sample_grid_lgb(n_candidates); best_auc <- -Inf; best_ix <- 1
     for (i in seq_len(nrow(grid_in))) {
       cv <- eval_oof_lgb(Xtr, ytr, ytr_fac, folds_tr, grid_in[i,], num.trees, orders)
       if (!is.na(cv$auc) && cv$auc > best_auc) { best_auc <- cv$auc; best_ix <- i }
@@ -1086,26 +865,24 @@ Go_prediction <- function(
     best_param <- grid_in[best_ix, ]
     cat(sprintf("[InnerCV] best AUC=%.3f (LightGBM)\n", best_auc))
 
-    # Train performance = OOF on TRAIN (avoid ROC=1)
+    # Train 성능: OOF on TRAIN (ROC=1 방지)
     cv_tr <- eval_oof_lgb(Xtr, ytr, ytr_fac, folds_tr, best_param, num.trees, orders)
     ph_tr <- cv_tr$pred
 
-    # Test performance = fit on all TRAIN, predict HOLDOUT
+    # Test 성능: TRAIN 전체로 학습 후 holdout 예측
     bst_tr <- .lgb_train(Xtr, ytr, best_param, num.trees)
-    ph_te <- predict(bst_tr, Xte)
+    ph_te  <- predict(bst_tr, Xte)
 
-    auc_tr <- get_auc(ytr_fac, ph_tr, orders)
-    auc_te <- get_auc(yte_fac, ph_te, orders)
-
-    pr_tr <- PRROC::pr.curve(scores.class0 = ph_tr[ytr_fac==positive_class],
-                             scores.class1 = ph_tr[ytr_fac!=positive_class], curve=TRUE)
-    pr_te <- PRROC::pr.curve(scores.class0 = ph_te[yte_fac==positive_class],
-                             scores.class1 = ph_te[yte_fac!=positive_class], curve=TRUE)
+    auc_tr <- get_auc(ytr_fac, ph_tr, orders); auc_te <- get_auc(yte_fac, ph_te, orders)
+    pr_tr  <- PRROC::pr.curve(scores.class0=ph_tr[ytr_fac==positive_class],
+                              scores.class1=ph_tr[ytr_fac!=positive_class], curve=TRUE)
+    pr_te  <- PRROC::pr.curve(scores.class0=ph_te[yte_fac==positive_class],
+                              scores.class1=ph_te[yte_fac!=positive_class], curve=TRUE)
 
     write.csv(rbind(
       data.frame(SampleID=rownames(Xtr), StudyID=gid[tr_idx], outcome=ytr_fac, set="Train", pred=ph_tr),
       data.frame(SampleID=rownames(Xte), StudyID=gid[te_idx], outcome=yte_fac, set="Test",  pred=ph_te)
-    ), file.path(root, "predictions.csv"), row.names = FALSE)
+    ), file.path(root, "predictions.csv"), row.names=FALSE)
 
     saveRDS(bst_tr, file.path(root, "lgb_final_model.rds"))
     saveRDS(list(outcome=outcome, StudyID_col=StudyID_col, positive_class=positive_class,
@@ -1113,22 +890,16 @@ Go_prediction <- function(
                  levels=orders, holdout=list(tr_idx=tr_idx, te_idx=te_idx)),
             file.path(root, "lgb_meta.rds"))
 
-    # importance + direction: use Train-OOF direction by default
     write_importance_lgb(bst_tr, Xtr, ph_tr, root)
 
     png(file.path(root, "ROC_Train.lgb.png"), width=900, height=900, res=130)
     plot.roc(pROC::roc(ytr_fac, ph_tr, levels=orders, direction="<", quiet=TRUE),
-             main=sprintf("Train ROC (AUC=%.3f)", auc_tr), lwd=2)
-    abline(0,1,lty=2); dev.off()
-
+             main=sprintf("Train ROC (AUC=%.3f)", auc_tr), lwd=2); abline(0,1,lty=2); dev.off()
     png(file.path(root, "ROC_Test.lgb.png"), width=900, height=900, res=130)
     plot.roc(pROC::roc(yte_fac, ph_te, levels=orders, direction="<", quiet=TRUE),
-             main=sprintf("Test ROC (AUC=%.3f)", auc_te), lwd=2)
-    abline(0,1,lty=2); dev.off()
-
+             main=sprintf("Test ROC (AUC=%.3f)", auc_te), lwd=2); abline(0,1,lty=2); dev.off()
     png(file.path(root, "PR_Train.lgb.png"), width=900, height=900, res=130)
     plot(pr_tr, main=sprintf("Train PR (AUPRC=%.3f)", pr_tr$auc.integral)); dev.off()
-
     png(file.path(root, "PR_Test.lgb.png"), width=900, height=900, res=130)
     plot(pr_te, main=sprintf("Test PR (AUPRC=%.3f)", pr_te$auc.integral)); dev.off()
 
@@ -1138,5 +909,3 @@ Go_prediction <- function(
                           best_param=best_param, outdir=root)))
   }
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b
