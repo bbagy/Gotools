@@ -1,0 +1,85 @@
+% Generated manually to match R/Go_prediction_V2.R
+\name{Go_prediction_plot}
+\alias{Go_prediction_plot}
+\title{Go_prediction_plot}
+\usage{
+Go_prediction_plot(
+  result,
+  topN = 20,
+  name = NULL,
+  compare_cols = NULL,
+  mycols = c(Positive = "#d62728", Negative = "#1f77b4", Neutral = "grey70"),
+  roc_width = 4,
+  roc_height = 4,
+  pr_width = 4,
+  pr_height = 4.5,
+  imp_width = 7
+)
+}
+\arguments{
+\item{result}{Character output directory returned by \code{Go_prediction()}.
+For backward compatibility, a list with an \code{outdir} element is also
+accepted. If multiple result directories are provided, the function creates
+combined OOF ROC/PRROC comparison plots.}
+
+\item{topN}{Integer; number of top importance features to display.}
+
+\item{name}{Optional character label appended to output filenames.}
+
+\item{compare_cols}{Optional color vector for multi-result OOF comparison
+plots.}
+
+\item{mycols}{Named character vector for importance direction colors.
+Defaults to \code{c(Positive = "#d62728", Negative = "#1f77b4",
+Neutral = "grey70")}.}
+
+\item{roc_width}{Numeric PDF width for ROC.}
+
+\item{roc_height}{Numeric PDF height for ROC.}
+
+\item{pr_width}{Numeric PDF width for PR.}
+
+\item{pr_height}{Numeric PDF height for PR.}
+
+\item{imp_width}{Numeric PDF width for importance.}
+}
+\value{
+Saves PDF files and returns \code{NULL} invisibly.
+}
+\description{
+Reads a prediction result directory, detects whether it contains CV-only
+out-of-fold predictions or Train/Test holdout predictions, and writes
+standardized PDF figures under
+\verb{<project_YYMMDD>/pdf/ROC/},
+\verb{<project_YYMMDD>/pdf/PRROC/}, and
+\verb{<project_YYMMDD>/pdf/prediction_Importance/}. When multiple result
+directories are provided, the function creates combined comparison plots for
+OOF predictions only.
+}
+\details{
+With a single \code{result}, the function creates ROC/PRROC PDFs for either
+OOF predictions (\code{testSet = FALSE}) or Train/Test predictions
+(\code{testSet = TRUE}), plus an importance PDF when
+\code{importance_feature.csv} is present.
+
+With multiple \code{result} directories, the function switches to comparison
+mode and draws combined ROC/PRROC PDFs using \code{set = "OOF"} only.
+Train/Test comparison is intentionally not supported in this mode.
+
+Output filenames include the optional \code{name} tag and the current date.
+}
+\examples{
+\dontrun{
+outdir <- Go_prediction(...)
+Go_prediction_plot(outdir, name = "single_run")
+
+Go_prediction_plot(
+  result = c(
+    "Project_250101/no_test_bac_LightGBM",
+    "Project_250101/no_test_clin_LightGBM",
+    "Project_250101/no_test_all_LightGBM"
+  ),
+  name = "OOF_compare"
+)
+}
+}

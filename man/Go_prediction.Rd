@@ -15,6 +15,9 @@ Must contain levels specified in \code{orders}.}
 \item{method}{Character; one of
 \code{c("randomforest","xgboost","lightgbm")}.}
 
+\item{name}{Optional character label used as a prefix in the output
+directory name \verb{<project_YYMMDD>/<name>_<method>/}.}
+
 \item{bacteriaSet}{Logical; include microbiome features (relative abundances
 after filtering). If \code{FALSE}, only clinical features are used.}
 
@@ -51,10 +54,9 @@ Default \code{1000}.}
 (e.g., \code{c("Control","Case")}); positive class is \code{orders[2]}.}
 }
 \value{
-(Invisibly) a list containing mode (\code{"CV-only"} or \code{"Holdout+CV"}),
-key metrics (OOF AUC/AUPRC for CV-only or Train/Test metrics for holdout),
-\code{best_param}, and \code{outdir}. In CV-only mode, a standardized
-out-of-fold performance summary is also written to disk.
+(Invisibly) the output directory path \code{outdir}. All prediction
+artifacts, metadata, and summary files are written to disk and can be
+consumed later by \code{Go_prediction_plot()}.
 }
 \description{
 Builds a binary classifier from a \code{phyloseq} object and (optionally)
@@ -90,6 +92,9 @@ LightGBM tunes \code{num_leaves}, \code{max_depth}, \code{min_data_in_leaf},
 
 \strong{Outputs (side effects):}
 \itemize{
+\item Output directory:
+\verb{<project_YYMMDD>/<name>_<method>/}
+when \code{name} is provided, otherwise \verb{<project_YYMMDD>/<method>/}
 \item \code{random_search_results.csv}
 \item \code{predictions.csv}
 (out-of-fold predictions for CV-only;
@@ -108,7 +113,7 @@ Train/Test predictions for Holdout+CV)
 }
 \examples{
 \dontrun{
-res <- Go_prediction(
+outdir <- Go_prediction(
   psIN = ps,
   project = "ACR",
   outcome = "Rejection",
@@ -119,6 +124,7 @@ res <- Go_prediction(
   taxrank = "Genus",
   orders = c("Control","Case")
 )
+Go_prediction_plot(outdir)
 }
 
 }
