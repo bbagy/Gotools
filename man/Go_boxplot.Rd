@@ -21,8 +21,6 @@ Go_boxplot(
   ncol = NULL,
   addnumber = TRUE,
   statistics = TRUE,
-  parametric = FALSE,
-  model = NULL,
   covariates = NULL,
   p_adjust = "BH",
   xangle = 90,
@@ -40,7 +38,7 @@ Go_boxplot(
 \code{Go_adiv()} is called internally. If taxa names are given, rank is auto-detected from
 \code{tax_table}.}
 
-\item{cate.vars}{Categorical variables to be used for the boxplot x-axis.}
+\item{cate.vars}{One categorical variable to be used for the boxplot x-axis.}
 
 \item{project}{Project name used for output file naming.}
 
@@ -67,10 +65,6 @@ Go_boxplot(
 \item{addnumber}{Boolean to add the number of samples in each group. Default TRUE.}
 
 \item{statistics}{Whether to perform statistical tests. Default TRUE.}
-
-\item{parametric}{Whether to use parametric tests. Default FALSE.}
-
-\item{model}{Statistical engine: "nonparametric", "parametric", or "lmm". If NULL, inferred from \code{parametric}.}
 
 \item{covariates}{Optional covariate column names for adjusted models (ANCOVA/LMM).}
 

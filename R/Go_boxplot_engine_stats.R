@@ -74,18 +74,15 @@ compute_annotation_positions <- function(y, groups = NULL, n_labels) {
 
 Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
                                     model = NULL,
-                                    parametric = FALSE,
                                     covariates = NULL,
                                     paired = NULL,
                                     facet = NULL,
                                     p_adjust = "BH") {
   has_covariates <- !is.null(covariates) && length(covariates) > 0
   model <- if (is.null(model)) {
-    if (!is.null(paired)) {
+    if (!is.null(paired) && length(paired) > 0) {
       "lmm"
     } else if (has_covariates) {
-      "parametric"
-    } else if (isTRUE(parametric)) {
       "parametric"
     } else {
       "nonparametric"
@@ -135,16 +132,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
         test <- stats::kruskal.test(form_np, dat_sub)
         return(list(test.name = "KW", pval = round(test$p.value, 4), testmethod = "wilcox.test", annotation = NULL))
       }
-      return(list(test.name = "Pairwise Wilcoxon", pval = NULL, testmethod = "wilcox.test", annotation = NULL))
-    }
-
-    if (use_param && length(covariates) == 0) {
-      if (nlevels(dat_sub[[mvar]]) > 2) {
-        test <- stats::aov(form, dat_sub)
-        pval <- summary(test)[[1]][["Pr(>F)"]][1]
-        return(list(test.name = "ANOVA", pval = round(pval, 4), testmethod = "t.test", annotation = NULL))
-      }
-      return(list(test.name = "Pairwise T-Test", pval = NULL, testmethod = "t.test", annotation = NULL))
+      return(list(test.name = "KW", pval = NULL, testmethod = "wilcox.test", annotation = NULL))
     }
 
     if (use_lmm) {
@@ -154,7 +142,9 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
       lmm_form <- stats::as.formula(sprintf("%s ~ %s + (1|%s)", oc, fixed_term, paired))
       fit <- try(lmerTest::lmer(lmm_form, data = dat_sub), silent = TRUE)
       if (inherits(fit, "try-error")) {
-        return(list(test.name = NULL, pval = NULL, testmethod = NULL, annotation = NULL))
+        message(sprintf("[Go_boxplot] LMM fit failed for %s ~ %s: %s",
+                        oc, fixed_term, as.character(fit)))
+        return(list(test.name = "LMM", pval = NULL, testmethod = NULL, annotation = NULL))
       }
       atab <- suppressMessages(stats::anova(fit))
       pval <- if ("Pr(>F)" %in% colnames(atab) && mvar %in% rownames(atab)) atab[mvar, "Pr(>F)"] else NA_real_
@@ -294,7 +284,7 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
     label_y <- compute_boxplot_label_y(dat[[oc]], group_vals, length(my_comparisons))
   }
 
-  if (stat_res$test.name %in% c("KW", "ANOVA")) {
+  if (identical(stat_res$test.name, "KW")) {
     if (!is.null(stat_res$pval) && stat_res$pval >= cutoff) return(p1)
     if (is.null(stat_res$testmethod)) return(p1)
     return(
@@ -309,7 +299,7 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
     )
   }
 
-  if (!is.null(stat_res$testmethod) && stat_res$testmethod %in% c("wilcox.test", "t.test")) {
+  if (!is.null(stat_res$testmethod) && identical(stat_res$testmethod, "wilcox.test")) {
     if (is.null(paired)) {
       return(
         p1 + ggpubr::stat_compare_means(
@@ -352,7 +342,7 @@ Go_boxplot_stats_engine_smoke_test <- function() {
     df = dat, mvar = "grp", oc = "y", comparisons = comps,
     model = "nonparametric", covariates = "z"
   )
-  stopifnot(res_np$test.name %in% c("KW", "Pairwise Wilcoxon"))
+  stopifnot(identical(res_np$test.name, "KW"))
 
   res_cov <- Go_boxplot_stats_engine(
     df = dat, mvar = "grp", oc = "y", comparisons = comps,

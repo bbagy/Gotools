@@ -5,7 +5,7 @@
 #' @param psIN Phyloseq object. If \code{outcomes} are alpha diversity metrics (e.g. "Shannon"),
 #'   \code{Go_adiv()} is called internally. If taxa names are given, rank is auto-detected from
 #'   \code{tax_table}.
-#' @param cate.vars Categorical variables to be used for the boxplot x-axis.
+#' @param cate.vars One categorical variable to be used for the boxplot x-axis.
 #' @param project Project name used for output file naming.
 #' @param outcomes Numeric variables (or alpha metrics / taxa names when using psIN) to plot on y-axis.
 #' @param orders Vector of ordered factor levels for the categorical variables.
@@ -19,8 +19,6 @@
 #' @param ncol Number of columns for facet wrapping in the plot.
 #' @param addnumber Boolean to add the number of samples in each group. Default TRUE.
 #' @param statistics Whether to perform statistical tests. Default TRUE.
-#' @param parametric Whether to use parametric tests. Default FALSE.
-#' @param model Statistical engine: "nonparametric", "parametric", or "lmm". If NULL, inferred from \code{parametric}.
 #' @param covariates Optional covariate column names for adjusted models (ANCOVA/LMM).
 #' @param p_adjust P-value adjustment method for pairwise tests (e.g., "BH", "bonferroni"). Default "BH".
 #' @param cutoff Significance level for statistical tests. Default 0.1.
@@ -66,8 +64,6 @@ Go_boxplot <- function(df          = NULL,
                        ncol        = NULL,
                        addnumber   = TRUE,
                        statistics  = TRUE,
-                       parametric  = FALSE,
-                       model       = NULL,
                        covariates  = NULL,
                        p_adjust    = "BH",
                        cutoff      = 0.1,
@@ -97,9 +93,8 @@ Go_boxplot <- function(df          = NULL,
     base_title
   }
 
-  build_plot_subtitle <- function(stat_res, p_adjust, use_covariates, covariates_label) {
+  build_plot_subtitle <- function(stat_res, method_label, p_adjust, use_covariates, covariates_label) {
     parts <- character(0)
-    method_label <- stat_res$test.name
     if (!is.null(method_label))
       parts <- c(parts, paste0("method=", method_label))
     if (!is.null(stat_res$annotation))
@@ -112,6 +107,22 @@ Go_boxplot <- function(df          = NULL,
 
   sanitize_tag <- function(x) gsub("[^A-Za-z0-9._-]+", "-", x)
   paired_line_threshold <- 25
+
+  auto_select_method <- function(paired, covariates) {
+    has_paired <- !is.null(paired) && length(paired) > 0
+    has_covariates <- !is.null(covariates) && length(covariates) > 0
+    if (has_paired) return("LMM")
+    if (has_covariates) return("ANCOVA")
+    "KW"
+  }
+
+  method_to_engine <- function(method_label) {
+    switch(method_label,
+           "LMM" = "lmm",
+           "ANCOVA" = "parametric",
+           "KW" = "nonparametric",
+           "nonparametric")
+  }
 
   should_draw_paired_lines <- function(dat, paired, threshold = paired_line_threshold) {
     if (is.null(paired) || !paired %in% names(dat)) {
@@ -272,6 +283,8 @@ Go_boxplot <- function(df          = NULL,
     stop("Provide either `df` or `psIN`, not both.")
   if (is.null(df) && is.null(psIN))
     stop("Either `df` or `psIN` must be provided.")
+  if (length(cate.vars) != 1)
+    stop("`cate.vars` must contain exactly one variable. Run `Go_boxplot()` separately for each grouping variable.")
 
   if (!is.null(psIN)) {
     ALPHA_METRICS   <- c("Observed", "Chao1", "ACE", "Shannon",
@@ -304,31 +317,16 @@ Go_boxplot <- function(df          = NULL,
     }
   }
 
-  # ── resolve model ────────────────────────────────────────────────────────────
+  # ── resolve method automatically ─────────────────────────────────────────────
   has_covariates <- !is.null(covariates) && length(covariates) > 0
-  model_is_auto  <- is.null(model)
-  resolved_model <- if (model_is_auto) {
-    if (!is.null(paired))        "lmm"
-    else if (has_covariates)     "parametric"
-    else if (isTRUE(parametric)) "parametric"
-    else                         "nonparametric"
-  } else {
-    tolower(as.character(model))
-  }
-  if (!resolved_model %in% c("nonparametric", "parametric", "lmm"))
-    stop("`model` must be one of: 'nonparametric', 'parametric', 'lmm'.")
-
   covariates_label <- if (has_covariates) paste(covariates, collapse = "+") else NULL
-  use_covariates   <- !is.null(covariates_label) && resolved_model %in% c("parametric", "lmm")
+  method_label_default <- auto_select_method(paired, covariates)
+  resolved_model <- method_to_engine(method_label_default)
+  use_covariates <- method_label_default %in% c("ANCOVA", "LMM")
 
-  if (!is.null(covariates_label) && resolved_model == "nonparametric" && !model_is_auto)
-    warning("`covariates` are ignored when model='nonparametric'.")
-  if (resolved_model == "lmm" && is.null(paired))
-    warning("model='lmm' requested but `paired` is NULL. LMM cannot be fitted.")
+  message(sprintf("[Go_boxplot] method auto-selected: %s", method_label_default))
 
-  method_file_tag     <- if (resolved_model == "lmm" && !is.null(paired)) "(method=LMM)."
-                         else if (isTRUE(use_covariates) && resolved_model == "parametric") "(method=ANCOVA)."
-                         else ""
+  method_file_tag     <- paste0("(method=", method_label_default, ").")
   covariates_file_tag <- if (isTRUE(use_covariates))
                            paste0("(cov=", sanitize_tag(covariates_label), ").")
                          else ""
@@ -374,17 +372,18 @@ Go_boxplot <- function(df          = NULL,
       Go_boxplot_stats_engine(
         df = dat, mvar = mvar, oc = oc,
         comparisons = comparisons, model = resolved_model,
-        parametric = parametric, covariates = covariates,
+        covariates = covariates,
         paired = paired, facet = facet, p_adjust = p_adjust
       )
     }
 
     assemble_plot <- function(dat, my_comparisons) {
       stat_res      <- run_stats(dat, my_comparisons)
+      method_label  <- if (!is.null(stat_res$test.name)) stat_res$test.name else method_label_default
       title_text    <- build_plot_title(ifelse(is.null(title), mvar, title),
                                         stat_res$test.name, stat_res$pval)
       subtitle_text <- if (statistics)
-        build_plot_subtitle(stat_res, p_adjust, use_covariates, covariates_label) else NULL
+        build_plot_subtitle(stat_res, method_label, p_adjust, use_covariates, covariates_label) else NULL
       if (!is.null(paired) && paired %in% names(dat)) {
         n_paired_ids <- length(unique(stats::na.omit(dat[[paired]])))
         if (n_paired_ids >= paired_line_threshold) {
