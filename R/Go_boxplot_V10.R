@@ -231,7 +231,7 @@ Go_boxplot <- function(df          = NULL,
           scale_color_manual(values = mycols)
       }
       p1 <- p1 +
-        geom_boxplot(aes(fill = !!sym(mvar), colour = !!sym(mvar)), outlier.shape = NA,
+        geom_boxplot(aes(fill = !!sym(mvar)), colour = "grey45", outlier.shape = NA,
                      linewidth = box.tickness, show.legend = FALSE)
       if (draw_paired_points) {
         p1 <- p1 + geom_point(aes(colour = !!sym(mvar), group = !!sym(paired)),
