@@ -10,12 +10,15 @@
 #' @param files Optional filename pattern used together with `file_path`.
 #' @param result Optional result directory returned by a Go DA-family tool or a
 #'   ConDA bridge directory.
-#' @param top_n Number of top-ranked features to display.
+#' @param p_cutoff Numeric cutoff used to keep features. Adjusted p-values
+#'   (\code{qval}) are used when available; otherwise raw \code{pval} is used.
 #' @param mycols Optional two-color vector for negative / positive direction.
 #' @param name Optional plot label used in output filenames.
 #' @param font Base font size.
-#' @param height PDF height.
-#' @param width PDF width.
+#' @param height Deprecated. Height is now determined automatically from the
+#'   number of displayed features.
+#' @param width Fixed panel-oriented base PDF width. Extra width for long
+#'   feature labels is added automatically.
 #'
 #' @return The function saves PDF files and returns `NULL` invisibly.
 #'
@@ -24,15 +27,18 @@ Go_lollipopPlot <- function(project,
                             file_path = NULL,
                             files = NULL,
                             result = NULL,
-                            top_n = 20,
+                            p_cutoff = 0.05,
                             mycols = NULL,
                             name = NULL,
                             font = 10,
-                            height = 7,
-                            width = 8) {
+                            height = NULL,
+                            width = 2.2) {
 
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("ggplot2 is required.")
+  }
+  if (!is.null(height)) {
+    message("[Go_lollipopPlot] 'height' is deprecated and ignored. Plot height is auto-calculated.")
   }
 
   first_or_na <- function(x) {
@@ -40,6 +46,37 @@ Go_lollipopPlot <- function(project,
       return(NA_character_)
     }
     x[[1]]
+  }
+
+  calc_label_width_in <- function(labels, font_size_pt) {
+    labels <- as.character(labels)
+    labels <- labels[!is.na(labels)]
+    if (length(labels) == 0) {
+      return(1)
+    }
+    longest <- labels[which.max(nchar(labels))]
+    width_in <- tryCatch(
+      grid::convertWidth(
+        grid::grobWidth(grid::textGrob(longest, gp = grid::gpar(fontsize = font_size_pt, fontface = "italic"))),
+        "in",
+        valueOnly = TRUE
+      ),
+      error = function(e) NA_real_
+    )
+    if (!is.finite(width_in)) {
+      width_in <- max(1, nchar(longest) * 0.08)
+    }
+    width_in
+  }
+
+  fix_panel_width_grob <- function(plot_obj, panel_width_in) {
+    gt <- ggplot2::ggplotGrob(plot_obj)
+    panel_rows <- gt$layout[gt$layout$name == "panel", , drop = FALSE]
+    if (nrow(panel_rows) > 0) {
+      panel_cols <- unique(unlist(Map(seq.int, panel_rows$l, panel_rows$r)))
+      gt$widths[panel_cols] <- grid::unit(panel_width_in / length(panel_cols), "in")
+    }
+    gt
   }
 
   build_taxonomy_plot_label <- function(df) {
@@ -139,7 +176,7 @@ Go_lollipopPlot <- function(project,
     list(effect = est_col, p = p_col, q = q_col)
   }
 
-  build_plot_df <- function(df, tool) {
+  build_plot_df <- function(df, tool, source_name = NULL) {
     baseline_col <- if ("baseline" %in% colnames(df)) "baseline" else if ("basline" %in% colnames(df)) "basline" else NULL
     basline <- if (!is.null(baseline_col)) unique(as.character(df[[baseline_col]]))[1] else "group1"
     smvar <- if ("smvar" %in% colnames(df)) unique(as.character(df$smvar))[1] else "group2"
@@ -195,13 +232,24 @@ Go_lollipopPlot <- function(project,
       out_subdir <- "ConDa_plot"
       score_label <- "Signed priority score"
     } else {
+      message(sprintf("[Go_lollipopPlot] %s: required effect column not found for tool '%s'.", if (is.null(source_name)) "<unknown>" else source_name, tool))
       return(NULL)
     }
 
     if (!effect_col %in% colnames(df)) {
+      message(sprintf("[Go_lollipopPlot] %s: no finite signed scores available after parsing.", if (is.null(source_name)) "<unknown>" else source_name))
       return(NULL)
     }
 
+    feature_id <- if ("ASV" %in% colnames(df)) {
+      as.character(df$ASV)
+    } else if ("Row.names" %in% colnames(df)) {
+      as.character(df$Row.names)
+    } else if ("feature_id" %in% colnames(df)) {
+      as.character(df$feature_id)
+    } else {
+      paste0("Feature_", seq_len(nrow(df)))
+    }
     feature_label <- build_feature_label(df)
     effect <- suppressWarnings(as.numeric(df[[effect_col]]))
     pval <- if (p_col %in% colnames(df)) suppressWarnings(as.numeric(df[[p_col]])) else rep(NA_real_, nrow(df))
@@ -223,6 +271,7 @@ Go_lollipopPlot <- function(project,
     )
 
     out <- data.frame(
+      feature_id = feature_id,
       feature_label = feature_label,
       effect = effect,
       pval = pval,
@@ -242,11 +291,18 @@ Go_lollipopPlot <- function(project,
 
     out <- out[is.finite(out$signed_score) & !is.na(out$signed_score), , drop = FALSE]
     if (nrow(out) == 0) {
+      message(sprintf("[Go_lollipopPlot] %s: no features passed p_cutoff <= %.3g.", if (is.null(source_name)) "<unknown>" else source_name, p_cutoff))
       return(NULL)
     }
-    out <- out[order(abs(out$signed_score), decreasing = TRUE), , drop = FALSE]
-    out <- utils::head(out, top_n)
-    out$feature_label <- factor(out$feature_label, levels = rev(out$feature_label))
+    out$sig_value <- ifelse(is.finite(out$qval) & !is.na(out$qval), out$qval, out$pval)
+    out$sig_type <- ifelse(is.finite(out$qval) & !is.na(out$qval), "Adj. p", "p")
+    out <- out[is.finite(out$sig_value) & !is.na(out$sig_value) & out$sig_value <= p_cutoff, , drop = FALSE]
+    if (nrow(out) == 0) {
+      return(NULL)
+    }
+    out <- out[order(out$signed_score, decreasing = TRUE), , drop = FALSE]
+    out$dirPadj <- ifelse(is.finite(out$qval) & !is.na(out$qval) & out$qval <= p_cutoff, TRUE, FALSE)
+    out$feature_id <- factor(out$feature_id, levels = rev(unique(out$feature_id)))
     out
   }
 
@@ -296,7 +352,7 @@ Go_lollipopPlot <- function(project,
     }
     print(tool)
 
-    plot_df <- build_plot_df(df, tool)
+    plot_df <- build_plot_df(df, tool, source_name = basename(filename1))
     if (is.null(plot_df) || nrow(plot_df) == 0) {
       next
     }
@@ -315,6 +371,13 @@ Go_lollipopPlot <- function(project,
       if (is.na(smvar.count)) plot_df$smvar[1] else paste0(plot_df$smvar[1], " (n=", smvar.count, ")")
     )
     names(legend.labs) <- c(plot_df$basline[1], "NS", plot_df$smvar[1])
+    padj_shape <- c(19, 1)
+    names(padj_shape) <- c(TRUE, FALSE)
+    sig_shape_label <- if (all(plot_df$sig_type == "Adj. p")) {
+      sprintf("Adj. p < %.3g", p_cutoff)
+    } else {
+      sprintf("p < %.3g", p_cutoff)
+    }
 
     out_dir <- file.path(sprintf("%s_%s/pdf/%s", project, format(Sys.Date(), "%y%m%d"), plot_df$out_subdir[1]))
     if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
@@ -335,21 +398,24 @@ Go_lollipopPlot <- function(project,
 
     p <- ggplot2::ggplot(
       plot_df,
-      ggplot2::aes(x = signed_score, y = feature_label, color = direction)
+      ggplot2::aes(x = signed_score, y = feature_id, color = direction)
     ) +
       ggplot2::geom_segment(
-        ggplot2::aes(x = 0, xend = signed_score, y = feature_label, yend = feature_label),
+        ggplot2::aes(x = 0, xend = signed_score, y = feature_id, yend = feature_id),
         linewidth = 0.7,
         alpha = 0.8
       ) +
-      ggplot2::geom_point(size = 3) +
+      ggplot2::geom_point(ggplot2::aes(shape = dirPadj), size = 3) +
       ggplot2::geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.7, color = "grey40") +
       ggplot2::scale_color_manual(values = dircolors, labels = legend.labs, drop = FALSE) +
+      ggplot2::scale_shape_manual(values = padj_shape, drop = FALSE) +
+      ggplot2::scale_y_discrete(labels = stats::setNames(as.character(plot_df$feature_label), as.character(plot_df$feature_id))) +
       ggplot2::labs(
-        title = sprintf("%s, %s (top=%s)", plot_df$mvar[1], plot_df$title_tool[1], top_n),
+        title = sprintf("%s, %s (%s)", plot_df$mvar[1], plot_df$title_tool[1], sig_shape_label),
         x = plot_df$score_label[1],
         y = NULL,
-        color = NULL
+        color = NULL,
+        shape = sig_shape_label
       ) +
       ggplot2::theme_bw() +
       ggplot2::theme(
@@ -361,23 +427,41 @@ Go_lollipopPlot <- function(project,
         legend.position = "bottom",
         legend.justification = c(0, 0),
         legend.box.just = "left",
+        legend.box = "vertical",
+        legend.margin = ggplot2::margin(0, 0, 0, 0),
+        legend.box.margin = ggplot2::margin(0, 0, 0, -45),
         legend.key = ggplot2::element_blank(),
-        aspect.ratio = 1/1.35
+        plot.margin = ggplot2::margin(5.5, 5.5, 5.5, 2)
+      ) +
+      ggplot2::guides(
+        color = ggplot2::guide_legend(nrow = 1, byrow = TRUE, title.position = "top"),
+        shape = ggplot2::guide_legend(nrow = 1, byrow = TRUE, title.position = "left")
       )
 
     pdf_file <- sprintf(
-      "%s/%s.lollipop.%s.(%s).%s.(top=%s).%s.pdf",
+      "%s/%s.lollipop.%s.(%s).%s.(p=%s).%s.pdf",
       out_dir,
       plot_df$file_tool[1],
       plot_df$mvar[1],
       comparison_token,
       project,
-      top_n,
+      format(p_cutoff, scientific = FALSE, trim = TRUE),
       format(Sys.Date(), "%y%m%d")
     )
 
-    ggplot2::ggsave(filename = pdf_file, plot = p, width = width, height = height, device = "pdf")
-    print(pdf_file)
+    max_lbl <- max(nchar(as.character(plot_df$feature_label)), na.rm = TRUE)
+    plot_height <- max(3.8, min(8.5, 1.3 + 0.12 * nrow(plot_df) + 0.005 * max_lbl))
+    plot_grob <- fix_panel_width_grob(p, width)
+    grob_width <- tryCatch(grid::convertWidth(sum(plot_grob$widths), "in", valueOnly = TRUE), error = function(e) NA_real_)
+    if (!is.finite(grob_width)) {
+      grob_width <- width + max(1.1, min(5.5, calc_label_width_in(plot_df$feature_label, font + 6) + 0.25))
+    }
+    axis_label_width <- max(0, grob_width - width)
+    message(sprintf("[Go_lollipopPlot] %s: %d features retained, panel width = %.2f, axis width = %.2f, total width = %.2f, auto height = %.2f",
+                    plot_df$file_tool[1], nrow(plot_df), width, axis_label_width, grob_width, plot_height))
+
+    ggplot2::ggsave(filename = pdf_file, plot = plot_grob, width = grob_width, height = plot_height, device = "pdf")
+    print(normalizePath(pdf_file, winslash = "/", mustWork = FALSE))
   }
 
   invisible(NULL)

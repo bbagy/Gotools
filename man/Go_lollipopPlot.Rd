@@ -8,11 +8,11 @@ Go_lollipopPlot(
   file_path = NULL,
   files = NULL,
   result = NULL,
-  top_n = 20,
+  p_cutoff = 0.05,
   mycols = NULL,
   name = NULL,
   font = 10,
-  height = 7,
+  height = NULL,
   width = 8
 )
 }
@@ -26,7 +26,8 @@ Go_lollipopPlot(
 \item{result}{Optional result directory returned by a Go DA-family tool or a
 ConDA bridge directory.}
 
-\item{top_n}{Number of top-ranked features to display.}
+\item{p_cutoff}{Numeric cutoff used to keep features. Adjusted p-values
+(\code{qval}) are used when available; otherwise raw \code{pval} is used.}
 
 \item{mycols}{Optional two-color vector for negative / positive direction.}
 
@@ -34,7 +35,8 @@ ConDA bridge directory.}
 
 \item{font}{Base font size.}
 
-\item{height}{PDF height.}
+\item{height}{Deprecated. Height is now determined automatically from the
+number of displayed features.}
 
 \item{width}{PDF width.}
 }
@@ -55,7 +57,8 @@ matching files. Otherwise it searches the dated project table directories for
 \code{maaslin2}.
 
 The function auto-detects the DA tool from the filename, harmonizes effect /
-p-value columns, builds signed ranking scores, and saves PDF lollipop plots
+p-value columns, filters features by the supplied p-value cutoff, builds signed
+ranking scores, and saves PDF lollipop plots
 under \verb{<project_YYMMDD>/pdf/DA_plot/} or
 \verb{<project_YYMMDD>/pdf/ConDa_plot/}.
 }
@@ -66,7 +69,7 @@ Go_lollipopPlot(project = "MyProject")
 Go_lollipopPlot(
   project = "MyProject",
   result = "MyProject_250101/table/deseq2",
-  top_n = 30,
+  p_cutoff = 0.05,
   name = "subsetA"
 )
 }
