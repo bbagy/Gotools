@@ -258,7 +258,8 @@ compute_boxplot_label_y <- function(y, groups = NULL, n_labels) compute_annotati
 
 Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
                                        paired = NULL, cutoff = 0.1,
-                                       dat = NULL, oc = NULL, mvar = NULL) {
+                                       dat = NULL, oc = NULL, mvar = NULL,
+                                       label_y_override = NULL) {
   if (is.null(stat_res$test.name)) return(p1)
 
   if (!is.null(stat_res$annotation)) {
@@ -278,8 +279,8 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
 
   label_type <- "p.format"
   size_val <- 2
-  label_y <- NULL
-  if (!is.null(dat) && !is.null(oc) && oc %in% names(dat)) {
+  label_y <- label_y_override
+  if (is.null(label_y) && !is.null(dat) && !is.null(oc) && oc %in% names(dat)) {
     group_vals <- if (!is.null(mvar) && mvar %in% names(dat)) dat[[mvar]] else NULL
     label_y <- compute_boxplot_label_y(dat[[oc]], group_vals, length(my_comparisons))
   }
