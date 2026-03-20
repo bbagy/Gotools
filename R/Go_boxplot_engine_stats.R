@@ -6,6 +6,42 @@ make_pair_key <- function(a, b) {
   paste(sort(c(as.character(a), as.character(b))), collapse = "||")
 }
 
+is_small_scale_boxplot <- function(y) {
+  y_vals <- suppressWarnings(as.numeric(y))
+  y_vals <- y_vals[is.finite(y_vals)]
+  if (length(y_vals) == 0) {
+    return(FALSE)
+  }
+  max(abs(y_vals), na.rm = TRUE) <= 0.05
+}
+
+compute_annotation_positions <- function(y, n_labels) {
+  y_vals <- suppressWarnings(as.numeric(y))
+  y_vals <- y_vals[is.finite(y_vals)]
+  if (length(y_vals) == 0 || n_labels <= 0) {
+    return(NULL)
+  }
+
+  y_max <- max(y_vals, na.rm = TRUE)
+  y_min <- min(y_vals, na.rm = TRUE)
+  y_span <- y_max - y_min
+  small_scale <- is_small_scale_boxplot(y_vals)
+
+  if (!is.finite(y_span) || y_span <= 0) {
+    y_span <- if (small_scale) max(abs(y_max) * 0.05, 1e-5) else max(abs(y_max) * 0.15, 1e-6)
+  }
+
+  if (small_scale) {
+    y_step <- max(y_span * 0.025, abs(y_max) * 0.012, 5e-5)
+    y_base <- y_max + y_step
+  } else {
+    y_step <- max(y_span * 0.06, abs(y_max) * 0.04, 1e-6)
+    y_base <- y_max
+  }
+
+  y_base + y_step * seq_len(n_labels)
+}
+
 Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
                                     model = NULL,
                                     parametric = FALSE,
@@ -133,17 +169,14 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
       pvals_adj <- pvals
     }
 
-    y_base <- max(dat_sub[[oc]], na.rm = TRUE)
-    y_span <- diff(range(dat_sub[[oc]], na.rm = TRUE))
-    if (!is.finite(y_span) || y_span == 0) y_span <- 1
-    y_step <- y_span * 0.06
+    ann_y <- compute_annotation_positions(dat_sub[[oc]], length(comparisons))
 
     ann <- data.frame(
       group1 = vapply(comparisons, `[`, character(1), 1),
       group2 = vapply(comparisons, `[`, character(1), 2),
       p = as.numeric(pvals),
       p.adj = as.numeric(pvals_adj),
-      y.position = y_base + y_step * seq_along(comparisons),
+      y.position = ann_y,
       stringsAsFactors = FALSE
     )
     ann <- ann[is.finite(ann$p), , drop = FALSE]
@@ -201,8 +234,11 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
   )
 }
 
+compute_boxplot_label_y <- function(y, n_labels) compute_annotation_positions(y, n_labels)
+
 Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
-                                       paired = NULL, cutoff = 0.1) {
+                                       paired = NULL, cutoff = 0.1,
+                                       dat = NULL, oc = NULL) {
   if (is.null(stat_res$test.name)) return(p1)
 
   if (!is.null(stat_res$annotation)) {
@@ -222,6 +258,10 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
 
   label_type <- "p.format"
   size_val <- 2
+  label_y <- NULL
+  if (!is.null(dat) && !is.null(oc) && oc %in% names(dat)) {
+    label_y <- compute_boxplot_label_y(dat[[oc]], length(my_comparisons))
+  }
 
   if (stat_res$test.name %in% c("KW", "ANOVA")) {
     if (!is.null(stat_res$pval) && stat_res$pval >= cutoff) return(p1)
@@ -231,6 +271,7 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
         method = stat_res$testmethod,
         label = label_type,
         comparisons = my_comparisons,
+        label.y = label_y,
         hide.ns = FALSE,
         size = size_val
       )
@@ -244,6 +285,7 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
           method = stat_res$testmethod,
           label = label_type,
           comparisons = my_comparisons,
+          label.y = label_y,
           hide.ns = FALSE,
           size = size_val
         )
@@ -254,6 +296,7 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
         method = stat_res$testmethod,
         label = "p.format",
         comparisons = my_comparisons,
+        label.y = label_y,
         size = 2,
         paired = TRUE
       )
