@@ -171,7 +171,7 @@ Go_boxplot <- function(df          = NULL,
     out
   }
 
-  build_y_limits <- function(dat, mvar, oc, stat_res, ylim) {
+  build_y_limits <- function(dat, mvar, oc, stat_res, ylim, label_y = NULL) {
     if (!is.null(ylim) && !oc %in% c("Chao1", "pi_global_mean")) {
       return(ylim)
     }
@@ -197,11 +197,16 @@ Go_boxplot <- function(df          = NULL,
       ann_pos <- ann_pos[is.finite(ann_pos)]
       if (length(ann_pos) > 0) ann_max <- max(ann_pos, na.rm = TRUE)
     }
+    if (!is.null(label_y)) {
+      label_pos <- suppressWarnings(as.numeric(label_y))
+      label_pos <- label_pos[is.finite(label_pos)]
+      if (length(label_pos) > 0) ann_max <- max(ann_max, max(label_pos, na.rm = TRUE))
+    }
 
     upper_ref <- max(y_max, ann_max, na.rm = TRUE)
-    span <- max(y_max - y_min, abs(upper_ref) * 0.06, 1e-5)
+    span <- max(y_max - y_min, abs(upper_ref) * 0.10, 1e-5)
     lower <- if (all(y_vals >= 0, na.rm = TRUE)) 0 else y_min - span * 0.05
-    upper <- upper_ref + span * 0.02
+    upper <- upper_ref + span * 0.08
 
     c(lower, upper)
   }
@@ -221,9 +226,12 @@ Go_boxplot <- function(df          = NULL,
     if (!is.null(paired)) {
       draw_paired_lines <- should_draw_paired_lines(dat, paired)
       draw_paired_points <- should_draw_paired_points(dat, mvar, method_label)
-      if (!is.null(mycols)) p1 <- p1 + scale_color_manual(values = mycols)
+      if (!is.null(mycols)) {
+        p1 <- p1 + scale_fill_manual(values = mycols) +
+          scale_color_manual(values = mycols)
+      }
       p1 <- p1 +
-        geom_boxplot(aes(colour = !!sym(mvar)), outlier.shape = NA,
+        geom_boxplot(aes(fill = !!sym(mvar), colour = !!sym(mvar)), outlier.shape = NA,
                      linewidth = box.tickness, show.legend = FALSE)
       if (draw_paired_points) {
         p1 <- p1 + geom_point(aes(colour = !!sym(mvar), group = !!sym(paired)),
@@ -395,6 +403,13 @@ Go_boxplot <- function(df          = NULL,
     assemble_plot <- function(dat, my_comparisons) {
       stat_res      <- run_stats(dat, my_comparisons)
       method_label  <- if (!is.null(stat_res$test.name)) stat_res$test.name else method_label_default
+      label_y       <- NULL
+      if (statistics &&
+          is.null(stat_res$annotation) &&
+          !is.null(stat_res$testmethod) &&
+          exists("compute_boxplot_label_y", mode = "function")) {
+        label_y <- compute_boxplot_label_y(dat[[oc]], dat[[mvar]], length(my_comparisons))
+      }
       title_text    <- build_plot_title(ifelse(is.null(title), mvar, title),
                                         stat_res$test.name, stat_res$pval)
       subtitle_text <- if (statistics)
@@ -420,9 +435,10 @@ Go_boxplot <- function(df          = NULL,
         p1 <- Go_boxplot_add_stats_layer(p1 = p1, stat_res = stat_res,
                                          my_comparisons = my_comparisons,
                                          paired = paired, cutoff = cutoff,
-                                         dat = dat, oc = oc, mvar = mvar)
+                                         dat = dat, oc = oc, mvar = mvar,
+                                         label_y_override = label_y)
 
-      y_limits <- build_y_limits(dat, mvar, oc, stat_res, ylim)
+      y_limits <- build_y_limits(dat, mvar, oc, stat_res, ylim, label_y = label_y)
       if (!is.null(y_limits)) {
         p1 <- p1 + scale_y_continuous(limits = y_limits,
                                       expand = expansion(mult = c(0.02, 0.05)))
