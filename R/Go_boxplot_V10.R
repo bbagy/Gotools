@@ -95,11 +95,12 @@ Go_boxplot <- function(df          = NULL,
     base_title
   }
 
-  build_plot_subtitle <- function(stat_res, method_label, p_adjust, use_covariates, covariates_label) {
+  build_plot_subtitle <- function(stat_res, method_label, p_adjust_flag,
+                                  use_covariates, covariates_label) {
     parts <- character(0)
     if (!is.null(method_label))
       parts <- c(parts, paste0("method=", method_label))
-    if (!is.null(stat_res$annotation) && isTRUE(p_adjust))
+    if (!is.null(stat_res$annotation) && isTRUE(p_adjust_flag))
       parts <- c(parts, "pairwise (adjust=BH)")
     if (isTRUE(use_covariates))
       parts <- c(parts, sprintf("covariates=%s", covariates_label))
@@ -413,6 +414,8 @@ Go_boxplot <- function(df          = NULL,
     message(sprintf("## %s (without NA: %d/%d) ##", mvar, nrow(df.na), nrow(df)))
     if (length(unique(df.na[[mvar]])) == 1) next
 
+    p_adjust_method <- if (isTRUE(p_adjust)) "BH" else "none"
+
     run_stats <- function(dat, comparisons, oc) {
       if (!statistics)
         return(list(test.name = NULL, pval = NULL, testmethod = NULL, annotation = NULL))
@@ -420,7 +423,7 @@ Go_boxplot <- function(df          = NULL,
         df = dat, mvar = mvar, oc = oc,
         comparisons = comparisons, model = resolved_model,
         covariates = covariates,
-        paired = paired, facet = facet, p_adjust = p_adjust
+        paired = paired, facet = facet, p_adjust = p_adjust_method
       )
     }
 
@@ -437,7 +440,8 @@ Go_boxplot <- function(df          = NULL,
       title_text    <- build_plot_title(ifelse(is.null(title), mvar, title),
                                         stat_res$test.name, stat_res$pval)
       subtitle_text <- if (statistics)
-        build_plot_subtitle(stat_res, method_label, p_adjust, use_covariates, covariates_label) else NULL
+        build_plot_subtitle(stat_res, method_label, p_adjust, use_covariates,
+                            covariates_label) else NULL
       if (!is.null(paired) && paired %in% names(dat)) {
         n_paired_ids <- length(unique(stats::na.omit(dat[[paired]])))
         if (n_paired_ids >= paired_line_threshold) {
