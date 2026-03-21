@@ -20,7 +20,7 @@
 #' @param addnumber Boolean to add the number of samples in each group. Default TRUE.
 #' @param statistics Whether to perform statistical tests. Default TRUE.
 #' @param covariates Optional covariate column names for adjusted models (ANCOVA/LMM).
-#' @param p_adjust P-value adjustment method for pairwise tests (e.g., "BH", "bonferroni"). Default "BH".
+#' @param p_adjust Logical. Whether to apply BH adjustment to pairwise p-values. Default TRUE.
 #' @param cutoff Significance level for statistical tests. Default 0.1.
 #' @param min_height Minimum plot panel height in inches (excluding x-axis labels). Default 2.
 #' @param min_width Minimum plot width per column in inches. Default 2.
@@ -67,7 +67,7 @@ Go_boxplot <- function(df          = NULL,
                        addnumber   = TRUE,
                        statistics  = TRUE,
                        covariates  = NULL,
-                       p_adjust    = "BH",
+                       p_adjust    = TRUE,
                        cutoff      = 0.1,
                        min_height  = 2,
                        min_width   = 2,
@@ -99,8 +99,8 @@ Go_boxplot <- function(df          = NULL,
     parts <- character(0)
     if (!is.null(method_label))
       parts <- c(parts, paste0("method=", method_label))
-    if (!is.null(stat_res$annotation))
-      parts <- c(parts, sprintf("pairwise (adjust=%s)", p_adjust))
+    if (!is.null(stat_res$annotation) && isTRUE(p_adjust))
+      parts <- c(parts, "pairwise (adjust=BH)")
     if (isTRUE(use_covariates))
       parts <- c(parts, sprintf("covariates=%s", covariates_label))
     if (length(parts) == 0) return(NULL)
