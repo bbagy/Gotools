@@ -182,6 +182,7 @@ Go_lollipopPlot <- function(project,
     smvar <- if ("smvar" %in% colnames(df)) unique(as.character(df$smvar))[1] else "group2"
     mvar <- if ("mvar" %in% colnames(df)) unique(as.character(df$mvar))[1] else "Group"
 
+    conda_subtitle <- ""
     if (tool == "deseq2") {
       effect_col <- "log2FoldChange"
       p_col <- "pvalue"
@@ -227,8 +228,20 @@ Go_lollipopPlot <- function(project,
       effect_col <- "median_effect_size"
       p_col <- "fisher_combined_p"
       q_col <- "fisher_combined_q"
-      title_tool <- "ConDA-dist"
-      file_tool <- "ConDA-dist"
+      # CSV 파일명(condadist.{sig}.(...).csv)에서 method/dist 시그니처 추출
+      conda_sig <- if (!is.null(source_name)) {
+        m <- regmatches(source_name, regexpr("^condadist\\.(.+?)(?=\\.\\()", source_name, perl = TRUE))
+        if (length(m) == 1 && nzchar(m)) sub("^condadist\\.", "", m) else ""
+      } else ""
+      # 시그니처를 method 부분(대문자)과 distance 부분(소문자)으로 분리
+      conda_parts <- if (nzchar(conda_sig)) strsplit(conda_sig, "\\.")[[1]] else character(0)
+      conda_method_part <- if (length(conda_parts) >= 1) conda_parts[1] else ""
+      conda_dist_parts  <- if (length(conda_parts) >= 2) conda_parts[-1] else character(0)
+      # 이미지 title: DANMC 등 method abbreviation만 사용
+      title_tool <- if (nzchar(conda_method_part)) conda_method_part else "ConDA-dist"
+      # subtitle: dist 정보 (있을 때만)
+      conda_subtitle <- if (length(conda_dist_parts) > 0) paste("dist:", paste(conda_dist_parts, collapse = " \u00b7 ")) else ""
+      file_tool <- if (nzchar(conda_sig)) paste0("ConDA-dist.", conda_sig) else "ConDA-dist"
       out_subdir <- "ConDa_plot"
       score_label <- "Signed priority score"
     } else {
@@ -285,6 +298,7 @@ Go_lollipopPlot <- function(project,
       out_subdir = out_subdir,
       title_tool = title_tool,
       file_tool = file_tool,
+      plot_subtitle = conda_subtitle,
       score_label = score_label,
       stringsAsFactors = FALSE
     )
@@ -382,18 +396,31 @@ Go_lollipopPlot <- function(project,
     out_dir <- file.path(sprintf("%s_%s/pdf/%s", project, format(Sys.Date(), "%y%m%d"), plot_df$out_subdir[1]))
     if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
+    table_name_token <- NULL
+    if ("name_token" %in% colnames(df)) {
+      table_name_vals <- unique(as.character(df$name_token))
+      table_name_vals <- table_name_vals[!is.na(table_name_vals) & table_name_vals != "" & table_name_vals != "NA"]
+      if (length(table_name_vals) > 0) {
+        table_name_token <- gsub("^\\(|\\)$", "", table_name_vals[1])
+      }
+    }
+    call_name_token <- if (is.null(name)) NULL else gsub("^\\(|\\)$", "", as.character(name))
+
     comparison_token <- NULL
     if ("comparison_token" %in% colnames(df)) {
       vals <- unique(as.character(df$comparison_token))
       vals <- vals[!is.na(vals) & vals != "" & vals != "NA"]
-      if (length(vals) > 0) comparison_token <- vals[1]
+      if (length(vals) > 0) comparison_token <- gsub("^\\(|\\)$", "", vals[1])
     }
     if (is.null(comparison_token)) {
-      name_token <- if (is.null(name)) NULL else as.character(name)
+      name_token <- if (!is.null(call_name_token)) call_name_token else table_name_token
       comparison_token <- sprintf("%s.vs.%s%s",
                                   plot_df$basline[1],
                                   plot_df$smvar[1],
                                   if (is.null(name_token)) "" else paste(".", name_token, sep = ""))
+    } else if (!is.null(call_name_token) &&
+               !(comparison_token == call_name_token || endsWith(comparison_token, paste0(".", call_name_token)))) {
+      comparison_token <- paste(comparison_token, call_name_token, sep = ".")
     }
 
     p <- ggplot2::ggplot(
@@ -412,6 +439,7 @@ Go_lollipopPlot <- function(project,
       ggplot2::scale_y_discrete(labels = stats::setNames(as.character(plot_df$feature_label), as.character(plot_df$feature_id))) +
       ggplot2::labs(
         title = sprintf("%s, %s (%s)", plot_df$mvar[1], plot_df$title_tool[1], sig_shape_label),
+        subtitle = if (nzchar(plot_df$plot_subtitle[1])) plot_df$plot_subtitle[1] else NULL,
         x = plot_df$score_label[1],
         y = NULL,
         color = NULL,
@@ -421,6 +449,7 @@ Go_lollipopPlot <- function(project,
       ggplot2::theme(
         text = ggplot2::element_text(size = font + 6),
         plot.title = ggplot2::element_text(size = font + 8),
+        plot.subtitle = ggplot2::element_text(size = font + 5, color = "grey40"),
         axis.text.y = ggplot2::element_text(face = "italic"),
         panel.grid.major.y = ggplot2::element_blank(),
         panel.grid.minor = ggplot2::element_blank(),

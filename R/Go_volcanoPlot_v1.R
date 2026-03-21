@@ -135,9 +135,9 @@ Go_volcanoPlot <- function(project,
 
     # tool recognizing
     tools <- sapply(filename1, function(filename1) {
+      if (grepl("condadist", filename1)) return("condadist")
       if (grepl("deseq2", filename1)) return("deseq2")
       if (grepl("aldex2", filename1)) return("aldex2")
-      if (grepl("condadist", filename1)) return("condadist")
       if (grepl("maaslin2", filename1)) return("maaslin2")
       if (grepl("maaslin", filename1)) return("maaslin2")
       if (grepl("corncob", filename1)) return("corncob")
@@ -178,6 +178,16 @@ Go_volcanoPlot <- function(project,
         return(NA) # if none of the tools are matched
       })
       unique_model <- unique(model[!is.na(model)])
+      # fallback: detect model from column names when filename has no model tag
+      if (length(unique_model) == 0) {
+        if ("diff.btw" %in% colnames(df) || "wi.ep" %in% colnames(df)) {
+          unique_model <- "t-test"
+        } else if (any(grepl("\\.Est$", colnames(df)))) {
+          unique_model <- "GLM"
+        } else {
+          unique_model <- "t-test"  # default fallback
+        }
+      }
 
       if (unique_model=="t-test"){
         x_var <- "diff.btw"
@@ -342,17 +352,26 @@ Go_volcanoPlot <- function(project,
       comparison_vals <- unique(as.character(df.na$comparison_token))
       comparison_vals <- comparison_vals[!is.na(comparison_vals) & comparison_vals != "" & comparison_vals != "NA"]
       if (length(comparison_vals) > 0) {
-        comparison_token <- comparison_vals[1]
+        comparison_token <- gsub("^\\(|\\)$", "", comparison_vals[1])
       }
     }
+
+    merged_name_token <- if (!is.null(call_name_token)) call_name_token else table_name_token
 
 
 
     if (model == "t-test" || model == "GLM" || is.null(model)) {
       # Get unique values for some columns
-      basline <- unique(df.na$basline)
-      smvar <- unique(df.na$smvar)
-      mvar <- unique(df.na$mvar)
+      basline_vals <- unique(as.character(df.na$basline))
+      basline_vals <- basline_vals[!is.na(basline_vals) & basline_vals != "" & basline_vals != "NA"]
+      smvar_vals <- unique(as.character(df.na$smvar))
+      smvar_vals <- smvar_vals[!is.na(smvar_vals) & smvar_vals != "" & smvar_vals != "NA"]
+      mvar_vals <- unique(as.character(df.na$mvar))
+      mvar_vals <- mvar_vals[!is.na(mvar_vals) & mvar_vals != "" & mvar_vals != "NA"]
+
+      basline <- if (length(basline_vals) > 0) basline_vals[1] else "group1"
+      smvar <- if (length(smvar_vals) > 0) smvar_vals[1] else "group2"
+      mvar <- if (length(mvar_vals) > 0) mvar_vals[1] else "Group"
 
       # Transform p-value column
       df.na[, pval] <- gsub('down', basline, gsub('up', smvar, df.na[, pval]))
@@ -374,11 +393,13 @@ Go_volcanoPlot <- function(project,
       )
       names(legend.labs) <- c(as.character(basline), "NS", as.character(smvar))
       if (is.null(comparison_token)) {
-        name_token <- if (!is.null(table_name_token)) table_name_token else call_name_token
         comparison_token <- sprintf("%s.vs.%s%s",
                                     basline,
                                     smvar,
-                                    if (is.null(name_token)) "" else paste(".", name_token, sep = ""))
+                                    if (is.null(merged_name_token)) "" else paste(".", merged_name_token, sep = ""))
+      } else if (!is.null(merged_name_token) &&
+                 !(comparison_token == merged_name_token || endsWith(comparison_token, paste0(".", merged_name_token)))) {
+        comparison_token <- paste(comparison_token, merged_name_token, sep = ".")
       }
     }else if(model == "corr-kendall") {
       # Get unique values for some columns
@@ -402,11 +423,13 @@ Go_volcanoPlot <- function(project,
       legend.labs <- c(basline, "NS", smvar)
       names(legend.labs) <- c(as.character(basline), "NS", as.character(smvar))
       if (is.null(comparison_token)) {
-        name_token <- if (!is.null(table_name_token)) table_name_token else call_name_token
         comparison_token <- sprintf("%s.vs.%s%s",
                                     basline,
                                     smvar,
-                                    if (is.null(name_token)) "" else paste(".", name_token, sep = ""))
+                                    if (is.null(merged_name_token)) "" else paste(".", merged_name_token, sep = ""))
+      } else if (!is.null(merged_name_token) &&
+                 !(comparison_token == merged_name_token || endsWith(comparison_token, paste0(".", merged_name_token)))) {
+        comparison_token <- paste(comparison_token, merged_name_token, sep = ".")
       }
 
     }
