@@ -175,18 +175,13 @@ Go_boxplot <- function(df          = NULL,
   }
 
   build_y_limits <- function(dat, mvar, oc, stat_res, ylim, label_y = NULL) {
-    if (!is.null(ylim) && !oc %in% c("Chao1", "pi_global_mean")) {
-      return(ylim)
-    }
-    if (oc != "pi_global_mean") {
-      return(NULL)
-    }
+    if (!is.null(ylim)) return(ylim)
 
     y_vals <- suppressWarnings(as.numeric(dat[[oc]]))
     y_vals <- y_vals[is.finite(y_vals)]
-    if (length(y_vals) == 0) {
-      return(NULL)
-    }
+    if (length(y_vals) == 0) return(NULL)
+
+    if (!is_small_scale_boxplot(y_vals)) return(NULL)
 
     y_min <- compute_visible_boxplot_bound(dat[[oc]], dat[[mvar]], which = "lower")
     y_max <- compute_visible_boxplot_bound(dat[[oc]], dat[[mvar]], which = "upper")
