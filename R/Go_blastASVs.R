@@ -42,13 +42,14 @@ Go_blastASVs <- function(project,
                          blastDB) {
   existing_final_outputs <- Sys.glob(sprintf("1_out/%s.final_asvTable.*.csv", project))
   if (length(existing_final_outputs) > 0) {
-    stop(
+    message(
       sprintf(
-        "A final ASV table already exists for project '%s': %s",
+        "A final ASV table already exists for project '%s'. Reusing existing file(s): %s",
         project,
         paste(existing_final_outputs, collapse = ", ")
       )
     )
+    return(invisible(existing_final_outputs))
   }
 
   if (!requireNamespace("Biostrings", quietly = TRUE)) {
