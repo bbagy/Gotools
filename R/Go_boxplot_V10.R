@@ -90,6 +90,43 @@ Go_boxplot <- function(df          = NULL,
     lapply(seq_len(ncol(cbn_mat)), function(i) cbn_mat[, i])
   }
 
+  build_default_comparisons <- function(group_levels) {
+    group_levels <- as.character(group_levels)
+    n_grp <- length(group_levels)
+    if (n_grp < 2) {
+      return(list())
+    }
+    if (n_grp >= 5) {
+      ref_grp <- group_levels[1]
+      comps <- lapply(group_levels[-1], function(g) c(ref_grp, g))
+      message(sprintf("[Go_boxplot] %d groups detected: using reference-vs-rest comparisons from '%s'",
+                      n_grp, ref_grp))
+      return(comps)
+    }
+    build_comparisons(combn(x = group_levels, m = 2))
+  }
+
+  panel_height_lookup <- function(n_groups, min_height = 2) {
+    lookup <- c(
+      `2` = 1.90,
+      `3` = 2.00,
+      `4` = 2.10,
+      `5` = 2.20,
+      `6` = 2.30,
+      `7` = 2.40,
+      `8` = 2.50
+    )
+    key <- as.character(max(2, min(8, as.integer(n_groups))))
+    base_h <- unname(lookup[[key]])
+    if (is.na(base_h)) {
+      base_h <- 2.10
+    }
+    if (n_groups > 8) {
+      base_h <- base_h + (n_groups - 8) * 0.08
+    }
+    max(min_height, base_h)
+  }
+
   build_plot_title <- function(base_title, test_name, pval) {
     base_title
   }
@@ -508,7 +545,7 @@ Go_boxplot <- function(df          = NULL,
 
     } else {
       # ── no combination branch ──────────────────────────────────────────────
-      my_comparisons <- build_comparisons(combn(x = levels(df.na[[mvar]]), m = 2))
+      my_comparisons <- build_default_comparisons(levels(df.na[[mvar]]))
 
       if (has_facet(facet)) {
         for (fc in facet) {
@@ -532,14 +569,12 @@ Go_boxplot <- function(df          = NULL,
 
   # ── pass 2: calculate PDF dimensions ────────────────────────────────────────
   all_n_grp   <- sapply(plotlist, function(p) attr(p, "n_grp")         %||% 3)
-  all_n_comp  <- sapply(plotlist, function(p) attr(p, "n_comp")        %||% 0)
   all_max_lbl <- sapply(plotlist, function(p) attr(p, "max_lbl_chars") %||% 10)
 
   max_n_grp  <- max(all_n_grp,   na.rm = TRUE)
-  max_n_comp <- max(all_n_comp,  na.rm = TRUE)
   max_lbl    <- max(all_max_lbl, na.rm = TRUE)
 
-  panel_h <- max(min_height, min_height + max_n_comp * 0.10)  # panel + stat brackets
+  panel_h <- panel_height_lookup(max_n_grp, min_height = min_height)
   label_h <- max(0.3, max_lbl * 0.055)                        # rotated x-axis labels
   pdf_h   <- (panel_h + label_h) * plotRows
   pdf_w   <- max(min_width, max_n_grp * 0.4) * plotCols
