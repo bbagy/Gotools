@@ -137,17 +137,18 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
                                     paired = NULL,
                                     facet = NULL,
                                     p_adjust = "BH") {
-  build_local_comparisons <- function(group_levels) {
-    group_levels <- as.character(group_levels)
-    n_grp <- length(group_levels)
+  build_local_comparisons <- function(group_levels_display) {
+    group_levels_display <- as.character(group_levels_display)
+    n_grp <- length(group_levels_display)
     if (n_grp < 2) {
       return(list())
     }
     if (n_grp >= 5) {
-      ref_grp <- group_levels[1]
-      return(lapply(group_levels[-1], function(g) c(ref_grp, g)))
+      ref_grp <- group_levels_display[1]
+      return(lapply(group_levels_display[-1], function(g) c(ref_grp, g)))
     }
-    lapply(seq_len(ncol(combn(group_levels, 2))), function(i) combn(group_levels, 2)[, i])
+    cmb <- combn(group_levels_display, 2)
+    lapply(seq_len(ncol(cmb)), function(i) cmb[, i])
   }
 
   has_covariates <- !is.null(covariates) && length(covariates) > 0
@@ -186,6 +187,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
   dat[[mvar]] <- factor(dat[[mvar]])
   levels_display <- levels(dat[[mvar]])
   levels_raw <- clean_boxplot_group_label(levels_display)
+  level_map <- stats::setNames(levels_display, levels_raw)
   levels(dat[[mvar]]) <- levels_raw
   dat[[mvar]] <- droplevels(dat[[mvar]])
 
@@ -194,18 +196,27 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
   }
 
   compute_single <- function(dat_sub) {
-    present_levels <- levels(droplevels(dat_sub[[mvar]]))
-    comparisons_use <- comparisons
+    present_levels_raw <- levels(droplevels(dat_sub[[mvar]]))
+    present_levels_display <- unname(level_map[present_levels_raw])
+    present_levels_display <- present_levels_display[!is.na(present_levels_display)]
+
+    comparisons_display_use <- comparisons
     if (length(facet_vars) > 0) {
-      comparisons_use <- build_local_comparisons(present_levels)
+      comparisons_display_use <- build_local_comparisons(present_levels_display)
     } else if (!is.null(comparisons) && length(comparisons) > 0) {
-      comparisons_use <- Filter(function(comp) all(comp %in% present_levels), comparisons)
-      if (length(comparisons_use) == 0) {
-        comparisons_use <- build_local_comparisons(present_levels)
+      comparisons_display_use <- Filter(function(comp) {
+        comp_disp <- as.character(comp)
+        comp_raw <- clean_boxplot_group_label(comp_disp)
+        all(comp_raw %in% present_levels_raw)
+      }, comparisons)
+      if (length(comparisons_display_use) == 0) {
+        comparisons_display_use <- build_local_comparisons(present_levels_display)
       }
     } else {
-      comparisons_use <- build_local_comparisons(present_levels)
+      comparisons_display_use <- build_local_comparisons(present_levels_display)
     }
+
+    comparisons_raw_use <- lapply(comparisons_display_use, clean_boxplot_group_label)
 
     cov_term <- if (length(covariates) > 0) paste(covariates, collapse = " + ") else NULL
     fixed_term <- paste(c(mvar, cov_term), collapse = " + ")
@@ -219,7 +230,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
         kw_pval <- round(test$p.value, 4)
       }
 
-      raw_pvals <- vapply(comparisons_use, function(comp) {
+      raw_pvals <- vapply(comparisons_raw_use, function(comp) {
         sub_dat <- dat_sub[dat_sub[[mvar]] %in% comp, , drop = FALSE]
         sub_dat[[mvar]] <- droplevels(factor(sub_dat[[mvar]]))
         if (nlevels(sub_dat[[mvar]]) < 2) return(NA_real_)
@@ -236,13 +247,13 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
       ann_y <- compute_annotation_positions(
         dat_sub[[oc]],
         dat_sub[[mvar]],
-        length(comparisons_use),
-        comparisons = comparisons_use,
+        length(comparisons_raw_use),
+        comparisons = comparisons_raw_use,
         group_levels = levels(dat_sub[[mvar]])
       )
       ann <- data.frame(
-        group1 = vapply(comparisons_use, `[`, character(1), 1),
-        group2 = vapply(comparisons_use, `[`, character(1), 2),
+        group1 = vapply(comparisons_display_use, `[`, character(1), 1),
+        group2 = vapply(comparisons_display_use, `[`, character(1), 2),
         p = raw_pvals,
         p.adj = adj_pvals,
         y.position = ann_y,
@@ -300,7 +311,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
     ctr_df$group2_raw <- vapply(parts, `[`, character(1), 2)
     ctr_df$key <- mapply(make_pair_key, ctr_df$group1_raw, ctr_df$group2_raw)
 
-    display_keys <- vapply(comparisons_use, function(comp) make_pair_key(clean_boxplot_group_label(comp[1]), clean_boxplot_group_label(comp[2])), character(1))
+    display_keys <- vapply(comparisons_raw_use, function(comp) make_pair_key(comp[1], comp[2]), character(1))
     p_map <- setNames(ctr_df$p.value, ctr_df$key)
 
     pvals <- p_map[display_keys]
@@ -313,14 +324,14 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
     ann_y <- compute_annotation_positions(
       dat_sub[[oc]],
       dat_sub[[mvar]],
-      length(comparisons_use),
-      comparisons = comparisons_use,
+      length(comparisons_raw_use),
+      comparisons = comparisons_raw_use,
       group_levels = levels(dat_sub[[mvar]])
     )
 
     ann <- data.frame(
-      group1 = vapply(comparisons_use, `[`, character(1), 1),
-      group2 = vapply(comparisons_use, `[`, character(1), 2),
+      group1 = vapply(comparisons_display_use, `[`, character(1), 1),
+      group2 = vapply(comparisons_display_use, `[`, character(1), 2),
       p = as.numeric(pvals),
       p.adj = as.numeric(pvals_adj),
       y.position = ann_y,
