@@ -106,25 +106,23 @@ Go_boxplot <- function(df          = NULL,
     build_comparisons(combn(x = group_levels, m = 2))
   }
 
-  panel_height_lookup <- function(n_groups, min_height = 2) {
-    lookup <- c(
-      `2` = 1.90,
-      `3` = 2.00,
-      `4` = 2.10,
-      `5` = 2.20,
-      `6` = 2.30,
-      `7` = 2.40,
-      `8` = 2.50
-    )
-    key <- as.character(max(2, min(8, as.integer(n_groups))))
-    base_h <- unname(lookup[[key]])
-    if (is.na(base_h)) {
-      base_h <- 2.10
+  stats_height_bonus <- function(n_comp, statistics = TRUE) {
+    if (!isTRUE(statistics) || is.null(n_comp) || !is.finite(n_comp) || n_comp <= 0) {
+      return(0)
     }
-    if (n_groups > 8) {
-      base_h <- base_h + (n_groups - 8) * 0.08
+    if (n_comp <= 1) {
+      return(0.08)
     }
-    max(min_height, base_h)
+    if (n_comp <= 2) {
+      return(0.14)
+    }
+    if (n_comp <= 4) {
+      return(0.24)
+    }
+    if (n_comp <= 6) {
+      return(0.34)
+    }
+    0.42
   }
 
   build_plot_title <- function(base_title, test_name, pval) {
@@ -507,7 +505,7 @@ Go_boxplot <- function(df          = NULL,
 
       # metadata for auto-sizing
       n_grp         <- length(unique(dat[[mvar]]))
-      n_comp        <- length(my_comparisons)
+      n_comp        <- if (!is.null(stat_res$annotation)) nrow(stat_res$annotation) else 0
       max_lbl_chars <- max(nchar(as.character(levels(dat[[mvar]]))), na.rm = TRUE)
 
       finalize_plot(p1, n_grp, n_comp, max_lbl_chars)
@@ -569,12 +567,14 @@ Go_boxplot <- function(df          = NULL,
 
   # ── pass 2: calculate PDF dimensions ────────────────────────────────────────
   all_n_grp   <- sapply(plotlist, function(p) attr(p, "n_grp")         %||% 3)
+  all_n_comp  <- sapply(plotlist, function(p) attr(p, "n_comp")        %||% 0)
   all_max_lbl <- sapply(plotlist, function(p) attr(p, "max_lbl_chars") %||% 10)
 
   max_n_grp  <- max(all_n_grp,   na.rm = TRUE)
+  max_n_comp <- max(all_n_comp,  na.rm = TRUE)
   max_lbl    <- max(all_max_lbl, na.rm = TRUE)
 
-  panel_h <- panel_height_lookup(max_n_grp, min_height = min_height)
+  panel_h <- min_height + stats_height_bonus(max_n_comp, statistics = statistics)
   label_h <- max(0.3, max_lbl * 0.055)                        # rotated x-axis labels
   pdf_h   <- (panel_h + label_h) * plotRows
   pdf_w   <- max(min_width, max_n_grp * 0.4) * plotCols
