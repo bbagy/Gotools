@@ -112,10 +112,10 @@ compute_annotation_positions <- function(y, groups = NULL, n_labels, comparisons
   }
 
   if (small_scale) {
-    y_step <- max(y_span * 0.025, abs(y_max) * 0.012, 5e-5)
+    y_step <- max(y_span * 0.018, abs(y_max) * 0.009, 5e-5)
     y_base <- y_max + y_step
   } else {
-    y_step <- max(y_span * 0.06, abs(y_max) * 0.04, 1e-6)
+    y_step <- max(y_span * 0.04, abs(y_max) * 0.025, 1e-6)
     y_base <- y_max
   }
 

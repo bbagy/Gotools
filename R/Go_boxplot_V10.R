@@ -203,7 +203,7 @@ Go_boxplot <- function(df          = NULL,
     upper_ref <- max(y_max, ann_max, na.rm = TRUE)
     span <- max(y_max - y_min, abs(upper_ref) * 0.10, 1e-5)
     lower <- if (all(y_vals >= 0, na.rm = TRUE)) 0 else y_min - span * 0.05
-    upper <- upper_ref + span * 0.08
+    upper <- upper_ref + span * 0.035
 
     c(lower, upper)
   }
@@ -463,7 +463,7 @@ Go_boxplot <- function(df          = NULL,
       y_limits <- build_y_limits(dat, mvar, oc, stat_res, ylim, label_y = label_y)
       if (!is.null(y_limits)) {
         p1 <- p1 + scale_y_continuous(limits = y_limits,
-                                      expand = expansion(mult = c(0.02, 0.05)))
+                                      expand = expansion(mult = c(0.01, 0.02)))
       }
 
       p1 <- add_facet_and_guides(p1, facet, ncol, df)
