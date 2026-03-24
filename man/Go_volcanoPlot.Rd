@@ -6,11 +6,12 @@
 \usage{
 Go_volcanoPlot(
   project,
-  file_path,
-  files,
+  file_path = NULL,
+  files = NULL,
+  result = NULL,
   fc,
   mycols = NULL,
-  name,
+  name = NULL,
   overlaps = 10,
   font,
   height,

@@ -43,7 +43,57 @@ compute_visible_boxplot_bound <- function(y, groups = NULL, which = c("upper", "
   out
 }
 
-compute_annotation_positions <- function(y, groups = NULL, n_labels) {
+assign_bracket_layers <- function(comparisons, group_levels) {
+  if (length(comparisons) == 0 || length(group_levels) == 0) {
+    return(integer(0))
+  }
+
+  level_index <- stats::setNames(seq_along(group_levels), group_levels)
+  bracket_df <- data.frame(
+    idx = seq_along(comparisons),
+    group1 = vapply(comparisons, `[`, character(1), 1),
+    group2 = vapply(comparisons, `[`, character(1), 2),
+    stringsAsFactors = FALSE
+  )
+
+  bracket_df$start <- pmin(level_index[bracket_df$group1], level_index[bracket_df$group2])
+  bracket_df$end <- pmax(level_index[bracket_df$group1], level_index[bracket_df$group2])
+  bracket_df <- bracket_df[stats::complete.cases(bracket_df$start, bracket_df$end), , drop = FALSE]
+  if (!nrow(bracket_df)) {
+    return(rep(NA_integer_, length(comparisons)))
+  }
+
+  bracket_df$span <- bracket_df$end - bracket_df$start
+  bracket_df <- bracket_df[order(bracket_df$span, bracket_df$start, bracket_df$end), , drop = FALSE]
+
+  layer_assignments <- rep(NA_integer_, length(comparisons))
+  layer_spans <- list()
+
+  overlaps_existing <- function(start, end, spans) {
+    if (length(spans) == 0) {
+      return(FALSE)
+    }
+    any(vapply(spans, function(x) !(end < x[1] || start > x[2]), logical(1)))
+  }
+
+  for (i in seq_len(nrow(bracket_df))) {
+    start_i <- bracket_df$start[i]
+    end_i <- bracket_df$end[i]
+    layer_id <- 1L
+    current_spans <- if (layer_id <= length(layer_spans)) layer_spans[[layer_id]] else list()
+    while (overlaps_existing(start_i, end_i, current_spans)) {
+      layer_id <- layer_id + 1L
+      current_spans <- if (layer_id <= length(layer_spans)) layer_spans[[layer_id]] else list()
+    }
+    layer_assignments[bracket_df$idx[i]] <- layer_id
+    existing_spans <- if (layer_id <= length(layer_spans)) layer_spans[[layer_id]] else list()
+    layer_spans[[layer_id]] <- c(existing_spans, list(c(start_i, end_i)))
+  }
+
+  layer_assignments
+}
+
+compute_annotation_positions <- function(y, groups = NULL, n_labels, comparisons = NULL, group_levels = NULL) {
   y_vals <- suppressWarnings(as.numeric(y))
   y_vals <- y_vals[is.finite(y_vals)]
   if (length(y_vals) == 0 || n_labels <= 0) {
@@ -69,7 +119,16 @@ compute_annotation_positions <- function(y, groups = NULL, n_labels) {
     y_base <- y_max
   }
 
-  y_base + y_step * seq_len(n_labels)
+  if (is.null(comparisons) || is.null(group_levels)) {
+    return(y_base + y_step * seq_len(n_labels))
+  }
+
+  layers <- assign_bracket_layers(comparisons = comparisons, group_levels = group_levels)
+  if (length(layers) != n_labels || all(is.na(layers))) {
+    return(y_base + y_step * seq_len(n_labels))
+  }
+
+  y_base + y_step * layers
 }
 
 Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
@@ -148,7 +207,13 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
       }, numeric(1))
 
       adj_pvals <- stats::p.adjust(raw_pvals, method = p_adjust)
-      ann_y <- compute_annotation_positions(dat_sub[[oc]], dat_sub[[mvar]], length(comparisons))
+      ann_y <- compute_annotation_positions(
+        dat_sub[[oc]],
+        dat_sub[[mvar]],
+        length(comparisons),
+        comparisons = comparisons,
+        group_levels = levels(dat_sub[[mvar]])
+      )
       ann <- data.frame(
         group1 = vapply(comparisons, `[`, character(1), 1),
         group2 = vapply(comparisons, `[`, character(1), 2),
@@ -219,7 +284,13 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
       pvals_adj <- pvals
     }
 
-    ann_y <- compute_annotation_positions(dat_sub[[oc]], dat_sub[[mvar]], length(comparisons))
+    ann_y <- compute_annotation_positions(
+      dat_sub[[oc]],
+      dat_sub[[mvar]],
+      length(comparisons),
+      comparisons = comparisons,
+      group_levels = levels(dat_sub[[mvar]])
+    )
 
     ann <- data.frame(
       group1 = vapply(comparisons, `[`, character(1), 1),
