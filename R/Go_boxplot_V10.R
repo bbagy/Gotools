@@ -111,18 +111,18 @@ Go_boxplot <- function(df          = NULL,
       return(0)
     }
     if (n_comp <= 1) {
-      return(0.16)
+      return(0.20)
     }
     if (n_comp <= 2) {
-      return(0.28)
+      return(0.34)
     }
     if (n_comp <= 4) {
-      return(0.42)
+      return(0.50)
     }
     if (n_comp <= 6) {
-      return(0.54)
+      return(0.62)
     }
-    0.66
+    0.72
   }
 
   build_plot_title <- function(base_title, test_name, pval) {
