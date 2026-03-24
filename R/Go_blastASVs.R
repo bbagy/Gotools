@@ -257,6 +257,21 @@ Go_blastASVs <- function(project,
   write.csv(sequences_df, original_output, row.names = TRUE)
   write.csv(final_df, final_output, row.names = TRUE)
 
+  output_ok <- function(file) {
+    if (!file.exists(file)) {
+      return(FALSE)
+    }
+    info <- file.info(file)
+    isTRUE(!is.na(info$size) && info$size > 0)
+  }
+
+  if (output_ok(original_output) && output_ok(final_output)) {
+    unlink(output_dir, recursive = TRUE, force = TRUE)
+    cat("Temporary BLAST XML directory removed:", output_dir, "\n")
+  } else {
+    warning("Final output files were not verified. Temporary BLAST XML files were kept in ", output_dir)
+  }
+
   cat("Results have been successfully saved to:\n")
   cat("- ", original_output, "\n", sep = "")
   cat("- ", final_output, "\n", sep = "")
