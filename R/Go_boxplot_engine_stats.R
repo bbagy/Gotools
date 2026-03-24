@@ -137,6 +137,19 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
                                     paired = NULL,
                                     facet = NULL,
                                     p_adjust = "BH") {
+  build_local_comparisons <- function(group_levels) {
+    group_levels <- as.character(group_levels)
+    n_grp <- length(group_levels)
+    if (n_grp < 2) {
+      return(list())
+    }
+    if (n_grp >= 5) {
+      ref_grp <- group_levels[1]
+      return(lapply(group_levels[-1], function(g) c(ref_grp, g)))
+    }
+    lapply(seq_len(ncol(combn(group_levels, 2))), function(i) combn(group_levels, 2)[, i])
+  }
+
   has_covariates <- !is.null(covariates) && length(covariates) > 0
   model <- if (is.null(model)) {
     if (!is.null(paired) && length(paired) > 0) {
@@ -181,6 +194,19 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
   }
 
   compute_single <- function(dat_sub) {
+    present_levels <- levels(droplevels(dat_sub[[mvar]]))
+    comparisons_use <- comparisons
+    if (length(facet_vars) > 0) {
+      comparisons_use <- build_local_comparisons(present_levels)
+    } else if (!is.null(comparisons) && length(comparisons) > 0) {
+      comparisons_use <- Filter(function(comp) all(comp %in% present_levels), comparisons)
+      if (length(comparisons_use) == 0) {
+        comparisons_use <- build_local_comparisons(present_levels)
+      }
+    } else {
+      comparisons_use <- build_local_comparisons(present_levels)
+    }
+
     cov_term <- if (length(covariates) > 0) paste(covariates, collapse = " + ") else NULL
     fixed_term <- paste(c(mvar, cov_term), collapse = " + ")
     form <- stats::as.formula(sprintf("%s ~ %s", oc, fixed_term))
@@ -193,7 +219,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
         kw_pval <- round(test$p.value, 4)
       }
 
-      raw_pvals <- vapply(comparisons, function(comp) {
+      raw_pvals <- vapply(comparisons_use, function(comp) {
         sub_dat <- dat_sub[dat_sub[[mvar]] %in% comp, , drop = FALSE]
         sub_dat[[mvar]] <- droplevels(factor(sub_dat[[mvar]]))
         if (nlevels(sub_dat[[mvar]]) < 2) return(NA_real_)
@@ -210,13 +236,13 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
       ann_y <- compute_annotation_positions(
         dat_sub[[oc]],
         dat_sub[[mvar]],
-        length(comparisons),
-        comparisons = comparisons,
+        length(comparisons_use),
+        comparisons = comparisons_use,
         group_levels = levels(dat_sub[[mvar]])
       )
       ann <- data.frame(
-        group1 = vapply(comparisons, `[`, character(1), 1),
-        group2 = vapply(comparisons, `[`, character(1), 2),
+        group1 = vapply(comparisons_use, `[`, character(1), 1),
+        group2 = vapply(comparisons_use, `[`, character(1), 2),
         p = raw_pvals,
         p.adj = adj_pvals,
         y.position = ann_y,
@@ -274,7 +300,7 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
     ctr_df$group2_raw <- vapply(parts, `[`, character(1), 2)
     ctr_df$key <- mapply(make_pair_key, ctr_df$group1_raw, ctr_df$group2_raw)
 
-    display_keys <- vapply(comparisons, function(comp) make_pair_key(clean_boxplot_group_label(comp[1]), clean_boxplot_group_label(comp[2])), character(1))
+    display_keys <- vapply(comparisons_use, function(comp) make_pair_key(clean_boxplot_group_label(comp[1]), clean_boxplot_group_label(comp[2])), character(1))
     p_map <- setNames(ctr_df$p.value, ctr_df$key)
 
     pvals <- p_map[display_keys]
@@ -287,14 +313,14 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
     ann_y <- compute_annotation_positions(
       dat_sub[[oc]],
       dat_sub[[mvar]],
-      length(comparisons),
-      comparisons = comparisons,
+      length(comparisons_use),
+      comparisons = comparisons_use,
       group_levels = levels(dat_sub[[mvar]])
     )
 
     ann <- data.frame(
-      group1 = vapply(comparisons, `[`, character(1), 1),
-      group2 = vapply(comparisons, `[`, character(1), 2),
+      group1 = vapply(comparisons_use, `[`, character(1), 1),
+      group2 = vapply(comparisons_use, `[`, character(1), 2),
       p = as.numeric(pvals),
       p.adj = as.numeric(pvals_adj),
       y.position = ann_y,
