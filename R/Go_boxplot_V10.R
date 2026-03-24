@@ -1,3 +1,4 @@
+`%||%` <- function(a, b) if (!is.null(a)) a else b
 
 #' Generate Boxplots for Multiple Variables
 #'
@@ -47,8 +48,6 @@
 #'            outcomes = c("Shannon", "Chao1"))
 #'
 #' @export
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b
 
 Go_boxplot <- function(df          = NULL,
                        psIN        = NULL,
@@ -553,4 +552,3 @@ Go_boxplot <- function(df          = NULL,
   multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
   dev.off()
 }
-
