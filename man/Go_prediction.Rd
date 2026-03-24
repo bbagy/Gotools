@@ -2,7 +2,11 @@
 % Please edit documentation in R/Go_prediction_V2.R
 \name{Go_prediction}
 \alias{Go_prediction}
+\alias{\%||\%}
 \title{Go_prediction}
+\usage{
+a \%||\% b
+}
 \arguments{
 \item{psIN}{A \code{phyloseq} object.}
 

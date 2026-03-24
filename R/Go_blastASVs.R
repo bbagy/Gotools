@@ -21,6 +21,8 @@
 #' @return Writes two CSV files to `1_out/`:
 #' 1. `project.updated_sequences_with_blast_results.YYMMDD.csv`
 #' 2. `project.final_asvTable.YYMMDD.csv`
+#' If a matching `project.final_asvTable.*.csv` already exists in `1_out/`,
+#' the function stops without running BLAST again.
 #'
 #' @details The final ASV table keeps existing DADA2 species names when they are already
 #'          non-missing genus+species assignments. When species is effectively `Genus NA`,
@@ -38,6 +40,17 @@
 Go_blastASVs <- function(project,
                          asvsTable,
                          blastDB) {
+  existing_final_outputs <- Sys.glob(sprintf("1_out/%s.final_asvTable.*.csv", project))
+  if (length(existing_final_outputs) > 0) {
+    stop(
+      sprintf(
+        "A final ASV table already exists for project '%s': %s",
+        project,
+        paste(existing_final_outputs, collapse = ", ")
+      )
+    )
+  }
+
   if (!requireNamespace("Biostrings", quietly = TRUE)) {
     if (!requireNamespace("BiocManager", quietly = TRUE)) {
       install.packages("BiocManager")

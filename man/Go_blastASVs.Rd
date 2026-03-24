@@ -17,6 +17,8 @@ Writes two CSV files to \verb{1_out/}:
 \enumerate{
 \item \code{project.updated_sequences_with_blast_results.YYMMDD.csv}
 \item \code{project.final_asvTable.YYMMDD.csv}
+If a matching \code{project.final_asvTable.*.csv} already exists in \verb{1_out/},
+the function stops without running BLAST again.
 }
 }
 \description{
