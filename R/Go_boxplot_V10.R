@@ -111,18 +111,18 @@ Go_boxplot <- function(df          = NULL,
       return(0)
     }
     if (n_comp <= 1) {
-      return(0.24)
+      return(0.30)
     }
     if (n_comp <= 2) {
-      return(0.40)
+      return(0.50)
     }
     if (n_comp <= 4) {
-      return(0.60)
+      return(0.78)
     }
     if (n_comp <= 6) {
-      return(0.74)
+      return(0.96)
     }
-    0.84
+    1.10
   }
 
   build_plot_title <- function(base_title, test_name, pval) {
@@ -238,7 +238,7 @@ Go_boxplot <- function(df          = NULL,
     upper_ref <- max(y_max, ann_max, na.rm = TRUE)
     span <- max(y_max - y_min, abs(upper_ref) * 0.10, 1e-5)
     lower <- if (all(y_vals >= 0, na.rm = TRUE)) 0 else y_min - span * 0.05
-    upper <- upper_ref + span * 0.065
+    upper <- upper_ref + span * 0.08
 
     c(lower, upper)
   }
