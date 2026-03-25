@@ -431,12 +431,8 @@ Go_network <- function(
 
   message(sprintf("[Go_network] total features before filtering: %d", length(all_features)))
 
-  # ── Determine subgroups to plot ────────────────────────────────────────────
-  subgroups_to_plot <- if (!is.null(subgroup)) {
-    subgroup
-  } else {
-    sort(unique(as.character(sampledata[[mainGroup]])))
-  }
+  # ── Determine subgroup to plot (always single) ────────────────────────────
+  subgroups_to_plot <- if (!is.null(subgroup)) subgroup else "all"
 
   # ── Create output directories ──────────────────────────────────────────────
   out         <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
@@ -447,11 +443,16 @@ Go_network <- function(
     if (!dir.exists(d)) dir.create(d, recursive = TRUE)
   }
 
-  # ── Per-subgroup computation ───────────────────────────────────────────────
+  # ── Single-subgroup computation ───────────────────────────────────────────
   sg_results <- lapply(subgroups_to_plot, function(sg) {
-    data <- final_merged_table %>%
-      dplyr::filter(.data[[mainGroup]] == sg) %>%
-      dplyr::select(-dplyr::all_of(mainGroup), -dplyr::all_of(sample_key))
+    if (sg == "all") {
+      data <- final_merged_table %>%
+        dplyr::select(-dplyr::all_of(mainGroup), -dplyr::all_of(sample_key))
+    } else {
+      data <- final_merged_table %>%
+        dplyr::filter(.data[[mainGroup]] == sg) %>%
+        dplyr::select(-dplyr::all_of(mainGroup), -dplyr::all_of(sample_key))
+    }
 
     if (nrow(data) < 3) {
       warning(sprintf("[Go_network] Fewer than 3 samples in subgroup '%s'. Skipping.", sg))
@@ -646,9 +647,8 @@ Go_network <- function(
     n_sg            <- length(sg_results)
     show_bact_panel <- !node_names && nrow(bacteria_map_filtered) > 0
 
-    # Auto-scale width: bacteria(2.5) + n networks(6 each) + legend(2.5)
-    pdf_width <- 2.5 * as.integer(show_bact_panel) + n_sg * 6 + 2.5
-    pdf_width <- max(pdf_width, width)
+    legend_cm <- 2.5 * 2.54   # 2.5 inches → fixed legend column (lcm)
+    pdf_width <- width
 
     if (!is.null(dev.list())) dev.off()
 
@@ -674,43 +674,26 @@ Go_network <- function(
       width = pdf_width, height = height
     )
 
-    # Build multi-panel layout matrix
-    # panels: [bact | net_1 ... net_N | legend]
     if (show_bact_panel) {
-      mat    <- matrix(c(1L, seq(2L, n_sg + 1L), n_sg + 2L), 1L, n_sg + 2L)
-      widths <- c(2.5, rep(6, n_sg), 2.5)
-    } else {
-      mat    <- matrix(c(seq_len(n_sg), n_sg + 1L), 1L, n_sg + 1L)
-      widths <- c(rep(6, n_sg), 2.5)
-    }
-    graphics::layout(mat, widths = widths)
-
-    # ── Panel: shared bacteria list (left) ───────────────────────────────
-    if (show_bact_panel) {
-      graphics::par(mar = c(0, 0.5, 1, 0))
-      graphics::plot.new()
-
-      bacteria_legend_colors <- vapply(bacteria_map_filtered$Bacteria, function(b) {
-        for (k in seq_along(sg_results)) {
-          v_names <- igraph::V(sg_results[[k]]$network)$name
-          idx     <- match(b, v_names)
-          if (!is.na(idx) && !is.null(sg_visuals[[k]]$node_colors)) {
-            return(sg_visuals[[k]]$node_colors[idx])
-          }
-        }
-        "#888888"
-      }, character(1))
-
-      graphics::legend(
-        "topleft",
-        legend    = paste(bacteria_map_filtered$ID, bacteria_map_filtered$Bacteria, sep = " = "),
-        cex       = 0.6,
-        bty       = "n",
-        text.font = 3,
-        text.col  = bacteria_legend_colors,
-        title     = "Node ID"
+      # Top row: network(s) + fixed legend column; bottom row: bacteria full-width
+      legend_id   <- n_sg + 1L
+      bacteria_id <- n_sg + 2L
+      mat <- rbind(
+        c(seq_len(n_sg), legend_id),
+        c(rep(bacteria_id, n_sg), bacteria_id)
       )
+      widths  <- c(rep(1, n_sg), lcm(legend_cm))
+      heights <- c(height * 0.70, height * 0.30)
+    } else {
+      legend_id <- n_sg + 1L
+      mat <- rbind(
+        c(seq_len(n_sg), legend_id),
+        c(rep(0, n_sg), 0)
+      )
+      widths  <- c(rep(1, n_sg), lcm(legend_cm))
+      heights <- c(height * 0.85, height * 0.15)
     }
+    graphics::layout(mat, widths = widths, heights = heights)
 
     # ── Panels: per-subgroup networks ────────────────────────────────────
     for (k in seq_along(sg_results)) {
@@ -718,7 +701,7 @@ Go_network <- function(
       vis <- sg_visuals[[k]]
       net <- res$network
 
-      graphics::par(mar = c(1, 1, 2, 1))
+      graphics::par(mar = c(0.3, 0.3, 1.5, 0.3))
 
       if (igraph::gsize(net) == 0) {
         graphics::plot.new()
@@ -726,12 +709,17 @@ Go_network <- function(
         next
       }
 
+      x_rng <- range(vis$norm_lay[, 1], na.rm = TRUE)
+      y_rng <- range(vis$norm_lay[, 2], na.rm = TRUE)
+      x_pad <- max(0.06, diff(x_rng) * 0.08)
+      y_pad <- max(0.06, diff(y_rng) * 0.08)
+
       plot(
         net,
         layout             = vis$norm_lay,
         rescale            = FALSE,
-        xlim               = c(-1.5, 1.5),
-        ylim               = c(-1.5, 1.5),
+        xlim               = c(x_rng[1] - x_pad, x_rng[2] + x_pad),
+        ylim               = c(y_rng[1] - y_pad, y_rng[2] + y_pad),
         vertex.color       = vis$node_colors,
         vertex.label       = vis$node_labels,
         vertex.label.cex   = node_font,
@@ -739,11 +727,14 @@ Go_network <- function(
         vertex.frame.color = vis$frame_colors,
         vertex.frame.width = ifelse(vis$frame_colors == "white", 1, 2.5),
         vertex.size        = vis$node_sizes,
-        edge.width         = abs(igraph::E(net)$Correlation) * 5,
+        edge.width         = abs(igraph::E(net)$Correlation) * 3,
         edge.color         = ifelse(igraph::E(net)$Correlation > 0, "#C0392B", "#1A5276"),
         edge.lty           = vis$edge_styles,
         edge.curved        = 0.15,
-        main               = sprintf("%s — %s\n(%s; %s)", mainGroup, res$sg, analysis_method, res$sigval)
+        main               = sprintf("%s%s\n(%s; %s)",
+                                      mainGroup,
+                                      if (res$sg == "all") "" else sprintf(" — %s", res$sg),
+                                      analysis_method, res$sigval)
       )
 
       if (vis$has_target) {
@@ -763,52 +754,84 @@ Go_network <- function(
       }
     }
 
-    # ── Panel: shared legend (right) ─────────────────────────────────────
+    # ── Panel: shared legend (right top, panel 2) ────────────────────────
     first_valid_k <- which(vapply(sg_results, function(r) igraph::gsize(r$network) > 0, logical(1)))[1]
     vis_leg       <- sg_visuals[[first_valid_k]]
     res_leg       <- sg_results[[first_valid_k]]
 
-    graphics::par(mar = c(0, 0, 1, 0.5))
+    graphics::par(mar = c(0.05, 0.05, 0.05, 0.05))
     graphics::plot.new()
 
-    legend_y <- 1.0
+    # Node types — top
     graphics::legend(
-      x = 0, y = legend_y,
+      x = 0.05, y = 0.95,
       legend = vis_leg$color_info$legend_labels,
       col    = vis_leg$color_info$legend_colors,
       pch    = 19,
-      pt.cex = 1.3,
+      pt.cex = 1.35,
       bty    = "n",
-      cex    = 0.85,
+      cex    = 0.92,
       title  = vis_leg$color_info$legend_title,
-      xjust  = 0, yjust = 1
+      xjust  = 0, yjust = 1,
+      horiz  = FALSE
     )
 
-    legend_y <- legend_y - (length(vis_leg$color_info$legend_labels) + 1.5) * 0.07
+    # Edge sign — middle
     graphics::legend(
-      x = 0, y = legend_y,
+      x = 0.05, y = 0.60,
       legend = c("Positive association", "Negative association"),
       col    = c("#C0392B", "#1A5276"),
       lty    = 1,
       lwd    = 3,
       bty    = "n",
-      cex    = 0.85,
+      cex    = 0.92,
       title  = "Edge sign",
-      xjust  = 0, yjust = 1
+      xjust  = 0, yjust = 1,
+      horiz  = FALSE
     )
 
+    # FDR significance — bottom
     if (res_leg$sig == "p_FDR") {
-      legend_y <- legend_y - 3.5 * 0.07
       graphics::legend(
-        x = 0, y = legend_y,
+        x = 0.05, y = 0.30,
         legend = c(sprintf("%s < 0.05",  res_leg$signame),
                    sprintf("%s >= 0.05", res_leg$signame)),
         lty    = c(1, 2),
         lwd    = 3,
         bty    = "n",
-        cex    = 0.85,
+        cex    = 0.92,
         title  = sprintf("%s Significance", res_leg$signame),
-        xjust  = 0, yjust = 1
+        xjust  = 0, yjust = 1,
+        horiz  = FALSE
+      )
+    }
+
+    # ── Panel: shared bacteria list (bottom full-width, panel 3) ─────────
+    if (show_bact_panel) {
+      graphics::par(mar = c(0.05, 0.2, 0.05, 0.2))
+      graphics::plot.new()
+
+      bacteria_legend_colors <- vapply(bacteria_map_filtered$Bacteria, function(b) {
+        for (k in seq_along(sg_results)) {
+          v_names <- igraph::V(sg_results[[k]]$network)$name
+          idx     <- match(b, v_names)
+          if (!is.na(idx) && !is.null(sg_visuals[[k]]$node_colors)) {
+            return(sg_visuals[[k]]$node_colors[idx])
+          }
+        }
+        "#888888"
+      }, character(1))
+
+      graphics::legend(
+        x = 0.02, y = 0.98,
+        legend    = paste(bacteria_map_filtered$ID, bacteria_map_filtered$Bacteria, sep = " = "),
+        cex       = 0.68,
+        bty       = "n",
+        text.font = 3,
+        text.col  = bacteria_legend_colors,
+        title     = "Node ID",
+        ncol      = max(2, min(4, ceiling(nrow(bacteria_map_filtered) / 20))),
+        xjust     = 0, yjust = 1
       )
     }
 
