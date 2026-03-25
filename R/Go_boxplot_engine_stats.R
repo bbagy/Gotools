@@ -73,7 +73,9 @@ assign_bracket_layers <- function(comparisons, group_levels) {
     if (length(spans) == 0) {
       return(FALSE)
     }
-    any(vapply(spans, function(x) !(end < x[1] || start > x[2]), logical(1)))
+    # Allow adjacent brackets like A-B and B-C to share a layer.
+    # Only brackets with overlapping interior span need vertical separation.
+    any(vapply(spans, function(x) !(end <= x[1] || start >= x[2]), logical(1)))
   }
 
   for (i in seq_len(nrow(bracket_df))) {
@@ -121,6 +123,29 @@ compute_annotation_positions <- function(y, groups = NULL, n_labels, comparisons
 
   if (is.null(comparisons) || is.null(group_levels)) {
     return(y_base + y_step * seq_len(n_labels))
+  }
+
+  bracket_df <- data.frame(
+    group1 = vapply(comparisons, `[`, character(1), 1),
+    group2 = vapply(comparisons, `[`, character(1), 2),
+    stringsAsFactors = FALSE
+  )
+  level_index <- stats::setNames(seq_along(group_levels), group_levels)
+  bracket_df$start <- pmin(level_index[bracket_df$group1], level_index[bracket_df$group2])
+  bracket_df$end <- pmax(level_index[bracket_df$group1], level_index[bracket_df$group2])
+  bracket_df <- bracket_df[stats::complete.cases(bracket_df$start, bracket_df$end), , drop = FALSE]
+
+  if (nrow(bracket_df) > 0) {
+    n_groups <- length(group_levels)
+    max_span <- max(bracket_df$end - bracket_df$start, na.rm = TRUE)
+    span_ratio <- if (n_groups > 1) max_span / (n_groups - 1) else 0
+    long_bracket_bonus <- if (small_scale) {
+      y_step * (0.20 + 0.35 * span_ratio)
+    } else {
+      y_step * (0.35 + 0.90 * span_ratio)
+    }
+    dense_bonus <- if (n_labels >= 4) y_step * 0.20 else 0
+    y_base <- y_base + long_bracket_bonus + dense_bonus
   }
 
   layers <- assign_bracket_layers(comparisons = comparisons, group_levels = group_levels)
