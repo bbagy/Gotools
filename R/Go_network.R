@@ -1,54 +1,63 @@
 #' Go_network
 #'
-#' Constructs and visualizes a network based on microbial community data across different samples, integrating multiple data tables.
+#' Constructs and visualizes a feature association network from one to three
+#' abundance tables, with subgroup filtering from sample metadata.
 #'
 #' @param tab1_path Path to the CSV file containing the first table of data.
 #' @param tab2_path Optional path to the CSV file containing the second table of data.
 #' @param tab3_path Optional path to the CSV file containing the third table of data.
-#' @param Sampledata Path to the CSV file containing sample metadata.
+#' @param Sampledata Path to the CSV file containing sample metadata, or a data.frame.
 #' @param mainGroup The name of the main grouping variable in the sample metadata.
 #' @param subgroup The name of the subgroup for filtering within the main group.
 #' @param tab1_name Descriptive name for the first data table used in the network visualization.
 #' @param tab2_name Optional descriptive name for the second data table.
 #' @param tab3_name Optional descriptive name for the third data table.
+#' @param project Project name used for output directories and file names.
 #' @param cutoff Correlation coefficient threshold for including edges in the network.
 #' @param pval_threshold Optional threshold for p-values to filter edges based on statistical significance.
 #' @param qval_threshold Optional threshold for FDR-adjusted q-values to filter edges based on statistical significance.
+#' @param method Network backend. Currently supports `"clr_spearman"` and `"kendall"`.
+#'   `"sparcc"` and `"spring"` are reserved interface values and will stop with an informative message.
+#' @param prevalence Minimum fraction of samples with non-zero abundance required to keep a feature.
+#' @param min_nonzero Minimum number of non-zero samples required to keep a feature.
+#'   If `NULL`, it is derived from `prevalence`.
+#' @param pseudo_count Pseudocount added before CLR transformation.
+#' @param min_variance Minimum variance required to keep a feature after preprocessing.
 #' @param node_font Font size for node labels in the network plot.
 #' @param node_names Boolean to indicate whether to display node names or IDs.
 #' @param name Optional name for additional naming in output files.
 #' @param width Width of the output plot in inches.
 #' @param height Height of the output plot in inches.
 #'
-#' @return Saves network plots as PDF files and optionally outputs centrality measures for nodes in the network.
+#' @return Invisibly returns a list containing the filtered matrix, association table,
+#'   edge table, node map, and network object. Also saves network plots and tables.
 #'
 #' @details
-#' This function reads microbial community data from specified CSV files, processes it, and constructs a network based on correlations among community members. It allows for extensive customization of the network visualization, including the ability to filter edges based on correlation coefficients, p-values, and q-values. Additionally, it can merge multiple tables and utilize sample metadata for grouping and subsetting the data.
-#'
-#' @importFrom dplyr filter select mutate left_join
-#' @importFrom igraph graph_from_data_frame degree betweenness closeness evcent
-#' @importFrom ggplot2 ggplot aes_string geom_point
-#' @importFrom stats p.adjust
-#' @importFrom utils read.csv
-#' @importFrom stats setNames
+#' This refactored version keeps the original "single function to finished output"
+#' workflow, but uses a microbiome-oriented preprocessing path:
+#' \itemize{
+#'   \item subgroup filtering using sample metadata
+#'   \item duplicate-column cleanup after merging tables
+#'   \item prevalence / non-zero filtering
+#'   \item optional CLR transformation for compositional data
+#'   \item unique undirected edge testing and BH correction on the final edge set
+#' }
+#' For microbiome data, the default method is `clr_spearman`, which is generally more
+#' appropriate than running rank correlation directly on raw compositional abundances.
 #'
 #' @examples
 #' \dontrun{
 #' Go_network(
 #'   tab1_path = "path/to/data1.csv",
-#'   tab2_path = "path/to/data2.csv",
 #'   Sampledata = "path/to/sampledata.csv",
 #'   mainGroup = "Treatment",
 #'   subgroup = "Control",
-#'   tab1_name = "Data Table 1",
-#'   tab2_name = "Data Table 2",
-#'   cutoff = 0.3,
-#'   pval_threshold = 0.05,
-#'   node_font = 12,
-#'   node_names = TRUE,
-#'   name = "NetworkPlot",
-#'   width = 12,
-#'   height = 12
+#'   tab1_name = "16S",
+#'   project = "MyProject",
+#'   method = "clr_spearman",
+#'   prevalence = 0.1,
+#'   qval_threshold = 0.1,
+#'   node_font = 0.8
 #' )
 #' }
 #' @export
@@ -58,462 +67,555 @@ Go_network <- function(
     tab2_path = NULL,
     tab3_path = NULL,
     Sampledata,
-
     mainGroup,
     subgroup,
-
     tab1_name,
     tab2_name = NULL,
     tab3_name = NULL,
-
-    #===== Parameters
-    cutoff = 0.3,      # 상관계수 절대값 필터링
-    pval_threshold = NULL, # p-value 필터링
-    qval_threshold = NULL, # FDR 필터링
-    node_font,
+    project = "Go_network",
+    cutoff = 0.3,
+    pval_threshold = NULL,
+    qval_threshold = NULL,
+    method = c("clr_spearman", "kendall", "sparcc", "spring"),
+    prevalence = 0.1,
+    min_nonzero = NULL,
+    pseudo_count = 0.5,
+    min_variance = 0,
+    node_font = 0.8,
     node_names = TRUE,
     name = NULL,
     width = 10,
     height = 10
 ) {
 
-  library(dplyr)
-  library(ggplot2)
-  # 패키지 설치 (설치되어 있지 않은 경우)
-  if (!requireNamespace("purrr", quietly = TRUE)) install.packages("purrr")
-  if (!requireNamespace("igraph", quietly = TRUE)) install.packages("igraph")
-  if (!requireNamespace("RColorBrewer", quietly = TRUE)) install.packages("RColorBrewer")  ### [추가]
+  method <- match.arg(method)
 
-  library(igraph)
-  library(purrr)
-  library(dplyr)
-  library(reshape2)
-  library(RColorBrewer)  ### [추가]
+  required_pkgs <- c("dplyr", "igraph", "purrr", "RColorBrewer")
+  missing_pkgs <- required_pkgs[!vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
+  if (length(missing_pkgs) > 0) {
+    stop("Missing required packages: ", paste(missing_pkgs, collapse = ", "))
+  }
+  if (identical(method, "clr_spearman") && !requireNamespace("compositions", quietly = TRUE)) {
+    stop("`method = 'clr_spearman'` requires the 'compositions' package.")
+  }
+  if (method %in% c("sparcc", "spring")) {
+    stop("`method = '", method, "'` is reserved in this build, but the backend is not yet implemented. ",
+         "Use `method = 'clr_spearman'` or `method = 'kendall'` for now.")
+  }
 
-
-  # 데이터 처리 및 전치(transpose) 함수 정의
   process_table <- function(tab) {
-    # 수치형 컬럼만 선택하여 rowSums 계산 후 새로운 컬럼 추가
-    tab$RowSum <- rowSums(tab[, sapply(tab, is.numeric), drop = FALSE])
-
-    # Species와 RowSum을 조합하여 새로운 이름 생성
-    if ("Species" %in% colnames(tab)) {
-      tab$names <- paste(tab$Species, tab$RowSum, sep = "_")
-      tab$names <- make.unique(tab$names)  # 중복 방지
+    tab <- as.data.frame(tab, check.names = FALSE, stringsAsFactors = FALSE)
+    numeric_cols <- vapply(tab, is.numeric, logical(1))
+    if (any(numeric_cols)) {
+      tab$RowSum <- rowSums(tab[, numeric_cols, drop = FALSE], na.rm = TRUE)
     } else {
-      tab$names <- rownames(tab)  # Species가 없을 경우 기존 rownames 유지
+      tab$RowSum <- 0
     }
 
-    # rownames 설정 및 특수문자 제거
+    if ("Species" %in% colnames(tab)) {
+      tab$names <- paste(tab$Species, tab$RowSum, sep = "_")
+      tab$names <- make.unique(tab$names)
+    } else {
+      tab$names <- rownames(tab)
+    }
+
     rownames(tab) <- gsub("\\[|\\]", "", tab$names)
 
-    # 특정 taxonomic rank 컬럼 제거 (존재하는 경우만 삭제)
     for (rank in c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "RowSum", "names")) {
       if (rank %in% colnames(tab)) {
         tab[, rank] <- NULL
       }
     }
 
-    # 데이터 전치 후 데이터프레임으로 반환
-    return(as.data.frame(t(tab), stringsAsFactors = FALSE))
+    as.data.frame(t(tab), stringsAsFactors = FALSE, check.names = FALSE)
   }
 
-  # 📌 데이터 로드 함수 (파일 존재 여부 및 공백 처리)
   read_and_process <- function(file_path) {
-    if (!is.null(file_path) && file.exists(file_path)) {
-      tab <- suppressWarnings(
-        read.csv(file_path, row.names = 1, check.names = FALSE, fill = TRUE, strip.white = TRUE)
-      )
-
-      # 비어있는 경우 NULL 반환
-      if (nrow(tab) == 0 || ncol(tab) == 0) {
-        warning(sprintf("⚠️ Warning: %s is empty or malformed. Returning NULL.", file_path))
-        return(NULL)
-      }
-
-      # 데이터 처리 및 전치
-      return(process_table(tab))
-    } else {
+    if (is.null(file_path)) {
       return(NULL)
     }
+    if (!file.exists(file_path)) {
+      warning(sprintf("File not found: %s", file_path))
+      return(NULL)
+    }
+
+    tab <- suppressWarnings(
+      utils::read.csv(file_path, row.names = 1, check.names = FALSE, fill = TRUE, strip.white = TRUE)
+    )
+
+    if (nrow(tab) == 0 || ncol(tab) == 0) {
+      warning(sprintf("Warning: %s is empty or malformed. Returning NULL.", file_path))
+      return(NULL)
+    }
+
+    process_table(tab)
   }
 
-  # 📌 tab1 (필수), tab2, tab3 로드
-  tab1 <- read_and_process(tab1_path)
-  if (is.null(tab1)) stop("❌ tab1 파일이 존재하지 않습니다.")
+  sanitize_tag <- function(x) {
+    gsub("[^A-Za-z0-9._-]+", "-", x)
+  }
 
+  merge_feature_tables <- function(tab_list) {
+    nonnull <- Filter(Negate(is.null), tab_list)
+    if (length(nonnull) == 0) {
+      return(NULL)
+    }
+    merged <- nonnull[[1]]
+    if (length(nonnull) == 1) {
+      merged$Row.names <- rownames(merged)
+      return(merged)
+    }
+    for (i in 2:length(nonnull)) {
+      next_tab <- nonnull[[i]]
+      next_tab$Row.names <- rownames(next_tab)
+      merged <- merge(merged, next_tab, by = "Row.names", all = TRUE)
+    }
+    merged
+  }
+
+  coalesce_duplicate_columns <- function(dat) {
+    dat <- as.data.frame(dat, check.names = FALSE, stringsAsFactors = FALSE)
+    base_names <- gsub("\\.(x|y)$", "", colnames(dat))
+    unique_names <- unique(base_names)
+    out <- lapply(unique_names, function(nm) {
+      idx <- which(base_names == nm)
+      block <- dat[, idx, drop = FALSE]
+      if (ncol(block) == 1) {
+        return(block[[1]])
+      }
+      block_num <- suppressWarnings(as.data.frame(lapply(block, as.numeric), check.names = FALSE))
+      conflict_rows <- apply(block_num, 1, function(x) {
+        x <- x[!is.na(x)]
+        length(unique(x)) > 1
+      })
+      if (any(conflict_rows)) {
+        warning(sprintf("Duplicate feature '%s' had conflicting values across merged tables; first non-missing value was kept.", nm))
+      }
+      dplyr::coalesce(!!!block_num)
+    })
+    out <- as.data.frame(out, check.names = FALSE, stringsAsFactors = FALSE)
+    colnames(out) <- unique_names
+    out
+  }
+
+  prepare_matrix <- function(dat, prevalence, min_nonzero, min_variance) {
+    mat <- as.matrix(dat)
+    storage.mode(mat) <- "numeric"
+    mat[is.na(mat)] <- 0
+
+    if (!is.numeric(prevalence) || length(prevalence) != 1 || prevalence < 0 || prevalence > 1) {
+      stop("`prevalence` must be a single number between 0 and 1.")
+    }
+    if (is.null(min_nonzero)) {
+      min_nonzero <- max(1, ceiling(nrow(mat) * prevalence))
+    }
+
+    prevalence_prop <- colMeans(mat > 0, na.rm = TRUE)
+    keep_prev <- prevalence_prop >= prevalence
+    keep_nonzero <- colSums(mat > 0, na.rm = TRUE) >= min_nonzero
+    keep_var <- apply(mat, 2, stats::var, na.rm = TRUE) > min_variance
+    keep <- keep_prev & keep_nonzero & keep_var
+
+    mat <- mat[, keep, drop = FALSE]
+    list(
+      matrix = mat,
+      prevalence = prevalence_prop,
+      min_nonzero = min_nonzero
+    )
+  }
+
+  clr_transform <- function(mat, pseudo_count) {
+    mat_pos <- mat + pseudo_count
+    row_totals <- rowSums(mat_pos, na.rm = TRUE)
+    if (any(!is.finite(row_totals)) || any(row_totals <= 0)) {
+      stop("CLR transformation failed because one or more samples had non-positive total abundance after pseudocount addition.")
+    }
+    comp <- sweep(mat_pos, 1, row_totals, "/")
+    compositions::clr(comp)
+  }
+
+  compute_association_table <- function(mat, method) {
+    features <- colnames(mat)
+    if (length(features) < 2) {
+      return(data.frame(
+        Source = character(0),
+        Target = character(0),
+        Correlation = numeric(0),
+        p_value = numeric(0),
+        q_value = numeric(0),
+        stringsAsFactors = FALSE
+      ))
+    }
+
+    pairs <- utils::combn(features, 2, simplify = FALSE)
+    assoc_list <- lapply(pairs, function(pair) {
+      test_method <- if (identical(method, "kendall")) "kendall" else "spearman"
+      test_result <- suppressWarnings(
+        stats::cor.test(mat[, pair[1]], mat[, pair[2]], method = test_method, exact = FALSE)
+      )
+      data.frame(
+        Source = pair[1],
+        Target = pair[2],
+        Correlation = unname(test_result$estimate),
+        p_value = test_result$p.value,
+        stringsAsFactors = FALSE
+      )
+    })
+
+    cor_results <- dplyr::bind_rows(assoc_list)
+    cor_results$q_value <- stats::p.adjust(cor_results$p_value, method = "fdr")
+    cor_results
+  }
+
+  build_edges <- function(cor_results, cutoff, pval_threshold, qval_threshold) {
+    edges <- cor_results %>%
+      dplyr::filter(is.finite(Correlation), abs(Correlation) >= cutoff)
+
+    sig <- "none"
+    sigval <- sprintf("|assoc| >= %.2f", cutoff)
+    signame <- "FDR"
+
+    if (!is.null(qval_threshold)) {
+      edges <- edges %>% dplyr::filter(q_value < qval_threshold)
+      sig <- "FDR"
+      sigval <- sprintf("FDR < %s", qval_threshold)
+    } else if (!is.null(pval_threshold)) {
+      edges <- edges %>% dplyr::filter(p_value < pval_threshold)
+      sig <- "p"
+      sigval <- sprintf("p < %s", pval_threshold)
+    } else {
+      sig <- "p_FDR"
+      sigval <- "FDR highlighted"
+      signame <- "FDR"
+    }
+
+    list(edges = edges, sig = sig, sigval = sigval, signame = signame)
+  }
+
+  build_node_colors <- function(network, tab1, tab2, tab3, tab1_name, tab2_name, tab3_name) {
+    if (!is.null(tab1) && is.null(tab2) && is.null(tab3)) {
+      all_bacteria_tab1 <- colnames(tab1)
+      genus_names <- sub("[ _.].*", "", all_bacteria_tab1)
+      unique_genera <- unique(genus_names)
+      num_genera <- length(unique_genera)
+
+      if (num_genera <= 1) {
+        genus_colors <- stats::setNames("deepskyblue", unique_genera)
+      } else if (num_genera > 9) {
+        genus_colors <- stats::setNames(grDevices::colorRampPalette(RColorBrewer::brewer.pal(9, "Set1"))(num_genera),
+                                        unique_genera)
+      } else {
+        genus_colors <- stats::setNames(RColorBrewer::brewer.pal(num_genera, "Set1"), unique_genera)
+      }
+
+      igraph::V(network)$Genus <- genus_names[match(igraph::V(network)$name, all_bacteria_tab1)]
+      node_colors <- vapply(igraph::V(network)$Genus, function(genus) {
+        genus_colors[[genus]] %||% "gray"
+      }, character(1))
+
+      return(list(
+        node_colors = node_colors,
+        legend_labels = unique_genera,
+        legend_colors = genus_colors[unique_genera],
+        legend_title = "Genus Groups"
+      ))
+    }
+
+    color_mapping <- stats::setNames(
+      c("deepskyblue", "gold", "forestgreen", "gray"),
+      c(tab1_name, tab2_name %||% "Table2", tab3_name %||% "Table3", "Unknown")
+    )
+    node_colors <- vapply(igraph::V(network)$Type, function(type) {
+      color_mapping[[type]] %||% "gray"
+    }, character(1))
+    used_types <- unique(igraph::V(network)$Type)
+    legend_labels <- used_types[used_types %in% names(color_mapping)]
+    if (length(legend_labels) == 0) {
+      legend_labels <- "Unknown"
+    }
+    legend_colors <- vapply(legend_labels, function(type) color_mapping[[type]] %||% "gray", character(1))
+
+    list(
+      node_colors = node_colors,
+      legend_labels = legend_labels,
+      legend_colors = legend_colors,
+      legend_title = "Node Types"
+    )
+  }
+
+  if (is.character(Sampledata)) {
+    sampledata <- utils::read.csv(Sampledata, row.names = 1, check.names = FALSE)
+  } else {
+    sampledata <- as.data.frame(Sampledata, check.names = FALSE, stringsAsFactors = FALSE)
+  }
+
+  if (!mainGroup %in% colnames(sampledata)) {
+    stop("`mainGroup` not found in `Sampledata`.")
+  }
+
+  tab1 <- read_and_process(tab1_path)
+  if (is.null(tab1)) {
+    stop("`tab1_path` is required and must point to a readable table.")
+  }
   tab2 <- read_and_process(tab2_path)
   tab3 <- read_and_process(tab3_path)
 
-  # 📌 sampledata 로드
-
-  if (class(Sampledata) == "character"){
-    sampledata <- read.csv(Sampledata, row.names = 1, check.names = FALSE)
-  }else{
-    sampledata = Sampledata
-  }
-
-
-
-  # 📌 공통 샘플 찾기 (sampledata까지 포함)
   common_samples <- rownames(tab1)
   if (!is.null(tab2)) common_samples <- intersect(common_samples, rownames(tab2))
   if (!is.null(tab3)) common_samples <- intersect(common_samples, rownames(tab3))
-  common_samples <- intersect(common_samples, rownames(sampledata))  # sampledata 포함
+  common_samples <- intersect(common_samples, rownames(sampledata))
 
-  # 📌 공통 샘플 유지
+  if (length(common_samples) < 3) {
+    stop("Fewer than 3 common samples remained after aligning the input tables and sample metadata.")
+  }
+
   tab1 <- tab1[common_samples, , drop = FALSE]
   if (!is.null(tab2)) tab2 <- tab2[common_samples, , drop = FALSE]
   if (!is.null(tab3)) tab3 <- tab3[common_samples, , drop = FALSE]
-  sampledata <- sampledata[common_samples, , drop = FALSE]  # sampledata도 동일 적용
-
-  # 📌 병합 수행 (tab1은 필수, tab2, tab3는 있는 경우만 추가)
-  merged_table.1 <- tab1
-
-  if (!is.null(tab2)) {
-    merged_table.1 <- merge(merged_table.1, tab2, by = "row.names", all = TRUE)
-  }
-
-  if (!is.null(tab3)) {
-    tab3 <- as.data.frame(tab3)
-    tab3$Row.names <- rownames(tab3)
-    merged_table.1 <- merge(merged_table.1, tab3, by = "Row.names", all = TRUE)
-  }
-
-  # 📌 sampledata 병합
+  sampledata <- sampledata[common_samples, , drop = FALSE]
   sampledata$Row.names <- rownames(sampledata)
 
-  # `merged_table.1`의 rownames를 "Row.names" 컬럼으로 변환 (병합을 위해 필요)
-  if (!"Row.names" %in% colnames(merged_table.1)) {
-    merged_table.1 <- data.frame(Row.names = rownames(merged_table.1), merged_table.1, check.names = FALSE)
-  }
-
-  # 📌 최종 병합 (sampledata는 필수)
-  final_merged_table <- merge(merged_table.1, sampledata[, c("Row.names", mainGroup)], by = "Row.names", all = TRUE)
-
-  # 📌 최종 공통 샘플 유지
-  final_merged_table <- final_merged_table[final_merged_table$Row.names %in% common_samples, , drop = FALSE]
-
-
+  merged_table <- merge_feature_tables(list(tab1, tab2, tab3))
+  final_merged_table <- merge(
+    merged_table,
+    sampledata[, c("Row.names", mainGroup), drop = FALSE],
+    by = "Row.names",
+    all = FALSE
+  )
   rownames(final_merged_table) <- final_merged_table$Row.names
 
-
-  # (3) 유일한 세균 리스트 생성
-  all_bacteria <- colnames(tab1)  # tab1은 항상 존재
-
-  if (!is.null(tab2)) {
-    all_bacteria <- unique(c(all_bacteria, colnames(tab2)))
-  }
-  if (!is.null(tab3)) {
-    all_bacteria <- unique(c(all_bacteria, colnames(tab3)))
-  }
-
-  cat("\n🔍 total bacteria after de-duplicate:", length(all_bacteria), "\n")
-
-  # (4) global_bacteria_map 생성 (중복 없이 고유 ID 할당)
-  if (!exists("global_bacteria_map")) {  # 처음 한 번만 실행
-    global_bacteria_map <- data.frame(
-      Bacteria = all_bacteria,
-      ID = as.character(seq_along(all_bacteria))  # 1부터 고유한 ID 할당
-    )
-  }
-
-
-  # (6) 최종 결과 확인
-  # cat("\n✅ Global Map 생성 완료: 총", nrow(global_bacteria_map), "개의 세균이 포함됨 ✅\n")
-  # print(global_bacteria_map)
-  global_bacteria_map
-
-  bacteria_map <- global_bacteria_map
-
-
-  # 데이터 필터링
-  data <- final_merged_table %>%
-    dplyr::filter(!!sym(mainGroup) == subgroup) %>%  # mainGroup 변수 사용하여 동적으로 필터링
-    dplyr::select(-all_of(mainGroup), -Row.names)
-
-  # 문자열을 숫자로 변환
-  data <- data %>%
-    dplyr::mutate(across(everything(), ~ as.numeric(trimws(.))))
-
-  # (2) 중복된 `.x`, `.y` 컬럼 정리
-  data_clean <- data %>%
-    dplyr::select(-matches("\\.y$"))  # ".y"로 끝나는 중복 컬럼 제거
-  colnames(data_clean) <- gsub("\\.x$", "", colnames(data_clean))  # ".x" 삭제하여 컬럼명 정리
-
-
-
-
-
-  #===== Run
-  #=== Step 2: 상관관계 및 p-value 계산 ===#
-  cor_results <- expand.grid(Source = colnames(data), Target = colnames(data)) %>%
-    dplyr::filter(Source != Target) %>%
-    rowwise() %>%
-    dplyr::mutate(
-      test_result = list(cor.test(data[[Source]], data[[Target]], method = "kendall", use = "pairwise.complete.obs")),
-      Correlation = test_result$estimate,
-      p_value = test_result$p.value
-    ) %>%
-    ungroup() %>%
-    dplyr::mutate(q_value = p.adjust(p_value, method = "fdr")) %>%  # FDR 보정
-    dplyr::select(Source, Target, Correlation, p_value, q_value)
-
-  #=== Step 3: edge 데이터 생성 (p-value 적용) ===#
-
-  if (!is.null(qval_threshold)) {
-    # FDR (q-value) 기준 필터링
-    edges <- cor_results %>%
-      dplyr::filter(abs(Correlation) > cutoff & q_value < qval_threshold) %>%
-      dplyr::select(Source, Target, Correlation, p_value, q_value)
-    sig <- "FDR"
-    sigval <- "FDR < 0.05"
-    print(sig)
-
-  } else if (!is.null(pval_threshold)) {
-    # p-value 기준 필터링
-    edges <- cor_results %>%
-      dplyr::filter(abs(Correlation) > cutoff & p_value < pval_threshold) %>%
-      dplyr::select(Source, Target, Correlation, p_value, q_value)
-    sig <- "p"
-    sigval <- "p < 0.05"
-    print(sig)
-
-  } else {
-    # 필터링 없이 모든 관계 포함
-    edges <- cor_results %>%
-      dplyr::filter(abs(Correlation) > cutoff)
-    sig <- "p_FDR"
-    signame <-"FDR"
-    sigval <- "FDR Highlighted"
-    print(sig)
-  }
-
-  # 중복 엣지 제거
-  edges_unique <- edges %>%
-    dplyr::mutate(pair = pmap_chr(list(Source, Target), ~ paste(sort(c(.x, .y)), collapse = "-"))) %>%
-    dplyr::group_by(pair) %>%
-    #slice(1) %>%
-    dplyr::ungroup() %>%
-    dplyr::select(Source, Target, Correlation, p_value, q_value)  # p_value 포함
-
-  #=== Step 4: node 데이터 생성 ===#
-  all_nodes <- unique(c(edges_unique$Source, edges_unique$Target))
-
-  # 데이터프레임 생성 (초기 Type을 NA로 설정)
-  nodes <- data.frame(Node = all_nodes, Type = NA)
-
-  # Type 지정 (각 노드가 어느 그룹에 속하는지 체크)
-  if (!is.null(tab1)) {
-    nodes$Type[nodes$Node %in% colnames(tab1)] <- tab1_name
-  }
-
-  if (!is.null(tab2)) {
-    nodes$Type[nodes$Node %in% colnames(tab2)] <- tab2_name
-  }
-
-  if (!is.null(tab3) && !is.null(tab3_name)) {
-    nodes$Type[nodes$Node %in% colnames(tab3)] <- tab3_name
-  }
-
-  # 그룹에 속하지 않은 노드 처리 (기본값 설정)
-  nodes$Type[is.na(nodes$Type)] <- "Unknown"  # 필요에 따라 변경 가능
-
-  #=== Step 5: 네트워크 생성 ===#
-  network <- graph_from_data_frame(d = edges_unique, vertices = nodes, directed = FALSE)
-
-  #=== Replacing Node names ad number
-  # (1) edges_unique에 등장하는 세균만 선택하여 bacteria_map 생성
-  bacteria_map_filtered <- bacteria_map %>%
-    dplyr::filter(Bacteria %in% unique(c(edges_unique$Source, edges_unique$Target)))
-
-
-  # (2) Source & Target을 ID로 변환
-  edges_numeric <- edges_unique %>%
-    dplyr::left_join(bacteria_map_filtered, by = c("Source" = "Bacteria")) %>%
-    dplyr::rename(Source_ID = ID) %>%
-    dplyr::left_join(bacteria_map_filtered, by = c("Target" = "Bacteria")) %>%
-    dplyr::rename(Target_ID = ID) %>%
-    dplyr::select(Source_ID, Target_ID, Correlation, p_value, q_value)  # 숫자로 변환된 노드 사용
-
-  # (3) igraph 객체 생성 (숫자로 변환된 엣지 사용)
-  g <- graph_from_data_frame(edges_numeric, directed = FALSE)
-
-  # (4) 노드 레이블을 숫자로 변경
-  V(g)$label <- V(g)$name  # 노드 라벨 = 숫자 ID
-
-  #=== Step 6: 시각화 ===#
-  loops <- which_loop(network)
-  loop_indices <- which(loops)
-
-  # 루프 삭제
-  if (length(loop_indices) > 0) {
-    network <- delete_edges(network, loop_indices)
-    print("Loops removed from the network.")
-  } else {
-    print("No loops found in the network.")
-  }
-
-  #------------------------------------------------------------------------------------#
-  # [추가] tab1만 존재할 때 => Genus별 색상 적용 (sub("[_\\.].*", "", ...) 사용)
-  #------------------------------------------------------------------------------------#
-  if (!is.null(tab1) && is.null(tab2) && is.null(tab3)) {
-    # 1) Genus 이름 추출: 첫 번째 '_' 또는 '.' 전까지를 Genus로 인식
-    all_bacteria_tab1 <- colnames(tab1)
-    genus_names <- sub("[_\\.].*", "", all_bacteria_tab1)  ### [중요 수정]
-    genus_names <- sub("[ _.].*", "", all_bacteria_tab1)
-    unique_genera <- unique(genus_names)
-    num_genera <- length(unique_genera)
-
-    # 2) Genus별로 색상 생성 (최대 9개 이상이면 colorRampPalette로 확장)
-    if (num_genera > 9) {
-      genus_colors <- setNames(colorRampPalette(brewer.pal(9, "Set1"))(num_genera),
-                               unique_genera)
-    } else {
-      genus_colors <- setNames(brewer.pal(num_genera, "Set1"), unique_genera)
-    }
-
-    # 3) 네트워크 노드별 Genus 매핑
-    #    (V(network)$name과 tab1의 colnames를 match)
-    V(network)$Genus <- genus_names[match(V(network)$name, all_bacteria_tab1)]
-    node_colors <- sapply(V(network)$Genus, function(genus) genus_colors[[genus]] %||% "gray")
-
-    # 4) 범례 설정 (Genus Groups)
-    legend_labels <- unique_genera
-    legend_colors <- genus_colors[legend_labels]
-    legend_title <- "Genus Groups"
-
-  } else {
-    #----------------------------------------------------------------------------------#
-    # [기존 코드] 노드 타입별 색상 매핑 (유연하게 변경 가능)
-    #----------------------------------------------------------------------------------#
-    color_mapping <- setNames(
-      c("deepskyblue", "yellow", "green", "gray"),  # 색상 목록
-      c(tab1_name, tab2_name, tab3_name, "Unknown") # 실제 타입명
-    )
-
-    # 노드 색상 할당 (유연한 설정)
-    node_colors <- sapply(V(network)$Type, function(type) {
-      color_mapping[[type]] %||% "gray"  # 해당 타입이 없으면 기본값(gray) 사용
-    })
-
-    # legend 설정 (기존 Node Types)
-    used_types <- unique(V(network)$Type)
-    legend_labels <- used_types[used_types %in% names(color_mapping)]
-    if (length(legend_labels) == 0) legend_labels <- "Unknown"
-    legend_colors <- sapply(legend_labels, function(type) color_mapping[[type]] %||% "gray")
-    legend_title <- "Node Types"
-  }
-  #------------------------------------------------------------------------------------#
-  # [추가/수정 끝]
-  #------------------------------------------------------------------------------------#
-
-
-  # out dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!dir.exists(out)) dir.create(out)
-  out_pdf <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!dir.exists(out_pdf)) dir.create(out_pdf)
-  out_table <- file.path(sprintf("%s_%s/table",project, format(Sys.Date(), "%y%m%d")))
-  if(!dir.exists(out_table)) dir.create(out_table)
-  out_network <- file.path(sprintf("%s_%s/table/network",project, format(Sys.Date(), "%y%m%d")))
-  if(!dir.exists(out_network)) dir.create(out_network)
-
-
-  # 네트워크 시각화
-  if (!is.null(dev.list())) dev.off()
-
-  pdf(sprintf("%s/network.%s.%s.(%s).%s.%s.%s%s%s%s%s.pdf",  out_pdf, mainGroup,subgroup, cutoff,sig,
-              ifelse(node_names, "IDs", "Names"),
-              ifelse(is.null(tab1_name), "", paste(tab1_name, ".", sep = "")),
-              ifelse(is.null(tab2_name), "", paste(tab2_name, ".", sep = "")),
-              ifelse(is.null(tab3_name), "", paste(tab3_name, ".", sep = "")),
-              ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              format(Sys.Date(), "%y%m%d")), width = width, height = height)
-
-  if(sig=="FDR"){
-    edge_styles <- ifelse(E(network)$q_value < 0.05, 1, 2)  # 1 = 실선, 2 = 점선
-  }else if(sig=="p"){
-    edge_styles <- ifelse(E(network)$p_value < 0.05, 1, 2)  # 1 = 실선, 2 = 점선
-  }else{
-    edge_styles <- ifelse(E(network)$q_value < 0.05, 1, 2)  # 1 = 실선, 2 = 점선
-  }
-
-
-  set.seed(123)
-  # (1) 노드 이름을 숫자로 변환할지 여부 설정
-  # V(network)$name에 맞춰 ID를 정확히 매핑
-  node_labels <- if (node_names) {
-    bacteria_map_filtered$ID[match(V(network)$name, bacteria_map_filtered$Bacteria)]
-  } else {
-    V(network)$name
-  }
-  plot(network,
-       vertex.color = node_colors,
-       vertex.label = node_labels,
-       vertex.label.cex = node_font,
-       vertex.size = 5 + 10 * (degree(network) / max(degree(network))),
-       edge.width = abs(E(network)$Correlation) * 5,
-       edge.color = ifelse(E(network)$Correlation > 0, "red", "blue"),
-       edge.lty = edge_styles,  # 실선(1) vs 점선(2)
-       edge.curved = 0.15,
-       main = sprintf("%s-%s Group Network (%s)", mainGroup, subgroup,sigval))
-
-
-  # 범례 (legend) 동적 생성
-  legend("bottomright",
-         legend = legend_labels,
-         col = legend_colors,
-         pch = 19,
-         pt.cex = 1.5,
-         bty = "n",
-         title = legend_title)
-
-  legend("bottomleft",
-         legend = c("Positive Correlation", "Negative Correlation"),
-         col = c("red", "blue"),
-         lty = 1,
-         lwd = 3,
-         bty = "n",
-         title = "Edge Correlation")
-
-
-  if (node_names){
-    legend("topleft", legend = paste(bacteria_map$ID, bacteria_map$Bacteria, sep = " = "),
-           cex = 0.6, bty = "n")
-    print("replacing node names as number")
-  }
-
-  if (sig == "p_FDR"){
-    legend("topright",
-           legend = c(sprintf("%s < 0.05",signame), sprintf("%s ≥ 0.05",signame)),
-           lty = c(1, 2),
-           lwd = 3,
-           bty = "n",
-           title = sprintf("%s Significance",signame))
-  }
-
-  dev.off()
-  #=== Centrality (중심성) 노드 찾기
-  degree_values <- degree(network)
-  betweenness_values <- betweenness(network)
-  closeness_values <- closeness(network)
-  eigenvector_values <- evcent(network)$vector
-
-  # 중심성 지표 계산
-  centrality_data <- data.frame(
-    Node = V(network)$name,  # 노드 이름
-    Degree = degree(network),  # Degree 중심성
-    Betweenness = betweenness(network),  # Betweenness 중심성
-    Closeness = closeness(network),  # Closeness 중심성
-    Eigenvector = eigen_centrality(network)$vector  # Eigenvector 중심성
+  all_features <- unique(c(colnames(tab1), colnames(tab2), colnames(tab3)))
+  all_features <- all_features[!is.na(all_features)]
+  bacteria_map <- data.frame(
+    Bacteria = all_features,
+    ID = as.character(seq_along(all_features)),
+    stringsAsFactors = FALSE
   )
 
-  # 중심성 값 정렬 (Degree 중심성 기준으로 예시)
-  sorted_centrality <- centrality_data[order(-centrality_data$Degree), ]
+  message(sprintf("[Go_network] total features before filtering: %d", length(all_features)))
 
-  # 상위 10개 노드 출력
-  head(sorted_centrality, 10)
-  write.csv(sorted_centrality,sprintf("%s/%s.%s.sorted_centrality.csv",out_network,mainGroup,sig))
+  data <- final_merged_table %>%
+    dplyr::filter(.data[[mainGroup]] == subgroup) %>%
+    dplyr::select(-dplyr::all_of(mainGroup), -Row.names)
 
+  if (nrow(data) < 3) {
+    stop("Fewer than 3 samples remained in the selected subgroup.")
+  }
+
+  data <- as.data.frame(lapply(data, function(x) suppressWarnings(as.numeric(trimws(as.character(x))))),
+                        check.names = FALSE, stringsAsFactors = FALSE)
+  data <- coalesce_duplicate_columns(data)
+
+  prep <- prepare_matrix(data, prevalence = prevalence, min_nonzero = min_nonzero, min_variance = min_variance)
+  data_mat <- prep$matrix
+  min_nonzero_used <- prep$min_nonzero
+
+  if (ncol(data_mat) < 2) {
+    stop("Fewer than 2 features remained after prevalence / variance filtering.")
+  }
+
+  assoc_input <- switch(
+    method,
+    clr_spearman = clr_transform(data_mat, pseudo_count = pseudo_count),
+    kendall = data_mat
+  )
+
+  cor_results <- compute_association_table(assoc_input, method = method)
+  edge_info <- build_edges(cor_results, cutoff = cutoff, pval_threshold = pval_threshold, qval_threshold = qval_threshold)
+  edges_unique <- edge_info$edges
+  sig <- edge_info$sig
+  sigval <- edge_info$sigval
+  signame <- edge_info$signame
+
+  feature_presence <- unique(c(edges_unique$Source, edges_unique$Target))
+  if (length(feature_presence) == 0) {
+    warning("No edges passed the current cutoff / significance criteria. Returning tables without plotting a network.")
+  }
+
+  nodes <- data.frame(name = feature_presence, Type = NA_character_, stringsAsFactors = FALSE)
+  if (!is.null(tab1)) nodes$Type[nodes$name %in% colnames(tab1)] <- tab1_name
+  if (!is.null(tab2)) nodes$Type[nodes$name %in% colnames(tab2)] <- tab2_name
+  if (!is.null(tab3) && !is.null(tab3_name)) nodes$Type[nodes$name %in% colnames(tab3)] <- tab3_name
+  nodes$Type[is.na(nodes$Type)] <- "Unknown"
+
+  network <- igraph::graph_from_data_frame(
+    d = edges_unique[, c("Source", "Target", "Correlation", "p_value", "q_value"), drop = FALSE],
+    vertices = nodes,
+    directed = FALSE
+  )
+  if (igraph::gsize(network) > 0) {
+    loop_indices <- which(igraph::which_loop(network))
+    if (length(loop_indices) > 0) {
+      network <- igraph::delete_edges(network, loop_indices)
+    }
+  }
+
+  out <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
+  out_pdf <- file.path(out, "pdf")
+  out_table <- file.path(out, "table")
+  out_network <- file.path(out_table, "network")
+  for (d in c(out, out_pdf, out_table, out_network)) {
+    if (!dir.exists(d)) dir.create(d, recursive = TRUE)
+  }
+
+  filter_summary <- data.frame(
+    subgroup = subgroup,
+    method = method,
+    n_samples = nrow(data_mat),
+    n_features_before = ncol(data),
+    n_features_after = ncol(data_mat),
+    prevalence = prevalence,
+    min_nonzero = min_nonzero_used,
+    pseudo_count = pseudo_count,
+    cutoff = cutoff,
+    stringsAsFactors = FALSE
+  )
+
+  utils::write.csv(filter_summary,
+                   file.path(out_network, sprintf("network.%s.%s.filter_summary.%s.csv",
+                                                  mainGroup, sanitize_tag(subgroup), format(Sys.Date(), "%y%m%d"))),
+                   row.names = FALSE)
+  utils::write.csv(as.data.frame(data_mat, check.names = FALSE),
+                   file.path(out_network, sprintf("network.%s.%s.filtered_matrix.%s.csv",
+                                                  mainGroup, sanitize_tag(subgroup), format(Sys.Date(), "%y%m%d"))))
+  utils::write.csv(cor_results,
+                   file.path(out_network, sprintf("network.%s.%s.associations.%s.csv",
+                                                  mainGroup, sanitize_tag(subgroup), format(Sys.Date(), "%y%m%d"))),
+                   row.names = FALSE)
+  utils::write.csv(edges_unique,
+                   file.path(out_network, sprintf("network.%s.%s.edges.%s.csv",
+                                                  mainGroup, sanitize_tag(subgroup), format(Sys.Date(), "%y%m%d"))),
+                   row.names = FALSE)
+
+  if (igraph::gsize(network) > 0) {
+    color_info <- build_node_colors(network, tab1, tab2, tab3, tab1_name, tab2_name, tab3_name)
+    node_colors <- color_info$node_colors
+    legend_labels <- color_info$legend_labels
+    legend_colors <- color_info$legend_colors
+    legend_title <- color_info$legend_title
+
+    bacteria_map_filtered <- bacteria_map %>%
+      dplyr::filter(Bacteria %in% igraph::V(network)$name)
+
+    node_labels <- if (node_names) {
+      bacteria_map_filtered$ID[match(igraph::V(network)$name, bacteria_map_filtered$Bacteria)]
+    } else {
+      igraph::V(network)$name
+    }
+
+    edge_styles <- if (sig == "FDR") {
+      ifelse(igraph::E(network)$q_value < (qval_threshold %||% 0.05), 1, 2)
+    } else if (sig == "p") {
+      ifelse(igraph::E(network)$p_value < (pval_threshold %||% 0.05), 1, 2)
+    } else {
+      ifelse(igraph::E(network)$q_value < 0.05, 1, 2)
+    }
+
+    if (!is.null(dev.list())) dev.off()
+
+    pdf(
+      file.path(
+        out_pdf,
+        sprintf(
+          "network.%s.%s.(%s).(%s).%s.%s.%s%s%s%s%s.pdf",
+          mainGroup,
+          sanitize_tag(subgroup),
+          method,
+          cutoff,
+          sig,
+          ifelse(node_names, "IDs", "Names"),
+          ifelse(is.null(tab1_name), "", paste0(sanitize_tag(tab1_name), ".")),
+          ifelse(is.null(tab2_name), "", paste0(sanitize_tag(tab2_name), ".")),
+          ifelse(is.null(tab3_name), "", paste0(sanitize_tag(tab3_name), ".")),
+          ifelse(is.null(name), "", paste0(sanitize_tag(name), ".")),
+          format(Sys.Date(), "%y%m%d")
+        )
+      ),
+      width = width,
+      height = height
+    )
+
+    set.seed(123)
+    plot(
+      network,
+      vertex.color = node_colors,
+      vertex.label = node_labels,
+      vertex.label.cex = node_font,
+      vertex.size = 5 + 10 * (igraph::degree(network) / max(igraph::degree(network))),
+      edge.width = abs(igraph::E(network)$Correlation) * 5,
+      edge.color = ifelse(igraph::E(network)$Correlation > 0, "red", "blue"),
+      edge.lty = edge_styles,
+      edge.curved = 0.15,
+      main = sprintf("%s-%s Network (%s; %s)", mainGroup, subgroup, method, sigval)
+    )
+
+    legend("bottomright",
+           legend = legend_labels,
+           col = legend_colors,
+           pch = 19,
+           pt.cex = 1.5,
+           bty = "n",
+           title = legend_title)
+
+    legend("bottomleft",
+           legend = c("Positive association", "Negative association"),
+           col = c("red", "blue"),
+           lty = 1,
+           lwd = 3,
+           bty = "n",
+           title = "Edge sign")
+
+    if (node_names) {
+      legend("topleft",
+             legend = paste(bacteria_map_filtered$ID, bacteria_map_filtered$Bacteria, sep = " = "),
+             cex = 0.6,
+             bty = "n")
+    }
+
+    if (sig == "p_FDR") {
+      legend("topright",
+             legend = c(sprintf("%s < 0.05", signame), sprintf("%s >= 0.05", signame)),
+             lty = c(1, 2),
+             lwd = 3,
+             bty = "n",
+             title = sprintf("%s Significance", signame))
+    }
+
+    dev.off()
+  }
+
+  if (igraph::gsize(network) > 0) {
+    centrality_data <- data.frame(
+      Node = igraph::V(network)$name,
+      Degree = igraph::degree(network),
+      Betweenness = igraph::betweenness(network),
+      Closeness = igraph::closeness(network),
+      Eigenvector = igraph::eigen_centrality(network)$vector,
+      stringsAsFactors = FALSE
+    )
+  } else {
+    centrality_data <- data.frame(
+      Node = character(0),
+      Degree = numeric(0),
+      Betweenness = numeric(0),
+      Closeness = numeric(0),
+      Eigenvector = numeric(0),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  sorted_centrality <- centrality_data[order(-centrality_data$Degree), , drop = FALSE]
+  utils::write.csv(sorted_centrality,
+                   file.path(out_network, sprintf("%s.%s.sorted_centrality.%s.csv",
+                                                  mainGroup, sig, format(Sys.Date(), "%y%m%d"))),
+                   row.names = FALSE)
+
+  invisible(list(
+    filtered_matrix = data_mat,
+    association_table = cor_results,
+    edge_table = edges_unique,
+    bacteria_map = bacteria_map,
+    network = network,
+    centrality = sorted_centrality
+  ))
 }
