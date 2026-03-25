@@ -10,6 +10,10 @@
 #' @param mainGroup The name of the main grouping variable in the sample metadata.
 #' @param subgroup A single level of `mainGroup` to plot, or `NULL` (default) to
 #'   plot all levels side by side in one PDF with a shared legend.
+#' @param orders Character vector specifying the display order of subgroup levels
+#'   when `subgroup = NULL`. Levels not present in the data are ignored. If
+#'   `NULL`, levels are sorted numerically (when labels contain numbers) or
+#'   alphabetically.
 #' @param tab1_name Descriptive name for the first data table used in the network visualization.
 #' @param tab2_name Optional descriptive name for the second data table.
 #' @param tab3_name Optional descriptive name for the third data table.
@@ -87,6 +91,7 @@ Go_network <- function(
     Sampledata,
     mainGroup,
     subgroup = NULL,
+    orders = NULL,
     tab1_name,
     tab2_name = NULL,
     tab3_name = NULL,
@@ -431,8 +436,26 @@ Go_network <- function(
 
   message(sprintf("[Go_network] total features before filtering: %d", length(all_features)))
 
-  # ── Determine subgroup to plot (always single) ────────────────────────────
-  subgroups_to_plot <- if (!is.null(subgroup)) subgroup else "all"
+  # ── Determine subgroups to plot ───────────────────────────────────────────
+  subgroups_to_plot <- if (!is.null(subgroup)) {
+    subgroup
+  } else {
+    lvls <- unique(as.character(sampledata[[mainGroup]]))
+    if (!is.null(orders)) {
+      lvls <- intersect(orders, lvls)
+    } else {
+      num_part <- suppressWarnings(as.numeric(gsub("[^0-9]", "", lvls)))
+      lvls     <- if (!anyNA(num_part)) lvls[order(num_part)] else sort(lvls)
+    }
+    if (length(lvls) > 4L) {
+      warning(sprintf(
+        "[Go_network] %d subgroups found in '%s'; only the first 4 will be plotted.",
+        length(lvls), mainGroup
+      ))
+      lvls <- lvls[seq_len(4L)]
+    }
+    lvls
+  }
 
   # ── Create output directories ──────────────────────────────────────────────
   out         <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
@@ -652,7 +675,7 @@ Go_network <- function(
 
     if (!is.null(dev.list())) dev.off()
 
-    sg_tag   <- if (!is.null(subgroup)) sanitize_tag(subgroup) else "all"
+    sg_tag   <- if (!is.null(subgroup)) sanitize_tag(subgroup) else "multigroup"
     first_sg <- sg_results[[which(vapply(sg_results, function(r) igraph::gsize(r$network) > 0, logical(1)))[1]]]
 
     pdf(
@@ -674,26 +697,31 @@ Go_network <- function(
       width = pdf_width, height = height
     )
 
-    if (show_bact_panel) {
-      # Top row: network(s) + fixed legend column; bottom row: bacteria full-width
-      legend_id   <- n_sg + 1L
-      bacteria_id <- n_sg + 2L
-      mat <- rbind(
-        c(seq_len(n_sg), legend_id),
-        c(rep(bacteria_id, n_sg), bacteria_id)
-      )
-      widths  <- c(rep(1, n_sg), lcm(legend_cm))
-      heights <- c(height * 0.70, height * 0.30)
-    } else {
-      legend_id <- n_sg + 1L
-      mat <- rbind(
-        c(seq_len(n_sg), legend_id),
-        c(rep(0, n_sg), 0)
-      )
-      widths  <- c(rep(1, n_sg), lcm(legend_cm))
-      heights <- c(height * 0.85, height * 0.15)
+    # Grid: max 2 cols, up to 2 rows
+    n_cols_net <- min(n_sg, 2L)
+    n_rows_net <- ceiling(n_sg / 2L)
+    legend_id  <- n_sg + 1L
+
+    # Row-major fill (zeros = empty cell)
+    net_mat <- matrix(0L, nrow = n_rows_net, ncol = n_cols_net)
+    for (i in seq_len(n_sg)) {
+      r  <- ceiling(i / 2L)
+      co <- (i - 1L) %% 2L + 1L
+      net_mat[r, co] <- i
     }
-    graphics::layout(mat, widths = widths, heights = heights)
+    full_mat <- cbind(net_mat, rep(legend_id, n_rows_net))
+
+    if (show_bact_panel) {
+      bacteria_id <- n_sg + 2L
+      full_mat    <- rbind(full_mat, rep(bacteria_id, n_cols_net + 1L))
+      widths      <- c(rep(1, n_cols_net), lcm(legend_cm))
+      net_h       <- height * 0.70 / n_rows_net
+      heights     <- c(rep(net_h, n_rows_net), height * 0.30)
+    } else {
+      widths  <- c(rep(1, n_cols_net), lcm(legend_cm))
+      heights <- rep(1, n_rows_net)
+    }
+    graphics::layout(full_mat, widths = widths, heights = heights)
 
     # ── Panels: per-subgroup networks ────────────────────────────────────
     for (k in seq_along(sg_results)) {
@@ -701,11 +729,14 @@ Go_network <- function(
       vis <- sg_visuals[[k]]
       net <- res$network
 
-      graphics::par(mar = c(0.3, 0.3, 1.5, 0.3))
+      graphics::par(mar = c(0.3, 0.3, 0.3, 0.3))
 
       if (igraph::gsize(net) == 0) {
         graphics::plot.new()
-        graphics::title(main = sprintf("%s — %s\n(no edges)", mainGroup, res$sg), cex.main = 0.9)
+        graphics::mtext(
+          text = sprintf("%s — %s\n(no edges)", mainGroup, res$sg),
+          side = 3, line = -2.2, cex = 0.8
+        )
         next
       }
 
@@ -730,11 +761,14 @@ Go_network <- function(
         edge.width         = abs(igraph::E(net)$Correlation) * 3,
         edge.color         = ifelse(igraph::E(net)$Correlation > 0, "#C0392B", "#1A5276"),
         edge.lty           = vis$edge_styles,
-        edge.curved        = 0.15,
-        main               = sprintf("%s%s\n(%s; %s)",
-                                      mainGroup,
-                                      if (res$sg == "all") "" else sprintf(" — %s", res$sg),
-                                      analysis_method, res$sigval)
+        edge.curved        = 0.15
+      )
+      graphics::mtext(
+        text = sprintf("%s%s\n(%s; %s)",
+                       mainGroup,
+                       if (res$sg == "all") "" else sprintf(" — %s", res$sg),
+                       analysis_method, res$sigval),
+        side = 3, line = -2.2, cex = 0.8, font = 1
       )
 
       if (vis$has_target) {
