@@ -14,10 +14,16 @@ Go_network(
   tab1_name,
   tab2_name = NULL,
   tab3_name = NULL,
+  project = "Go_network",
   cutoff = 0.3,
   pval_threshold = NULL,
   qval_threshold = NULL,
-  node_font,
+  method = c("clr_spearman", "clr_kendall"),
+  prevalence = 0.1,
+  min_nonzero = NULL,
+  pseudo_count = 0.5,
+  min_variance = 0,
+  node_font = 0.8,
   node_names = TRUE,
   name = NULL,
   width = 10,
@@ -43,15 +49,32 @@ Go_network(
 
 \item{tab3_name}{Optional descriptive name for the third data table.}
 
+\item{project}{Project name used for output directories and file names.}
+
 \item{cutoff}{Correlation coefficient threshold for including edges in the network.}
 
 \item{pval_threshold}{Optional threshold for p-values to filter edges based on statistical significance.}
 
 \item{qval_threshold}{Optional threshold for FDR-adjusted q-values to filter edges based on statistical significance.}
 
+\item{method}{Network backend. Supported methods are \code{"clr_spearman"} and
+\code{"clr_kendall"}. Both apply CLR transformation before association testing,
+which is generally more appropriate for compositional microbiome data than
+correlating raw relative abundances.}
+
+\item{prevalence}{Minimum fraction of samples with non-zero abundance required to keep a feature.}
+
+\item{min_nonzero}{Minimum number of non-zero samples required to keep a feature.
+If \code{NULL}, it is derived from \code{prevalence}.}
+
+\item{pseudo_count}{Pseudocount added before CLR transformation.}
+
+\item{min_variance}{Minimum variance required to keep a feature after preprocessing.}
+
 \item{node_font}{Font size for node labels in the network plot.}
 
-\item{node_names}{Boolean to indicate whether to display node names or IDs.}
+\item{node_names}{Boolean indicating whether to display node names (\code{TRUE})
+or numeric IDs (\code{FALSE}).}
 
 \item{name}{Optional name for additional naming in output files.}
 
@@ -60,31 +83,41 @@ Go_network(
 \item{height}{Height of the output plot in inches.}
 }
 \value{
-Saves network plots as PDF files and optionally outputs centrality measures for nodes in the network.
+Invisibly returns a list containing the filtered matrix, association
+input used for testing, method summary, association table, edge table, node
+map, and network object. Also saves network plots and tables.
 }
 \description{
-Constructs and visualizes a network based on microbial community data across different samples, integrating multiple data tables.
+Constructs and visualizes a feature association network from one to three
+abundance tables, with subgroup filtering from sample metadata.
 }
 \details{
-This function reads microbial community data from specified CSV files, processes it, and constructs a network based on correlations among community members. It allows for extensive customization of the network visualization, including the ability to filter edges based on correlation coefficients, p-values, and q-values. Additionally, it can merge multiple tables and utilize sample metadata for grouping and subsetting the data.
+This refactored version keeps the original "single function to finished output"
+workflow, but uses a microbiome-oriented preprocessing path:
+\itemize{
+\item subgroup filtering using sample metadata
+\item duplicate-column cleanup after merging tables
+\item prevalence / non-zero filtering
+\item CLR transformation for compositional data before association testing
+\item unique undirected edge testing and BH correction on the final edge set
+}
+For microbiome data, the default method is \code{clr_spearman}, which is usually
+the most straightforward and reviewer-friendly choice for compositional 16S
+abundance data.
 }
 \examples{
 \dontrun{
 Go_network(
   tab1_path = "path/to/data1.csv",
-  tab2_path = "path/to/data2.csv",
   Sampledata = "path/to/sampledata.csv",
   mainGroup = "Treatment",
   subgroup = "Control",
-  tab1_name = "Data Table 1",
-  tab2_name = "Data Table 2",
-  cutoff = 0.3,
-  pval_threshold = 0.05,
-  node_font = 12,
-  node_names = TRUE,
-  name = "NetworkPlot",
-  width = 12,
-  height = 12
+  tab1_name = "16S",
+  project = "MyProject",
+  method = "clr_spearman",
+  prevalence = 0.1,
+  qval_threshold = 0.1,
+  node_font = 0.8
 )
 }
 }
