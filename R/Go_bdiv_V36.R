@@ -82,6 +82,29 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     keep <- levs[levs %in% levels(x)]
     factor(x, levels = keep)
   }
+  .shape_levels <- function(x, levs = NULL) {
+    x <- factor(x)
+    if (nlevels(x) == 0) return(x)
+    if (is.null(levs)) return(x)
+
+    keep <- levs[levs %in% levels(x)]
+
+    # Use the requested ordering only when it actually matches the shape variable.
+    # Otherwise we preserve the original levels so shape mappings are not converted to NA.
+    if (length(keep) == 0) {
+      return(x)
+    }
+
+    factor(x, levels = keep)
+  }
+  .shape_values <- function(n) {
+    base_shapes <- c(1,16,8,0,15,2,17,11,10,12,3,4,5,6,7,9,13,14,18,19,20,21,22,23,24,25)
+    if (n > length(base_shapes)) {
+      warning(sprintf("Shape variable has %s levels but only %s distinct ggplot shapes are supported cleanly; shapes will repeat.",
+                      n, length(base_shapes)))
+    }
+    rep(base_shapes, length.out = n)
+  }
   .has_any <- function(x, key) !is.null(x) && length(x) >= 1 && any(x %in% key)
   .adj_label <- function(method) {
     if (tolower(as.character(method)) == "bh") "FDR(BH)" else sprintf("Adj(%s)", method)
@@ -337,10 +360,11 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
           axis2_percent_avg <- mean(pdataframe$Axis2_Percent, na.rm = TRUE)
 
           if (!is.null(shapes) && shapes %in% names(pdataframe)) {
-            pdataframe[,shapes] <- .safe_levels(pdataframe[,shapes], orders)
+            pdataframe[,shapes] <- .shape_levels(pdataframe[,shapes], orders)
+            shape_values <- .shape_values(nlevels(pdataframe[,shapes]))
             p = ggplot(pdataframe, aes_string(x="Axis_1", y="Axis_2", color=mvar)) +
               geom_point(aes_string(shape=shapes), size=0.9, alpha=1) +
-              scale_shape_manual(values = c(1,16,8,0,15,2,17,11,10,12,3,4,5,6,7,8,9,13,14))
+              scale_shape_manual(values = shape_values)
           } else {
             p = ggplot(pdataframe, aes_string(x="Axis_1", y="Axis_2", color=mvar)) +
               geom_point(size=0.9, alpha=1)
@@ -536,10 +560,11 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         axis2_percent_avg <- mean(pdataframe$Axis2_Percent, na.rm = TRUE)
 
         if (!is.null(shapes) && shapes %in% names(pdataframe)) {
-          pdataframe[,shapes] <- .safe_levels(pdataframe[,shapes], orders)
+          pdataframe[,shapes] <- .shape_levels(pdataframe[,shapes], orders)
+          shape_values <- .shape_values(nlevels(pdataframe[,shapes]))
           p = ggplot(pdataframe, aes_string(x="Axis_1", y="Axis_2", color=mvar)) +
             geom_point(aes_string(shape=shapes), size=0.9, alpha=1) +
-            scale_shape_manual(values = c(1,16,8,0,15,2,17,11,10,12,3,4,5,6,7,8,9,13,14))
+            scale_shape_manual(values = shape_values)
         } else {
           p = ggplot(pdataframe, aes_string(x="Axis_1", y="Axis_2", color=mvar)) +
             geom_point(size=0.9, alpha=1)
