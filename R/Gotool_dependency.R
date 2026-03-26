@@ -18,7 +18,7 @@
 
 Gotool_dependency <- function() {
   # Packages to install from CRAN
-  cran_packages <- c("magick", "ape", "Boruta", "car", "cluster", "CLME", "compositions",
+  cran_packages <- c("rmarkdown", "magick", "ape", "Boruta", "car", "cluster", "CLME", "compositions",
                      "cowplot", "crayon", "caret", "colorspace", "digest",
                      "data.table", "devtools", "doParallel", "ellipse", "emmeans",
                      "e1071", "gplots", "ggplot2", "grid", "gridExtra", "ggrepel",
