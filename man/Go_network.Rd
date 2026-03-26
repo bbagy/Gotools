@@ -10,7 +10,8 @@ Go_network(
   tab3_path = NULL,
   Sampledata,
   mainGroup,
-  subgroup,
+  subgroup = NULL,
+  orders = NULL,
   tab1_name,
   tab2_name = NULL,
   tab3_name = NULL,
@@ -24,8 +25,10 @@ Go_network(
   pseudo_count = 0.5,
   min_variance = 0,
   node_font = 0.8,
-  node_names = TRUE,
+  node_names = FALSE,
+  target_bacteria = NULL,
   name = NULL,
+  seed = 123,
   width = 10,
   height = 10
 )
@@ -37,11 +40,17 @@ Go_network(
 
 \item{tab3_path}{Optional path to the CSV file containing the third table of data.}
 
-\item{Sampledata}{Path to the CSV file containing sample metadata.}
+\item{Sampledata}{Path to the CSV file containing sample metadata, or a data.frame.}
 
 \item{mainGroup}{The name of the main grouping variable in the sample metadata.}
 
-\item{subgroup}{The name of the subgroup for filtering within the main group.}
+\item{subgroup}{A single level of \code{mainGroup} to plot, or \code{NULL} (default) to
+plot all levels side by side in one PDF with a shared legend.}
+
+\item{orders}{Character vector specifying the display order of subgroup levels
+when \code{subgroup = NULL}. Levels not present in the data are ignored. If
+\code{NULL}, levels are sorted numerically (when labels contain numbers) or
+alphabetically.}
 
 \item{tab1_name}{Descriptive name for the first data table used in the network visualization.}
 
@@ -107,17 +116,29 @@ abundance data.
 }
 \examples{
 \dontrun{
+# Plot all subgroups side by side (subgroup = NULL is the default)
 Go_network(
   tab1_path = "path/to/data1.csv",
   Sampledata = "path/to/sampledata.csv",
-  mainGroup = "Treatment",
-  subgroup = "Control",
+  mainGroup = "VRE_byID",
   tab1_name = "16S",
   project = "MyProject",
   method = "clr_spearman",
   prevalence = 0.1,
-  qval_threshold = 0.1,
-  node_font = 0.8
+  qval_threshold = 0.1
+)
+
+# Plot a single subgroup
+Go_network(
+  tab1_path = "path/to/data1.csv",
+  Sampledata = "path/to/sampledata.csv",
+  mainGroup = "VRE_byID",
+  subgroup = "Yes",
+  tab1_name = "16S",
+  project = "MyProject",
+  method = "clr_spearman",
+  prevalence = 0.1,
+  qval_threshold = 0.1
 )
 }
 }
