@@ -296,6 +296,86 @@ data_summary <- function(data, varname, groupnames){
 #'
 #' @export
 
+#' Find the Latest BLAST-Annotated Final ASV Table
+#'
+#' Scans \code{1_out/} for the most recently modified file matching
+#' \code{<project_label>.final_asvTable.YYMMDD.csv} and returns its path.
+#'
+#' @param project_label Character. The project prefix used in the filename.
+#'
+#' @return Full path to the latest final_asvTable CSV, or \code{NA_character_} if none found.
+#'
+#' @export
+find_latest_final_asv <- function(project_label) {
+  candidates <- list.files("1_out",
+                           pattern   = paste0("^", project_label, "\\.final_asvTable\\.[0-9]{6}\\.csv$"),
+                           full.names = TRUE)
+  if (length(candidates) == 0) return(NA_character_)
+  candidates[which.max(file.info(candidates)$mtime)]
+}
+
+
+#' Validate That a final_asvTable Path Matches the Expected Naming Convention
+#'
+#' Stops with an informative message if the file does not follow the
+#' \code{<project_label>.final_asvTable.YYMMDD.csv} pattern.
+#'
+#' @param path Character. Full path to the file to validate.
+#' @param project_label Character. The project prefix.
+#'
+#' @return Invisibly \code{TRUE} if valid; otherwise stops.
+#'
+#' @export
+validate_final_asv_input <- function(path, project_label) {
+  expected_pattern <- paste0("^", project_label, "\\.final_asvTable\\.[0-9]{6}\\.csv$")
+  if (!grepl(expected_pattern, basename(path))) {
+    stop(sprintf("Go_tabTops() must use %s.final_asvTable.YYMMDD.csv, not %s",
+                 project_label, basename(path)))
+  }
+  invisible(TRUE)
+}
+
+
+#' Wrap a String in Parentheses for Report Tokens
+#'
+#' Ensures the string is wrapped in \code{()} exactly once.
+#' Returns the input unchanged if it is \code{NULL}, \code{NA}, or empty.
+#'
+#' @param x Character string to wrap.
+#'
+#' @return The input wrapped in parentheses, or the original value if empty/null.
+#'
+#' @export
+ensure_report_token <- function(x) {
+  if (is.null(x) || length(x) == 0 || is.na(x) || !nzchar(x)) return(x)
+  if (grepl("^\\(.*\\)$", x)) return(x)
+  sprintf("(%s)", x)
+}
+
+
+#' Extract DA Plot Token Labels from a Directory
+#'
+#' Lists PDF files in \code{da_dir} and extracts parenthesised tokens that
+#' contain \code{.vs.}, returning them for use in \code{Go_imgInfo()}.
+#'
+#' @param da_dir Character. Path to the DA plot output directory.
+#'
+#' @return Character vector of comparison tokens, or \code{NA_character_} if none found.
+#'
+#' @export
+extract_da_plot_labels <- function(da_dir) {
+  if (!dir.exists(da_dir)) return(NA_character_)
+  files  <- list.files(da_dir, pattern = "\\.pdf$", full.names = FALSE)
+  if (length(files) == 0) return(NA_character_)
+  tokens <- regmatches(files, gregexpr("\\([^()]+\\)", files))
+  tokens <- unique(unlist(tokens, use.names = FALSE))
+  tokens <- gsub("^\\(|\\)$", "", tokens)
+  tokens <- tokens[grepl("\\.vs\\.", tokens)]
+  if (length(tokens) == 0) return(NA_character_)
+  tokens
+}
+
+
 GMPR <- function (comm, intersect.no = 10, ct.min = 1, trace = TRUE) {
   comm[comm < ct.min] <- 0
   
