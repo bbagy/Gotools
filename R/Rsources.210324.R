@@ -363,7 +363,6 @@ GMPR <- function (comm, intersect.no = 10, ct.min = 1, trace = TRUE) {
 #' @return Full path to the latest final_asvTable CSV, or \code{NA_character_} if none found.
 #'
 #' @export
-
 find_latest_final_asv <- function(project_label) {
   candidates <- list.files("1_out",
                            pattern   = paste0("^", project_label, "\\.final_asvTable\\.[0-9]{6}\\.csv$"),
@@ -384,7 +383,6 @@ find_latest_final_asv <- function(project_label) {
 #' @return Invisibly \code{TRUE} if valid; otherwise stops.
 #'
 #' @export
-
 validate_final_asv_input <- function(path, project_label) {
   expected_pattern <- paste0("^", project_label, "\\.final_asvTable\\.[0-9]{6}\\.csv$")
   if (!grepl(expected_pattern, basename(path))) {
@@ -405,7 +403,6 @@ validate_final_asv_input <- function(path, project_label) {
 #' @return The input wrapped in parentheses, or the original value if empty/null.
 #'
 #' @export
-
 ensure_report_token <- function(x) {
   if (is.null(x) || length(x) == 0 || is.na(x) || !nzchar(x)) return(x)
   if (grepl("^\\(.*\\)$", x)) return(x)
@@ -423,7 +420,6 @@ ensure_report_token <- function(x) {
 #' @return Character vector of comparison tokens, or \code{NA_character_} if none found.
 #'
 #' @export
-
 extract_da_plot_labels <- function(da_dir) {
   if (!dir.exists(da_dir)) return(NA_character_)
   files  <- list.files(da_dir, pattern = "\\.pdf$", full.names = FALSE)
