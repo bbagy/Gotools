@@ -18,7 +18,7 @@
 
 Gotool_dependency <- function() {
   # Packages to install from CRAN
-  cran_packages <- c("rmarkdown", "CVXR", "magick", "ape", "Boruta", "car", "cluster", "CLME", "compositions",
+  cran_packages <- c("rmarkdown", "magick", "ape", "Boruta", "car", "cluster", "CLME", "compositions",
                      "cowplot", "crayon", "caret", "colorspace", "digest",
                      "data.table", "devtools", "doParallel", "ellipse", "emmeans",
                      "e1071", "gplots", "ggplot2", "grid", "gridExtra", "ggrepel",
@@ -35,7 +35,7 @@ Gotool_dependency <- function() {
   bioconductor_packages <- c("phyloseq", "microbiome", "Rhtslib", "dada2",
                              "ggpubr", "ggfortify", "genefilter", "ggpmisc", "S4Vectors",
                              "ShortRead", "illuminaio", "rstatix", "useful", "DECIPHER",
-                             "ComplexHeatmap","DESeq2", "ALDEx2","scater","ANCOMBC") #"ComplexHeatmap",
+                             "ComplexHeatmap", "DESeq2", "ALDEx2", "scater") # ANCOMBC managed by ConDAdist
 
   # Function to install and load CRAN packages
   install_load_cran <- function(package) {
