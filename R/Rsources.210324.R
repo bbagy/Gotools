@@ -295,6 +295,57 @@ data_summary <- function(data, varname, groupnames){
 #' # Example usage pending specific data structure
 #'
 #' @export
+GMPR <- function (comm, intersect.no = 10, ct.min = 1, trace = TRUE) {
+  comm[comm < ct.min] <- 0
+  
+  if (is.null(colnames(comm))) {
+    colnames(comm) <- paste0('S', 1:ncol(comm))
+  }
+  
+  if (trace) cat('Begin GMPR size factor calculation ...\n')
+  
+  comm.no <- numeric(ncol(comm))
+  gmpr <- sapply(1:ncol(comm),  function(i) {
+    if (i %% 50 == 0) {
+      cat(i, '\n')
+    }
+    x <- comm[, i]
+    # Compute the pairwise ratio
+    pr <- x / comm
+    # Handling of the NA, NaN, Inf
+    pr[is.nan(pr) | !is.finite(pr) | pr == 0] <- NA
+    # Counting the number of non-NA, NaN, Inf
+    incl.no <- colSums(!is.na(pr))
+    # Calculate the median of PR
+    pr.median <- colMedians(pr, na.rm=TRUE)
+    # Record the number of samples used for calculating the GMPR
+    comm.no[i] <<- sum(incl.no >= intersect.no)
+    # Geometric mean of PR median
+    if (comm.no[i] > 1) {
+      return(exp(mean(log(pr.median[incl.no >= intersect.no]))))
+    } else {
+      return(NA)
+    }
+  }
+  )
+  
+  if (sum(is.na(gmpr))) {
+    warning(paste0('The following samples\n ', paste(colnames(comm)[is.na(gmpr)], collapse='\n'),
+                   '\ndo not share at least ', intersect.no, ' common taxa with the rest samples! ',
+                   'For these samples, their size factors are set to be NA! \n',
+                   'You may consider removing these samples since they are potentially outliers or negative controls!\n',
+                   'You may also consider decreasing the minimum number of intersecting taxa and rerun the procedure!\n'))
+  }
+  
+  if (trace) cat('Completed!\n')
+  if (trace) cat('Please watch for the samples with limited sharing with other samples based on NSS! They may be outliers! \n')
+  names(gmpr) <- names(comm.no) <- colnames(comm)
+  
+  attr(gmpr, 'NSS') <- comm.no
+
+  return(gmpr)
+}
+
 
 #' Find the Latest BLAST-Annotated Final ASV Table
 #'
@@ -373,56 +424,4 @@ extract_da_plot_labels <- function(da_dir) {
   tokens <- tokens[grepl("\\.vs\\.", tokens)]
   if (length(tokens) == 0) return(NA_character_)
   tokens
-}
-
-
-GMPR <- function (comm, intersect.no = 10, ct.min = 1, trace = TRUE) {
-  comm[comm < ct.min] <- 0
-  
-  if (is.null(colnames(comm))) {
-    colnames(comm) <- paste0('S', 1:ncol(comm))
-  }
-  
-  if (trace) cat('Begin GMPR size factor calculation ...\n')
-  
-  comm.no <- numeric(ncol(comm))
-  gmpr <- sapply(1:ncol(comm),  function(i) {
-    if (i %% 50 == 0) {
-      cat(i, '\n')
-    }
-    x <- comm[, i]
-    # Compute the pairwise ratio
-    pr <- x / comm
-    # Handling of the NA, NaN, Inf
-    pr[is.nan(pr) | !is.finite(pr) | pr == 0] <- NA
-    # Counting the number of non-NA, NaN, Inf
-    incl.no <- colSums(!is.na(pr))
-    # Calculate the median of PR
-    pr.median <- colMedians(pr, na.rm=TRUE)
-    # Record the number of samples used for calculating the GMPR
-    comm.no[i] <<- sum(incl.no >= intersect.no)
-    # Geometric mean of PR median
-    if (comm.no[i] > 1) {
-      return(exp(mean(log(pr.median[incl.no >= intersect.no]))))
-    } else {
-      return(NA)
-    }
-  }
-  )
-  
-  if (sum(is.na(gmpr))) {
-    warning(paste0('The following samples\n ', paste(colnames(comm)[is.na(gmpr)], collapse='\n'),
-                   '\ndo not share at least ', intersect.no, ' common taxa with the rest samples! ',
-                   'For these samples, their size factors are set to be NA! \n',
-                   'You may consider removing these samples since they are potentially outliers or negative controls!\n',
-                   'You may also consider decreasing the minimum number of intersecting taxa and rerun the procedure!\n'))
-  }
-  
-  if (trace) cat('Completed!\n')
-  if (trace) cat('Please watch for the samples with limited sharing with other samples based on NSS! They may be outliers! \n')
-  names(gmpr) <- names(comm.no) <- colnames(comm)
-  
-  attr(gmpr, 'NSS') <- comm.no
-  
-  return(gmpr)
 }
