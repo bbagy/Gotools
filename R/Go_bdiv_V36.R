@@ -330,7 +330,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
       group_comparisons <- lapply(seq_len(ncol(group.cbn)), function(i) group.cbn[,i])
 
       ord_meths = plot
-      pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
+      pdf(sprintf("%s/ordi.%s.PM.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
                   ord_meths, paste(distance_metrics, collapse = "+"), project, mvar,
                   ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
                   ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
@@ -539,7 +539,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     } else {
       # no combination
       ord_meths = plot
-      pdf(sprintf("%s/ordi.%s.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
+      pdf(sprintf("%s/ordi.%s.PM.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
                   ord_meths, paste(distance_metrics, collapse = "+"), project, mvar,
                   ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
                   ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
