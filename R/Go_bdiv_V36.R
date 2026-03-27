@@ -61,13 +61,18 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
   if(!dir.exists(out_perm)) dir.create(out_perm, recursive = TRUE)
 
   title_suffix <- ""
-  build_plot_subtitle <- function(cate.conf, strata_var) {
+  build_plot_subtitle <- function(cate.conf, strata_var, strata_confounded = FALSE) {
     subtitle_parts <- character(0)
     if (!is.null(cate.conf) && length(cate.conf) > 0) {
       subtitle_parts <- c(subtitle_parts, sprintf("covariates=%s", paste(cate.conf, collapse = "+")))
     }
     if (!is.null(strata_var) && length(strata_var) > 0) {
-      subtitle_parts <- c(subtitle_parts, sprintf("strata=%s", paste(strata_var, collapse = "+")))
+      strata_label <- if (strata_confounded) {
+        sprintf("strata=%s [fallback: unconstrained PERMANOVA]", paste(strata_var, collapse = "+"))
+      } else {
+        sprintf("strata=%s", paste(strata_var, collapse = "+"))
+      }
+      subtitle_parts <- c(subtitle_parts, strata_label)
     }
     if (length(subtitle_parts) == 0) {
       return(NULL)
@@ -138,15 +143,48 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     message("facet detected: addnumber forced to FALSE")
   }
 
+  # Returns TRUE when every strata block contains only one mvar level
+  # (i.e., strata perfectly confounds mvar → all permutations reproduce observed → p = 1)
+  .is_strata_confounded <- function(id_vec, mvar_vec) {
+    if (is.null(id_vec) || is.null(mvar_vec)) return(FALSE)
+    id_vec   <- as.character(id_vec)
+    mvar_vec <- as.character(mvar_vec)
+    if (length(unique(na.omit(id_vec))) < 2) return(FALSE)
+    block_n <- tapply(mvar_vec, id_vec, function(x) length(unique(na.omit(x))))
+    all(block_n <= 1)
+  }
+
   # permutation blocks
-  .mk_perm_block <- function(id_vec, nperm = 999) {
+  .mk_perm_block <- function(id_vec, mvar_vec = NULL, nperm = 999) {
     ok <- !is.null(id_vec)
     if (ok) {
-      id_vec <- as.vector(id_vec)
+      id_vec <- as.character(id_vec)
       ok <- length(na.omit(id_vec)) > 1 && length(unique(na.omit(id_vec))) > 1
     }
     if (!ok) return(nperm)
-    ctrl <- permute::how(blocks = id_vec)
+
+    if (!is.null(mvar_vec)) {
+      if (.is_strata_confounded(id_vec, mvar_vec)) {
+        warning(
+          "strata_var perfectly confounds mvar: every block contains only one ",
+          "group level, so all permutations are identical to the observed ",
+          "arrangement (p = 1). Falling back to unconstrained permutation. ",
+          "Verify that strata_var and mvar are not the same variable and that ",
+          "each block contains samples from more than one group."
+        )
+        return(nperm)
+      }
+      n_pure <- sum(tapply(as.character(mvar_vec), id_vec,
+                           function(x) length(unique(na.omit(x)))) <= 1)
+      if (n_pure > 0) {
+        message(sprintf(
+          "Note: %d strata block(s) contain only one mvar level; ",
+          n_pure
+        ), "these blocks contribute no permutation freedom for the tested variable.")
+      }
+    }
+
+    ctrl <- permute::how(blocks = factor(id_vec))
     permute::setNperm(ctrl) <- nperm
     ctrl
   }
@@ -221,7 +259,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
 
       perm <- 999
       if (!is.null(strata_var) && strata_var %in% names(map_sub2)) {
-        perm <- .mk_perm_block(map_sub2[[strata_var]], nperm = 999)
+        perm <- .mk_perm_block(map_sub2[[strata_var]], mvar_vec = map_sub2[[mvar]], nperm = 999)
       }
 
       if (!base::is.null(cate.conf) && base::length(cate.conf) > 0) {
@@ -320,12 +358,6 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
           mapping.sel.na.rem <- data.frame(sample_data(psIN.cbn.na ))
           mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
 
-          # global perm for this subset
-          perm_global <- 999
-          if (!is.null(strata_var) && strata_var %in% names(mapping.sel.na.rem)) {
-            perm_global <- .mk_perm_block(mapping.sel.na.rem[[strata_var]], nperm = 999)
-          }
-
           # ordination
           ord_meths = plot
           plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
@@ -370,7 +402,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
               geom_point(size=0.9, alpha=1)
           }
 
-          subtitle_text <- build_plot_subtitle(cate.conf, strata_var)
+          strata_confounded <- !is.null(strata_var) &&
+            strata_var %in% names(mapping.sel.na.rem) &&
+            .is_strata_confounded(mapping.sel.na.rem[[strata_var]], mapping.sel.na.rem[[mvar]])
+          subtitle_text <- build_plot_subtitle(cate.conf, strata_var, strata_confounded)
           p = p +
             labs(x = paste0("Axis 1 (", sprintf("%.2f", axis1_percent_avg),"%)"),
                  y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)"),
@@ -436,7 +471,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
 
               perm_use <- 999
               if (!is.null(strata_var) && strata_var %in% names(map.pair)) {
-                perm_use <- .mk_perm_block(map.pair[[strata_var]], nperm = 999)
+                perm_use <- .mk_perm_block(map.pair[[strata_var]], mvar_vec = map.pair[[mvar]], nperm = 999)
               }
 
               if (!is.null(cate.conf) && length(cate.conf)>0) {
@@ -523,11 +558,6 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         mapping.sel.na.rem <- data.frame(sample_data(psIN.na ))
         mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
 
-        perm_global <- 999
-        if (!is.null(strata_var) && strata_var %in% names(mapping.sel.na.rem)) {
-          perm_global <- .mk_perm_block(mapping.sel.na.rem[[strata_var]], nperm = 999)
-        }
-
         ord_meths = plot
         plist = plyr::llply(as.list(ord_meths), function(i, psIN.na, distance_metric){
           ordi = ordinate(psIN.na, method=i, distance=distance_metric)
@@ -570,7 +600,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
             geom_point(size=0.9, alpha=1)
         }
 
-        subtitle_text <- build_plot_subtitle(cate.conf, strata_var)
+        strata_confounded <- !is.null(strata_var) &&
+          strata_var %in% names(mapping.sel.na.rem) &&
+          .is_strata_confounded(mapping.sel.na.rem[[strata_var]], mapping.sel.na.rem[[mvar]])
+        subtitle_text <- build_plot_subtitle(cate.conf, strata_var, strata_confounded)
         p = p +
           labs(x = paste0("Axis 1 (", sprintf("%.2f", axis1_percent_avg),"%)"),
                y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)"),
@@ -637,7 +670,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
 
             perm_use <- 999
             if (!is.null(strata_var) && strata_var %in% names(map.pair)) {
-              perm_use <- .mk_perm_block(map.pair[[strata_var]], nperm = 999)
+              perm_use <- .mk_perm_block(map.pair[[strata_var]], mvar_vec = map.pair[[mvar]], nperm = 999)
             }
 
             if (!is.null(cate.conf) && length(cate.conf)>0) {
