@@ -5,27 +5,33 @@
 #' The trajectory panel is summarized with a linear mixed model (LMM) and
 #' optional `emmeans` contrasts.
 #'
-#' @param df Data frame containing the variables to plot. Provide either
-#'   \code{df} or \code{psIN}.
-#' @param psIN Phyloseq object. In the current version, \code{psIN} mode
-#'   supports alpha-diversity outcomes and internally calls \code{Go_adiv()}.
+#' @param input Primary input object. Provide either a data frame or a
+#'   phyloseq object here. This is the preferred interface.
 #' @param project Project name used for output folder and file naming.
+#' @param df Deprecated compatibility input for a data frame. If supplied,
+#'   it will be merged into \code{input} internally.
+#' @param psIN Deprecated compatibility input for a phyloseq object. If
+#'   supplied, it will be merged into \code{input} internally.
 #' @param outcomes Numeric outcomes to plot. When \code{psIN} is provided,
 #'   these should be alpha-diversity metrics such as \code{"Shannon"} or
 #'   \code{"Chao1"}.
 #' @param ref.var Grouping variable used for the left reference boxplot.
 #' @param traj.var Grouping variable used for the right trajectory panel.
 #' @param orders Optional ordering specification for the grouping variables.
-#'   For this function, provide a named list such as
-#'   \code{list(ref = c("NC", "CD"), traj = c("Neg", "Mild", "Mod"))}.
-#'   The `ref` entry controls the left reference panel order and filtering,
-#'   and the `traj` entry controls the right trajectory panel order and filtering.
+#'   You can provide either a single character vector, which will be filtered
+#'   with \code{intersect()} against each panel variable, or a named list such
+#'   as \code{list(ref = c("NC", "CD"), traj = c("Neg", "Mild", "Mod"))}.
+#'   A single vector keeps the function aligned with the broader Gotool style,
+#'   while the list form allows different order sets for the two panels.
 #' @param time.var Numeric time variable for the trajectory x-axis.
 #' @param subject.var Subject ID used for repeated-measures lines and the
 #'   random intercept in the LMM.
 #' @param name Optional name tag appended to output files.
-#' @param mycols Optional named color vector. Names should cover all values in
-#'   \code{ref.levels} and \code{traj.levels}.
+#' @param mycols Optional color vector. You can provide either a named vector
+#'   such as \code{c(NC = "#4C78A8", CD = "#E45756", Neg = "#72B7B2",
+#'   Mild = "#F58518", Mod = "#B279A2")} or an unnamed palette vector such as
+#'   the output of \code{Go_myCols()}, which will be assigned in order to the
+#'   panel levels after \code{orders} are resolved.
 #' @param statistics Logical; if \code{TRUE}, fit an LMM for each outcome in
 #'   the trajectory panel and export ANOVA / emmeans tables.
 #' @param p_adjust Logical; if \code{TRUE}, use BH adjustment for pairwise
@@ -49,21 +55,27 @@
 #' @examples
 #' \dontrun{
 #' Go_hybridBoxTrajectory(
-#'   df = dat,
+#'   input = dat,
 #'   project = "MAPS",
 #'   outcomes = c("Chao1", "Shannon"),
 #'   ref.var = "TruncGroup",
 #'   traj.var = "TruncITxOnly",
 #'   orders = list(ref = c("NC", "CD"), traj = c("Neg", "Mild", "Mod")),
+#'   mycols = c(
+#'     NC = "#4C78A8",
+#'     CD = "#E45756",
+#'     Neg = "#72B7B2",
+#'     Mild = "#F58518",
+#'     Mod = "#B279A2"
+#'   ),
 #'   time.var = "POD_num",
 #'   subject.var = "subject_id"
 #' )
 #' }
 #'
 #' @export
-Go_hybridBoxTrajectory <- function(df = NULL,
-                                   psIN = NULL,
-                                   project,
+Go_hybridBoxTrajectory <- function(input = NULL,
+                                   project = NULL,
                                    outcomes,
                                    ref.var,
                                    traj.var,
@@ -80,16 +92,45 @@ Go_hybridBoxTrajectory <- function(df = NULL,
                                    loess_min_n = 5,
                                    lm_min_n = 3,
                                    width = 8,
-                                   height = NULL) {
+                                   height = NULL,
+                                   df = NULL,
+                                   psIN = NULL) {
 
   log_transform <- match.arg(log_transform)
 
-  if (!is.null(df) && !is.null(psIN)) {
-    stop("Provide either `df` or `psIN`, not both.")
+  # Backward-compatible rescue for calls like
+  # Go_hybridBoxTrajectory(df = dat, project_name, ...)
+  if (is.null(project) &&
+      is.character(input) &&
+      length(input) == 1 &&
+      !is.null(df) &&
+      inherits(df, "data.frame")) {
+    project <- input
+    input <- df
+    df <- NULL
   }
-  if (is.null(df) && is.null(psIN)) {
-    stop("Either `df` or `psIN` must be provided.")
+
+  if (is.null(project) &&
+      is.character(input) &&
+      length(input) == 1 &&
+      !is.null(psIN) &&
+      inherits(psIN, "phyloseq")) {
+    project <- input
+    input <- psIN
+    psIN <- NULL
   }
+
+  input_candidates <- list(input = input, df = df, psIN = psIN)
+  provided_idx <- which(!vapply(input_candidates, is.null, logical(1)))
+
+  if (length(provided_idx) == 0) {
+    stop("Provide `input` as either a data.frame or a phyloseq object.")
+  }
+
+  if (length(provided_idx) > 1) {
+    stop("Provide only one of `input`, `df`, or `psIN`.")
+  }
+
   if (missing(project) || is.null(project) || !nzchar(project)) {
     stop("`project` is required.")
   }
@@ -97,20 +138,27 @@ Go_hybridBoxTrajectory <- function(df = NULL,
     stop("`outcomes` must contain at least one variable.")
   }
 
-  resolve_input_df <- function(df, psIN, outcomes, project, name) {
-    if (!is.null(df)) {
-      return(df)
+  resolve_input_df <- function(input, outcomes, project, name) {
+    if (inherits(input, "data.frame")) {
+      return(input)
+    }
+
+    if (!inherits(input, "phyloseq")) {
+      stop(
+        "`input` must be either a data.frame (or tibble/data.frame-like object) ",
+        "or a phyloseq object."
+      )
     }
 
     alpha_metrics <- c("Observed", "Chao1", "ACE", "Shannon",
                        "Simpson", "InvSimpson", "Fisher", "PD")
     bad <- setdiff(outcomes, alpha_metrics)
     if (length(bad) > 0) {
-      stop("`psIN` mode currently supports alpha-diversity outcomes only. Unsupported outcomes: ",
+      stop("`phyloseq` input currently supports alpha-diversity outcomes only. Unsupported outcomes: ",
            paste(bad, collapse = ", "))
     }
 
-    Go_adiv(psIN = psIN, project = project, alpha_metrics = outcomes, name = name)
+    Go_adiv(psIN = input, project = project, alpha_metrics = outcomes, name = name)
   }
 
   safe_numeric <- function(x) suppressWarnings(as.numeric(x))
@@ -135,10 +183,48 @@ Go_hybridBoxTrajectory <- function(df = NULL,
     metric %in% c("Observed", "Chao1", "ACE")
   }
 
+  normalize_mycols <- function(mycols) {
+    if (is.null(mycols)) {
+      return(NULL)
+    }
+
+    if (!is.atomic(mycols)) {
+      stop("`mycols` must be an atomic color vector.")
+    }
+
+    mycols <- as.character(mycols)
+    nm <- names(mycols)
+    if (is.null(nm)) {
+      return(mycols)
+    }
+
+    nm <- trimws(nm)
+    if (all(!nzchar(nm))) {
+      names(mycols) <- NULL
+      return(mycols)
+    }
+
+    if (any(!nzchar(nm))) {
+      stop(
+        "`mycols` with names must name every color. ",
+        "Use either a fully named vector or a fully unnamed palette vector."
+      )
+    }
+
+    names(mycols) <- nm
+    mycols
+  }
+
   build_palette <- function(mycols, levels_needed) {
     levels_needed <- unique(as.character(levels_needed))
     if (is.null(mycols)) {
       cols <- grDevices::hcl.colors(length(levels_needed), palette = "Dark 3")
+      names(cols) <- levels_needed
+      return(cols)
+    }
+
+    if (is.null(names(mycols))) {
+      cols <- rep(mycols, length.out = length(levels_needed))
       names(cols) <- levels_needed
       return(cols)
     }
@@ -153,22 +239,29 @@ Go_hybridBoxTrajectory <- function(df = NULL,
   }
 
   resolve_orders <- function(df, ref.var, traj.var, orders) {
+    ref_seen <- unique(as.character(stats::na.omit(df[[ref.var]])))
+    traj_seen <- unique(as.character(stats::na.omit(df[[traj.var]])))
+
     if (is.null(orders)) {
-      ref_levels <- unique(as.character(stats::na.omit(df[[ref.var]])))
-      traj_levels <- unique(as.character(stats::na.omit(df[[traj.var]])))
+      ref_levels <- ref_seen
+      traj_levels <- traj_seen
+    } else if (is.atomic(orders) && !is.list(orders)) {
+      ord_vec <- as.character(orders)
+      ref_levels <- intersect(ord_vec, ref_seen)
+      traj_levels <- intersect(ord_vec, traj_seen)
     } else {
       if (!is.list(orders)) {
-        stop("`orders` must be NULL or a named list like list(ref = c(...), traj = c(...)).")
+        stop("`orders` must be NULL, a character vector, or a named list like list(ref = c(...), traj = c(...)).")
       }
-      ref_levels <- orders$ref
-      traj_levels <- orders$traj
+      ref_levels <- intersect(as.character(orders$ref), ref_seen)
+      traj_levels <- intersect(as.character(orders$traj), traj_seen)
     }
 
     if (is.null(ref_levels) || length(ref_levels) < 2) {
-      stop("`orders$ref` must contain at least two levels for the reference panel.")
+      stop("Reference panel needs at least two valid levels after applying `orders`.")
     }
     if (is.null(traj_levels) || length(traj_levels) < 2) {
-      stop("`orders$traj` must contain at least two levels for the trajectory panel.")
+      stop("Trajectory panel needs at least two valid levels after applying `orders`.")
     }
 
     list(
@@ -194,8 +287,8 @@ Go_hybridBoxTrajectory <- function(df = NULL,
     rng
   }
 
-  build_y_scale <- function(ref_vals, traj_vals) {
-    y_range <- finite_range(ref_vals, traj_vals)
+  build_y_scale <- function(ref_vals, traj_vals, extra_vals = NULL) {
+    y_range <- finite_range(ref_vals, traj_vals, extra_vals)
     y_pad <- diff(y_range) * 0.05
     if (!is.finite(y_pad) || y_pad == 0) {
       y_pad <- 0.1
@@ -220,6 +313,8 @@ Go_hybridBoxTrajectory <- function(df = NULL,
     names(out) <- time.var
     out
   }
+
+  sanitize_tag <- function(x) gsub("[^A-Za-z0-9._-]+", "-", as.character(x))
 
   fit_lmm_bundle <- function(df, outcome, time.var, group.var, subject.var,
                              log_transform, p_adjust, emmeans_at) {
@@ -355,6 +450,116 @@ Go_hybridBoxTrajectory <- function(df = NULL,
     )
   }
 
+  build_default_ref_comparisons <- function(group_levels) {
+    group_levels <- as.character(group_levels)
+    n_grp <- length(group_levels)
+    if (n_grp < 2) {
+      return(list())
+    }
+    if (n_grp >= 5) {
+      ref_grp <- group_levels[1]
+      return(lapply(group_levels[-1], function(g) c(ref_grp, g)))
+    }
+    cmb <- combn(group_levels, 2)
+    lapply(seq_len(ncol(cmb)), function(i) cmb[, i])
+  }
+
+  compute_simple_annotation_positions <- function(y, groups, comparisons) {
+    y_vals <- safe_numeric(y)
+    y_vals <- y_vals[is.finite(y_vals)]
+    if (!length(y_vals) || length(comparisons) == 0) {
+      return(NULL)
+    }
+
+    y_max <- max(y_vals, na.rm = TRUE)
+    y_min <- min(y_vals, na.rm = TRUE)
+    y_span <- y_max - y_min
+    if (!is.finite(y_span) || y_span <= 0) {
+      y_span <- max(abs(y_max) * 0.15, 1e-6)
+    }
+    step <- max(y_span * 0.08, abs(y_max) * 0.04, 1e-6)
+    y_max + step * seq_along(comparisons)
+  }
+
+  compute_ref_stats <- function(ref_df, outcome, p_adjust) {
+    levels_now <- levels(ref_df$display_group)
+    comparisons <- build_default_ref_comparisons(levels_now)
+    if (length(levels_now) < 2 || length(comparisons) == 0) {
+      return(list(test.name = NULL, pval = NULL, testmethod = NULL, annotation = NULL))
+    }
+
+    raw_pvals <- vapply(comparisons, function(comp) {
+      sub_df <- ref_df[ref_df$display_group %in% comp, , drop = FALSE]
+      sub_df$display_group <- droplevels(sub_df$display_group)
+      if (nlevels(sub_df$display_group) < 2) {
+        return(NA_real_)
+      }
+      wt <- try(stats::wilcox.test(stats::as.formula(sprintf("%s ~ display_group", outcome)),
+                                   data = sub_df, exact = FALSE),
+                silent = TRUE)
+      if (inherits(wt, "try-error")) {
+        return(NA_real_)
+      }
+      as.numeric(wt$p.value)
+    }, numeric(1))
+
+    adj_pvals <- stats::p.adjust(raw_pvals, method = if (isTRUE(p_adjust)) "BH" else "none")
+    ann <- data.frame(
+      group1 = vapply(comparisons, `[`, character(1), 1),
+      group2 = vapply(comparisons, `[`, character(1), 2),
+      p = raw_pvals,
+      p.adj = adj_pvals,
+      y.position = compute_simple_annotation_positions(ref_df[[outcome]], ref_df$display_group, comparisons),
+      stringsAsFactors = FALSE
+    )
+    ann <- ann[is.finite(ann$p), , drop = FALSE]
+    if (nrow(ann) > 0) {
+      ann$label <- as.character(signif(ann$p.adj, 3))
+    }
+
+    list(
+      test.name = "Pairwise Wilcoxon",
+      pval = NULL,
+      testmethod = NULL,
+      annotation = ann
+    )
+  }
+
+  add_ref_stats_layer <- function(p1, stat_res, ref_df, outcome) {
+    if (is.null(stat_res$test.name)) {
+      return(p1)
+    }
+
+    if (!is.null(stat_res$annotation) && nrow(stat_res$annotation) > 0) {
+      if (exists("Go_boxplot_add_stats_layer", mode = "function")) {
+        return(Go_boxplot_add_stats_layer(
+          p1 = p1,
+          stat_res = stat_res,
+          my_comparisons = Map(c, stat_res$annotation$group1, stat_res$annotation$group2),
+          paired = NULL,
+          cutoff = 0.1,
+          dat = ref_df,
+          oc = outcome,
+          mvar = "display_group"
+        ))
+      }
+
+      return(
+        p1 + ggpubr::stat_pvalue_manual(
+          stat_res$annotation,
+          label = "label",
+          xmin = "group1",
+          xmax = "group2",
+          y.position = "y.position",
+          inherit.aes = FALSE,
+          size = 2
+        )
+      )
+    }
+
+    p1
+  }
+
   build_reference_plot <- function(ref_df, outcome, y_limits, y_breaks, ref_palette) {
     ggplot2::ggplot(ref_df, ggplot2::aes(x = display_group, y = .data[[outcome]],
                                          fill = display_group, color = display_group)) +
@@ -467,7 +672,9 @@ Go_hybridBoxTrajectory <- function(df = NULL,
     }
   }
 
-  df <- resolve_input_df(df = df, psIN = psIN, outcomes = outcomes, project = project, name = name)
+  active_input <- input_candidates[[provided_idx]]
+  df <- resolve_input_df(input = active_input, outcomes = outcomes, project = project, name = name)
+  mycols <- normalize_mycols(mycols)
 
   required_cols <- unique(c(outcomes, ref.var, traj.var, time.var, subject.var))
   missing_cols <- setdiff(required_cols, names(df))
@@ -526,7 +733,18 @@ Go_hybridBoxTrajectory <- function(df = NULL,
     traj_metric_df[[outcome]] <- safe_numeric(traj_metric_df[[outcome]])
     traj_metric_df <- traj_metric_df[!is.na(traj_metric_df[[outcome]]), , drop = FALSE]
 
-    y_scale <- build_y_scale(ref_metric_df[[outcome]], traj_metric_df[[outcome]])
+    ref_stat_res <- if (isTRUE(statistics)) {
+      compute_ref_stats(ref_metric_df, outcome, p_adjust = p_adjust)
+    } else {
+      list(test.name = NULL, pval = NULL, testmethod = NULL, annotation = NULL)
+    }
+
+    ref_ann_y <- NULL
+    if (!is.null(ref_stat_res$annotation) && nrow(ref_stat_res$annotation) > 0) {
+      ref_ann_y <- ref_stat_res$annotation$y.position
+    }
+
+    y_scale <- build_y_scale(ref_metric_df[[outcome]], traj_metric_df[[outcome]], extra_vals = ref_ann_y)
 
     model_res <- if (isTRUE(statistics)) {
       fit_lmm_bundle(
@@ -550,6 +768,12 @@ Go_hybridBoxTrajectory <- function(df = NULL,
       y_breaks = y_scale$breaks,
       ref_palette = ref_palette
     )
+    p_box <- add_ref_stats_layer(
+      p1 = p_box,
+      stat_res = ref_stat_res,
+      ref_df = ref_metric_df,
+      outcome = outcome
+    )
 
     p_traj <- build_trajectory_plot(
       traj_df = traj_metric_df,
@@ -572,6 +796,8 @@ Go_hybridBoxTrajectory <- function(df = NULL,
 
   file_stub <- paste0(
     "hybridBoxTrajectory.", project, ".",
+    "ref-", sanitize_tag(ref.var), ".",
+    "traj-", sanitize_tag(traj.var), ".",
     ifelse(is.null(name), "", paste0(name, ".")),
     format(Sys.Date(), "%y%m%d")
   )
