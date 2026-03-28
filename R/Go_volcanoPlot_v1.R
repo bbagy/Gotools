@@ -309,7 +309,18 @@ Go_volcanoPlot <- function(project,
       confounder <- NULL
     }
 
-    subtitle_text <- if (!is.null(confounder)) "confounder-adjusted DA" else NULL
+    small_n_warn <- {
+      bc <- if ("bas.count" %in% colnames(df)) suppressWarnings(as.integer(unique(df$bas.count)[1])) else NA_integer_
+      sc <- if ("smvar.count" %in% colnames(df)) suppressWarnings(as.integer(unique(df$smvar.count)[1])) else NA_integer_
+      if (!is.na(bc) && !is.na(sc) && (bc <= 5L || sc <= 5L)) {
+        "Warning: small sample size (n\u22645) - interpret with caution"
+      } else NULL
+    }
+    subtitle_parts <- c(
+      if (!is.null(confounder)) "confounder-adjusted DA" else NULL,
+      small_n_warn
+    )
+    subtitle_text <- if (length(subtitle_parts) > 0) paste(subtitle_parts, collapse = " | ") else NULL
 
     # get data tyep
     print("Check the data type")

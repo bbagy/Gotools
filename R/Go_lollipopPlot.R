@@ -283,6 +283,18 @@ Go_lollipopPlot <- function(project,
       ifelse(effect > 0, smvar, ifelse(effect < 0, basline, "NS"))
     )
 
+    small_n_warn <- {
+      bc <- if ("bas.count" %in% colnames(df)) suppressWarnings(as.integer(unique(df$bas.count)[1])) else NA_integer_
+      sc <- if ("smvar.count" %in% colnames(df)) suppressWarnings(as.integer(unique(df$smvar.count)[1])) else NA_integer_
+      if (!is.na(bc) && !is.na(sc) && (bc <= 5L || sc <= 5L)) {
+        "Warning: small sample size (n\u22645)"
+      } else ""
+    }
+    final_subtitle <- paste(
+      c(conda_subtitle, small_n_warn)[nzchar(c(conda_subtitle, small_n_warn))],
+      collapse = " | "
+    )
+
     out <- data.frame(
       feature_id = feature_id,
       feature_label = feature_label,
@@ -298,7 +310,7 @@ Go_lollipopPlot <- function(project,
       out_subdir = out_subdir,
       title_tool = title_tool,
       file_tool = file_tool,
-      plot_subtitle = conda_subtitle,
+      plot_subtitle = final_subtitle,
       score_label = score_label,
       stringsAsFactors = FALSE
     )
