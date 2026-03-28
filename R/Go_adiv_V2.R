@@ -83,6 +83,11 @@ Go_adiv <- function(psIN, project, alpha_metrics, name=NULL){
   }
 
   # add pd mapping data to adiv table
+  overlap_cols <- intersect(colnames(adiv), colnames(mapping.sel))
+  overlap_cols <- setdiff(overlap_cols, "SampleID")
+  if (length(overlap_cols) > 0) {
+    mapping.sel <- mapping.sel[, setdiff(colnames(mapping.sel), overlap_cols), drop = FALSE]
+  }
   adiv <- merge(adiv, mapping.sel, by="row.names")
   rownames(adiv) <- adiv$Row.names
   adiv$Row.names <- NULL
@@ -94,10 +99,10 @@ Go_adiv <- function(psIN, project, alpha_metrics, name=NULL){
   cat(sprintf("adiv table is saved in %s.\n",out_path))
   cat("                                                       \n")
   write.csv(adiv, quote = FALSE, col.names = NA,
-            file=sprintf("%s/adiv.%s.%s%s.csv",out_adiv,
+            file=sprintf("%s/adiv.%s.%s%s.csv",
+                         out_adiv,
                          project,
                          ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                         format(Sys.Date(), "%y%m%d"),sep="/"))
+                         format(Sys.Date(), "%y%m%d")))
   return(adiv)
 }
-
