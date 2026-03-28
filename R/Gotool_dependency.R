@@ -29,13 +29,14 @@ Gotool_dependency <- function() {
                      "plotly", "pdftools",  "rlang", "randomForest", #"rfUtilities",
                      "readxl", "RColorBrewer", "ROCR", "reshape", "reshape2", "yarrr",
                      "stringi", "tidyverse", "vegan", "VGAM", "picante", "zoo",
-                     "RcppZiggurat", "Rfast", "survival", "withr", "knitr", "kableExtra", "DT")
+                     "RcppZiggurat", "Rfast", "survival", "withr", "knitr", "kableExtra", "DT",
+                     "CVXR")
 
   # Packages to install from Bioconductor
   bioconductor_packages <- c("phyloseq", "microbiome", "Rhtslib", "dada2",
                              "ggpubr", "ggfortify", "genefilter", "ggpmisc", "S4Vectors",
                              "ShortRead", "illuminaio", "rstatix", "useful", "DECIPHER",
-                             "ComplexHeatmap", "DESeq2", "ALDEx2", "scater") # ANCOMBC managed by ConDAdist
+                             "ComplexHeatmap", "DESeq2", "ALDEx2", "scater", "ANCOMBC")
 
   # Function to install and load CRAN packages
   install_load_cran <- function(package) {
