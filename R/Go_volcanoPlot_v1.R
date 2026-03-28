@@ -136,6 +136,7 @@ Go_volcanoPlot <- function(project,
     # tool recognizing
     tools <- sapply(filename1, function(filename1) {
       if (grepl("condadist", filename1)) return("condadist")
+      if (grepl("wilcoxon", filename1)) return("wilcoxon")
       if (grepl("deseq2", filename1)) return("deseq2")
       if (grepl("aldex2", filename1)) return("aldex2")
       if (grepl("maaslin2", filename1)) return("maaslin2")
@@ -283,6 +284,21 @@ Go_volcanoPlot <- function(project,
       print(tool)
       vx <- "coefficient"
       vy <- "-log10 (p-value)"
+    } else if (unique_tools == "wilcoxon") {
+      out_DA <- file.path(sprintf("%s_%s/pdf/DA_plot",project, format(Sys.Date(), "%y%m%d")))
+      if(!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE, showWarnings = FALSE)
+      x_var <- "log2FoldChange"
+      y_var <- "-log10(pvalue)"
+      z_var <- "log2FoldChange"
+      pval <- "wilcoxon.P"
+      p <- "pvalue"
+      fdr <- "wilcoxon.FDR"
+      padj <- "padj"
+      tool <- "wilcoxon"
+      model <- NULL
+      print(tool)
+      vx <- "log2 fold change"
+      vy <- "-log10 (p-value)"
     } else if (unique_tools == "condadist") {
       out_DA <- file.path(sprintf("%s_%s/pdf/ConDa_plot",project, format(Sys.Date(), "%y%m%d")))
       if(!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE, showWarnings = FALSE)
@@ -316,7 +332,21 @@ Go_volcanoPlot <- function(project,
         "Warning: small sample size (n\u22645) - interpret with caution"
       } else NULL
     }
+    wilcoxon_fallback_note <- if (identical(unique_tools, "wilcoxon") && "notes" %in% colnames(df)) {
+      note_vals <- unique(df$notes[!is.na(df$notes) & nzchar(df$notes)])
+      if (length(note_vals) > 0) {
+        # extract original method from note e.g. "wilcoxon fallback (ancombc2 skipped: ...)"
+        m <- regmatches(note_vals[1], regexpr("wilcoxon fallback \\(([^\\s]+) skipped", note_vals[1]))
+        orig <- if (length(m) > 0) sub("wilcoxon fallback \\(", "", sub(" skipped.*", "", m)) else NULL
+        if (!is.null(orig) && nzchar(orig)) {
+          paste0("Wilcoxon fallback (", orig, " failed)")
+        } else {
+          "Wilcoxon fallback"
+        }
+      } else NULL
+    } else NULL
     subtitle_parts <- c(
+      wilcoxon_fallback_note,
       if (!is.null(confounder)) "confounder-adjusted DA" else NULL,
       small_n_warn
     )

@@ -137,6 +137,7 @@ Go_lollipopPlot <- function(project,
 
   detect_tool <- function(filename1) {
     if (grepl("condadist", filename1)) return("condadist")
+    if (grepl("wilcoxon", filename1)) return("wilcoxon")
     if (grepl("deseq2", filename1)) return("deseq2")
     if (grepl("aldex2", filename1)) return("aldex2")
     if (grepl("maaslin2", filename1)) return("maaslin2")
@@ -224,6 +225,14 @@ Go_lollipopPlot <- function(project,
       file_tool <- "maaslin2"
       out_subdir <- "DA_plot"
       score_label <- "Signed significance score (-log10 adj. p)"
+    } else if (tool == "wilcoxon") {
+      effect_col <- "log2FoldChange"
+      p_col <- "pvalue"
+      q_col <- "padj"
+      title_tool <- "wilcoxon"
+      file_tool <- "wilcoxon"
+      out_subdir <- "DA_plot"
+      score_label <- "Signed significance score (-log10 adj. p)"
     } else if (tool == "condadist") {
       effect_col <- "median_effect_size"
       p_col <- "fisher_combined_p"
@@ -290,8 +299,16 @@ Go_lollipopPlot <- function(project,
         "Warning: small sample size (n\u22645)"
       } else ""
     }
+    wilcoxon_fallback_note <- if (identical(tool, "wilcoxon") && "notes" %in% colnames(df)) {
+      note_vals <- unique(df$notes[!is.na(df$notes) & nzchar(df$notes)])
+      if (length(note_vals) > 0) {
+        m <- regmatches(note_vals[1], regexpr("wilcoxon fallback \\(([^\\s]+) skipped", note_vals[1]))
+        orig <- if (length(m) > 0) sub("wilcoxon fallback \\(", "", sub(" skipped.*", "", m)) else NULL
+        if (!is.null(orig) && nzchar(orig)) paste0("Wilcoxon fallback (", orig, " failed)") else "Wilcoxon fallback"
+      } else "Wilcoxon fallback"
+    } else ""
     final_subtitle <- paste(
-      c(conda_subtitle, small_n_warn)[nzchar(c(conda_subtitle, small_n_warn))],
+      c(wilcoxon_fallback_note, conda_subtitle, small_n_warn)[nzchar(c(wilcoxon_fallback_note, conda_subtitle, small_n_warn))],
       collapse = " | "
     )
 
