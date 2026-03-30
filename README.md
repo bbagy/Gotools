@@ -7,43 +7,43 @@ This repository contains a set of tools for reproducible microbiome analysis. It
 
 `Gotools` was built on R 4.2.2.
 
-To install the Bioconductor packages required by Gotools, use the following function:
-
-```r
-# Function to install and load Bioconductor packages
-install_load_bioc <- function(package) {
-  if (!require(package, character.only = TRUE, quietly = TRUE)) {
-    if (!requireNamespace("BiocManager", quietly = TRUE)) {
-      install.packages("BiocManager")
-    }
-    BiocManager::install(package, force = TRUE, ask = FALSE)
-  }
-  library(package, character.only = TRUE, quietly = TRUE)
-}
-
-# Installing and loading required Bioconductor packages
-bioconductor_packages <- c("phyloseq", "microbiome", "Rhtslib", "dada2", "dplyr",
-                           "ggpubr", "ggfortify", "genefilter", "ggpmisc", "S4Vectors",
-                           "ShortRead", "illuminaio", "rstatix", "useful", "DECIPHER",
-                           "ComplexHeatmap", "DESeq2", "ALDEx2", "scater", "ANCOMBC")
-
-for (package in bioconductor_packages) {
-  install_load_bioc(package)
-}
-
-```
-
-
-To install the latest version of `Gotools` from GitHub, use:
+Install the latest version of `Gotools` from GitHub, then run the dependency
+installer once:
 
 ```r
 # install.packages("devtools")
 devtools::install_github("bbagy/Gotools")
 library(Gotools)
-
-# Installing and loading CRAN packages
 Gotool_dependency()
 ```
+
+`Gotool_dependency()` is the main dependency entrypoint for `Gotools`.
+It checks required CRAN and Bioconductor packages, installs missing packages,
+and repairs packages that are installed but not loadable.
+
+This includes common microbiome dependencies such as `phyloseq`,
+`microbiome`, `DESeq2`, `ALDEx2`, and `ANCOMBC`.
+
+If installation fails, the most common cause is a missing system tool rather
+than an R package issue. In particular:
+
+- `ANCOMBC` may require `CVXR`, `clarabel`, and the Rust toolchain (`cargo`)
+- some transitive installs may require `terra`
+- macOS systems may also need `libomp`
+
+If needed, install Rust in Terminal:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+If needed on macOS, install OpenMP support:
+
+```bash
+brew install libomp
+```
+
+Then restart R and run `Gotool_dependency()` again.
 
 ---
 
@@ -303,4 +303,3 @@ The scripts in this repository are written in R. To use these tools, clone the r
 ---
 
 ---
-

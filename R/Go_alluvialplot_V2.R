@@ -1,51 +1,51 @@
-
-#' Generate Alluvial Plots for Microbial Community Analysis
+#' Generate alluvial plots for selected taxa
 #'
-#' This function creates alluvial plots to visualize the associations between microbial species and
-#' various experimental groups or conditions.
+#' Builds alluvial plots from a significant-feature table and sample metadata.
+#' Each target taxon is rendered as one panel showing how feature-level signal
+#' flows across the requested metadata axes.
 #'
-#' @param project A string indicating the project name, used for directory and file naming.
-#' @param SigASVs Either a file path to a CSV containing significant ASVs or a data frame.
-#' @param map A file path to a CSV containing sample metadata or a data frame.
-#' @param targets.bac A vector of target bacterial species for the plot.
-#' @param Addcolumn A vector of additional columns from the metadata to be included in the plot.
-#' @param outcome The primary outcome or variable of interest.
-#' @param column1 (Optional) An additional column for stratifying the data.
-#' @param column2 (Optional) Another column for further stratification.
-#' @param orders The order of factors to arrange the plot.
-#' @param name (Optional) A name for the plot for labeling purposes.
-#' @param height Height of the output plot.
-#' @param width Width of the output plot.
-#' @param plotCols Number of columns in the plot layout.
-#' @param plotRows Number of rows in the plot layout.
+#' @param project Project name used for output directory and file naming.
+#' @param SigASVs Either a CSV path or a data frame containing significant
+#'   features and taxonomy columns.
+#' @param map Either a CSV path or a data frame containing sample metadata.
+#' @param targets.bac Character vector of taxa to plot.
+#' @param target.rank Taxonomy column used to match `targets.bac`, for example
+#'   `"Genus"` or `"Species"`.
+#' @param outcome Primary metadata variable shown on the last axis.
+#' @param column1 Optional intermediate metadata variable.
+#' @param column2 Optional second intermediate metadata variable.
+#' @param orders Optional level order used for categorical axes.
+#' @param name Optional label appended to the output file name.
+#' @param height Height of the output PDF.
+#' @param width Width of the output PDF.
+#' @param plotCols Number of columns for multi-panel layout.
+#' @param plotRows Number of rows for multi-panel layout.
+#' @param size_by Whether ribbon size should reflect summed abundance or sample
+#'   count per path. One of `"abundance"` or `"count"`.
+#' @param alpha Ribbon transparency.
+#' @param palette Optional named color vector. Names should match feature
+#'   labels. Unnamed vectors are recycled in feature order.
 #'
-#' @details
-#' The function merges microbial data with sample metadata to create informative alluvial plots. It
-#' allows for customizing the stratification and visualization of data based on specified microbial
-#' targets and metadata columns.
-#'
-#' @return
-#' Saves alluvial plots as PDF files in the specified project directory.
+#' @return Invisibly returns a list of ggplot objects, one per requested target.
+#'   A PDF is written to the dated project `pdf/` directory.
 #'
 #' @examples
-#' # Example usage:
-#' Go_alluvialplot(project = "MyProject",
-#'                 SigASVs = "path_to_sig_ASVs.csv",
-#'                 map = "path_to_metadata.csv",
-#'                 targets.bac = c("Bacteroides_fragilis", "Escherichia_coli"),
-#'                 target.rank = "Genus" # or "Species
-#'                 Addcolumn = c("Age", "Gender"),
-#'                 outcome = "TreatmentResponse",
-#'                 column1 = "Diet",
-#'                 column2 = "BMI",
-#'                 orders = c("Control", "Treatment"),
-#'                 name = "AlluvialAnalysis",
-#'                 height = 2, width = 3,
-#'                 plotCols = 2, plotRows = 1)
+#' \dontrun{
+#' Go_alluvialplot(
+#'   project = "MyProject",
+#'   SigASVs = "path_to_sig_ASVs.csv",
+#'   map = "path_to_metadata.csv",
+#'   targets.bac = c("Bacteroides", "Escherichia"),
+#'   target.rank = "Genus",
+#'   outcome = "TreatmentResponse",
+#'   column1 = "Diet",
+#'   column2 = "BMI_group",
+#'   orders = c("Control", "Treatment"),
+#'   size_by = "count"
+#' )
+#' }
 #'
 #' @export
-
-
 Go_alluvialplot <- function(project,
                             SigASVs,
                             map,
@@ -54,241 +54,252 @@ Go_alluvialplot <- function(project,
                             outcome,
                             column1 = NULL,
                             column2 = NULL,
-                            orders,
+                            orders = NULL,
                             name = NULL,
-                            height = 2, width=3,
-                            plotCols=2, plotRows=1){
+                            height = 2,
+                            width = 3,
+                            plotCols = 2,
+                            plotRows = 1,
+                            size_by = c("abundance", "count"),
+                            alpha = 0.85,
+                            palette = NULL) {
 
-  if(!is.null(dev.list())) dev.off()
-
-  #===== out dir
-  out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
-  if(!dir.exists(out)) dir.create(out)
-  out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
-  if(!dir.exists(out_path)) dir.create(out_path)
-
-
-  #===== input
-  if (class(SigASVs) == "character"){
-    tab <- read.csv(SigASVs,row.names=1,check.names=FALSE)
-  }else{
-    tab <- SigASVs
+  if (!requireNamespace("ggalluvial", quietly = TRUE)) {
+    stop("ggalluvial is required for Go_alluvialplot().")
+  }
+  if (!requireNamespace("reshape2", quietly = TRUE)) {
+    stop("reshape2 is required for Go_alluvialplot().")
   }
 
-
-  if (class(map) == "character"){
-    sampledata <- read.csv(map,row.names=1,check.names=FALSE)
-  }else{
-    sampledata <- map
+  if (!is.null(dev.list())) {
+    grDevices::dev.off()
   }
 
-
-
-
-  #===== check input
-  tab$RowSum <- rowSums(tab[, sapply(tab, is.numeric)])
-
-  # RowSum과 Species 이름만 결합
-  tab$names <- paste(tab$Species, tab$RowSum, sep = "_")
-
-
-  Addcolumn <- c(outcome, column1, column2)
-
-  if(!outcome %in% Addcolumn) {
-    stop(paste("outcome", outcome, "does not exist in the data. (name_read counts)"))
+  read_input <- function(x) {
+    if (is.character(x) && length(x) == 1) {
+      return(utils::read.csv(x, row.names = 1, check.names = FALSE))
+    }
+    if (is.data.frame(x)) {
+      return(x)
+    }
+    stop("Inputs must be either a CSV file path or a data frame.")
   }
 
+  sanitize_feature_label <- function(x) {
+    x <- as.character(x)
+    x[is.na(x) | !nzchar(trimws(x))] <- "Unknown"
+    x <- gsub("\\s+", "_", x)
+    x
+  }
 
+  build_plot_title <- function(target, rank_name) {
+    paste0(rank_name, ": ", target)
+  }
 
-  rownames(tab) <- tab$names
-  rownames(tab) <- gsub(" ","_", rownames(tab))
-  tab$Species <- gsub(" ","_", tab$Species)
+  tab <- read_input(SigASVs)
+  sampledata <- read_input(map)
 
+  if (is.null(project) || !nzchar(project)) {
+    stop("`project` must be provided.")
+  }
+  if (is.null(targets.bac) || length(targets.bac) == 0) {
+    stop("`targets.bac` must contain at least one target taxon.")
+  }
+  size_by <- match.arg(size_by)
+  if (is.null(target.rank) || !target.rank %in% colnames(tab)) {
+    stop("`target.rank` must be a column present in `SigASVs`.")
+  }
 
+  axis_vars <- c(column1, column2, outcome)
+  axis_vars <- axis_vars[!is.na(axis_vars) & nzchar(axis_vars)]
+  missing_axis_cols <- setdiff(axis_vars, colnames(sampledata))
+  if (length(missing_axis_cols) > 0) {
+    stop("Metadata columns not found in `map`: ", paste(missing_axis_cols, collapse = ", "))
+  }
+  if (!outcome %in% axis_vars) {
+    stop("`outcome` must be present in `map`.")
+  }
 
-  plotlist <- list()
-  for(target in targets.bac){
+  numeric_cols <- names(tab)[vapply(tab, is.numeric, logical(1))]
+  sample_cols <- intersect(numeric_cols, rownames(sampledata))
+  if (length(sample_cols) == 0) {
+    stop("No overlapping sample columns were found between `SigASVs` and `map`.")
+  }
 
-    print(target)
+  tab <- tab[, c(setdiff(colnames(tab), sample_cols), sample_cols), drop = FALSE]
+  sampledata <- sampledata[sample_cols, , drop = FALSE]
+  sampledata$SampleID <- rownames(sampledata)
 
-    #===== Colors
-    if (target == "Gardnerella_vaginalis" ){
-      mycols <- c("#CBD588", "#5F7FC7", "orange",  "#DA5724", "#508578", "#CD9BCD", "#AD6F3B", "#673770", "#D14285", "#652926", "#C84248", "#8569D5", "#5E738F", "#D1A33D", "#8A7C64", "#599861")
-    }else{
-      mycols <- c("#EB5291FF", "#1794CEFF", "#972C8DFF", "#FBBB68FF", "#F5BACFFF", "#9DDAF5FF", "#6351A0FF", "#ECF1F4FF", "#FEF79EFF" )#pony
+  if (!"Species" %in% colnames(tab)) {
+    tab$Species <- tab[[target.rank]]
+  }
+
+  tab$RowSum <- rowSums(tab[, sample_cols, drop = FALSE], na.rm = TRUE)
+  tab$.feature_label <- paste0(sanitize_feature_label(tab$Species), "_", tab$RowSum)
+  rownames(tab) <- make.unique(tab$.feature_label)
+
+  output_dirs <- Go_path(project = project, pdf = "yes", table = "no", path = NULL)
+  out_path <- output_dirs$pdf
+
+  resolve_palette <- function(features, user_palette = NULL) {
+    if (length(features) == 0) {
+      return(stats::setNames(character(0), character(0)))
     }
 
-    #===== Merge tab + sampledata
-    tab.sel <- subset(tab, tab[target.rank] == target)
-    print(dim(tab.sel))
-
-    taxaTab <- merge(sampledata, t(tab.sel), by="row.names");head(taxaTab)
-
-    rownames(taxaTab) <- taxaTab$Row.names
-
-
-    #===== remove unused ranks
-    for (rank in c("Kingdom","Phylum","Class","Order","Family","Genus","Species","Sum","names")){
-      tab.sel[,rank] <- NULL
-    }
-
-
-
-    taxaTab.log <- taxaTab
-    for(species in rownames(tab.sel)){
-      taxaTab[,species] <- as.numeric(taxaTab[,species])
-      taxaTab.log[,species] <- log(taxaTab[,species])
-    }
-
-
-    # melting tab
-    bacteria.taxa <- rownames(tab.sel)
-
-    taxaTab.melt <- melt(taxaTab.log, id.vars =  Addcolumn, measure.vars = bacteria.taxa)
-
-
-    # Check for missing values
-
-    if (any(is.na(taxaTab.melt))) {
-      print("Data contains missing values.")
-    } else {
-      print("Data doesn't contain any missing values.")
-    } #is_alluvia_form(as.data.frame(taxaTab.melt), axes = 1:3, silent = TRUE)
-
-
-
-
-    taxaTab.melt <- arrange(taxaTab.melt, taxaTab.melt$variable)
-
-    # Simplify all names
-    # taxaTab.melt$variable <- gsub("(\\w)\\w+_(\\w+)", "\\1.\\2", taxaTab.melt$variable)
-    taxaTab.melt$variable <- gsub("^(\\w)\\w+_(\\w+_\\d+)", "\\1.\\2", taxaTab.melt$variable)
-
-
-    for(vari in Addcolumn){
-      taxaTab.melt[,vari] <- as.character(taxaTab.melt[,vari] )
-    }
-
-
-
-    #===== Define column1 and column2 variables
-
-    if (!is.null(column1) && !is.null(column2)) {
-      # both column1 and column2 are provided
-      if (!(column1 %in% colnames(taxaTab.melt) & column2 %in% colnames(taxaTab.melt))) {
-        # neither column1 nor column2 is in the dataframe
-        stop("Neither 'column1' nor 'column2' exists in the dataframe.")
-      }else{
-        print(paste("column1 is", ifelse(is.null(column1), "NULL.", paste("'", column1, "'", "and exists in the dataframe:", column1 %in% colnames(taxaTab.melt)))))
-        print(paste("column2 is", ifelse(is.null(column2), "NULL.", paste("'", column2, "'", "and exists in the dataframe:", column2 %in% colnames(taxaTab.melt)))))
+    if (!is.null(user_palette)) {
+      if (!is.null(names(user_palette)) && all(features %in% names(user_palette))) {
+        return(user_palette[features])
       }
-    } else{
-      print(paste("column1 is", ifelse(is.null(column1), "NULL.", paste("'", column1, "'", "and exists in the dataframe:", column1 %in% colnames(taxaTab.melt)))))
-      print(paste("column2 is", ifelse(is.null(column2), "NULL.", paste("'", column2, "'", "and exists in the dataframe:", column2 %in% colnames(taxaTab.melt)))))
-
+      if (length(user_palette) >= length(features)) {
+        vals <- user_palette[seq_along(features)]
+        return(stats::setNames(vals, features))
+      }
     }
 
-
-
-    # conntol is.infinite
-    df <- taxaTab.melt
-    df$value[is.infinite(df$value)] <- NA
-    df <- df[!is.na(df$value), ]
-
-
-    df <- df %>%
-      group_by(variable) %>%
-      dplyr::mutate(count = n())
-
-    df <- df %>%
-      dplyr::mutate(label = ifelse(variable %in% unique(variable), paste(variable, " (n=", count, ")", sep=""), variable))
-
-
-    df[[outcome]] <- factor(df[[outcome]], levels = intersect(orders, unique(df[[outcome]])))
-
-    #===== Logic for the vatiation
-    if (!is.null(column1) & !is.null(column2)){
-      df[[column1]] <- factor(df[[column1]], levels = intersect(orders, df[[column1]]))
-      df[[column2]] <- factor(df[[column2]], levels = intersect(orders, df[[column2]]))
-
-      p <- ggplot(data = df, aes(y = value, axis1 = label, axis2 = !!sym(column1), axis3 = !!sym(column2), axis4 = !!sym(outcome)))
-    } else if (!is.null(column1) | !is.null(column2)){
-      column = ifelse(!is.null(column1), column1, column2)
-      df[[column]] <- factor(df[[column]], levels = intersect(orders, df[[column]]))
-
-      p <- ggplot(data = df, aes(y = value, axis1 = label, axis2 = !!sym(column), axis3 = !!sym(outcome)))
+    if (requireNamespace("scales", quietly = TRUE)) {
+      vals <- scales::hue_pal(l = 65, c = 100)(length(features))
     } else {
-      p <- ggplot(data = df, aes(y = value, axis1 = label, axis2 = !!sym(outcome)))
+      vals <- grDevices::rainbow(length(features))
     }
-
-
-    # Modify the geom_text call in the ggplot function to include the counts
-    p1 <- p +
-      theme_void() +
-      theme(legend.position="none",
-            axis.title.y = element_blank(),
-            axis.text.y = element_blank(),
-            axis.ticks.y = element_blank(),
-            plot.title = element_text(hjust = 0.1, size = 10),
-            text = element_text(size = 8)) +
-      geom_alluvium(aes(fill = variable), width = 5/12) +
-      geom_stratum(width = 5/12, fill = "aliceblue", color = "black") +
-      geom_text(stat = "stratum", aes(label = after_stat(stratum)), size=3) +
-      scale_x_discrete(limits = c("CST", "Virus_CINB2"), expand = c(.2, .2)) +
-      scale_fill_manual(values = mycols) +
-      ggtitle(paste("Contribution of ",target))
-
-
-    plotlist[[length(plotlist)+1]] <- p1
+    stats::setNames(vals, features)
   }
 
-  pdf(sprintf("%s/Alluvial.%s.%s.(%s%s)%s%s.pdf", out_path,
-              project,
-              outcome,
-              ifelse(is.null(column1), "", paste(column1, ".", sep = "")),
-              ifelse(is.null(column2), "", paste(column2, ".", sep = "")),
-              ifelse(is.null(name), "", paste(name, ".", sep = "")),
-              format(Sys.Date(), "%y%m%d")), height = height, width = width)
+  plots <- list()
+  rendered_targets <- character(0)
 
+  for (target in targets.bac) {
+    tab.sel <- tab[as.character(tab[[target.rank]]) == target, , drop = FALSE]
+    if (nrow(tab.sel) == 0) {
+      message("[Go_alluvialplot] No rows found for target: ", target)
+      next
+    }
 
+    feature_labels <- rownames(tab.sel)
+    taxa_tab <- data.frame(
+      SampleID = sample_cols,
+      t(as.matrix(tab.sel[, sample_cols, drop = FALSE])),
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
+    colnames(taxa_tab)[-1] <- feature_labels
+    taxa_tab <- merge(sampledata, taxa_tab, by = "SampleID", all.x = FALSE, sort = FALSE)
 
-  multiplot <- function(..., plotlist=NULL, file, cols=1, rows=1) {
-    require(grid)
-    # Make a list from the ... arguments and plotlist
-    plots <- c(list(...), plotlist)
-    numPlots = length(plots)
+    taxa_melt <- reshape2::melt(
+      taxa_tab,
+      id.vars = c("SampleID", axis_vars),
+      measure.vars = feature_labels,
+      variable.name = "feature",
+      value.name = "value"
+    )
 
-    i = 1
-    while (i < numPlots) {
-      numToPlot <- min(numPlots-i+1, cols*rows)
-      # Make the panel
-      # ncol: Number of columns of plots
-      # nrow: Number of rows needed, calculated from # of cols
-      layout <- matrix(seq(i, i+cols*rows-1), ncol = cols, nrow = rows, byrow=T)
-      if (numToPlot==1) {
-        print(plots[[i]])
+    taxa_melt$value <- suppressWarnings(as.numeric(taxa_melt$value))
+    taxa_melt <- taxa_melt[is.finite(taxa_melt$value) & taxa_melt$value > 0, , drop = FALSE]
+    if (nrow(taxa_melt) == 0) {
+      message("[Go_alluvialplot] No positive values remained for target: ", target)
+      next
+    }
+
+    taxa_melt <- dplyr::group_by(taxa_melt, feature)
+    taxa_melt <- dplyr::mutate(taxa_melt, feature_count = dplyr::n())
+    taxa_melt <- dplyr::ungroup(taxa_melt)
+    taxa_melt$label <- paste0(taxa_melt$feature, " (n=", taxa_melt$feature_count, ")")
+
+    for (var_name in axis_vars) {
+      taxa_melt[[var_name]] <- as.character(taxa_melt[[var_name]])
+      taxa_melt[[var_name]][is.na(taxa_melt[[var_name]]) | !nzchar(taxa_melt[[var_name]])] <- "NA"
+
+      if (!is.null(orders)) {
+        observed_levels <- unique(taxa_melt[[var_name]])
+        var_levels <- c(intersect(orders, observed_levels), setdiff(observed_levels, orders))
+        taxa_melt[[var_name]] <- factor(taxa_melt[[var_name]], levels = var_levels)
       } else {
-        # Set up the page
-        grid.newpage()
-        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-        # Make each plot, in the correct location
-        for (j in i:(i+numToPlot-1)) {
-          # Get the i,j matrix positions of the regions that contain this subplot
-          matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
-          print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
-                                          layout.pos.col = matchidx$col))
-        }
+        taxa_melt[[var_name]] <- factor(taxa_melt[[var_name]])
       }
-      i <- i+numToPlot
     }
+
+    group_cols <- c("label", "feature", axis_vars)
+    df_plot <- dplyr::summarise(
+      dplyr::group_by(taxa_melt, dplyr::across(dplyr::all_of(group_cols))),
+      sample_n = dplyr::n(),
+      abundance_sum = sum(value, na.rm = TRUE),
+      .groups = "drop"
+    )
+    df_plot$weight <- if (identical(size_by, "count")) df_plot$sample_n else log1p(df_plot$abundance_sum)
+    df_plot <- df_plot[df_plot$weight > 0 & is.finite(df_plot$weight), , drop = FALSE]
+    if (nrow(df_plot) == 0) {
+      message("[Go_alluvialplot] No aggregated paths remained for target: ", target)
+      next
+    }
+
+    feature_levels <- unique(df_plot$feature)
+    feature_palette <- resolve_palette(feature_levels, palette)
+
+    axis_mapping <- list(axis1 = quote(label))
+    for (i in seq_along(axis_vars)) {
+      axis_mapping[[paste0("axis", i + 1)]] <- as.name(axis_vars[i])
+    }
+    axis_mapping$y <- quote(weight)
+    axis_mapping$fill <- quote(feature)
+
+    p <- ggplot2::ggplot(
+      df_plot,
+      do.call(ggplot2::aes, axis_mapping)
+    ) +
+      ggalluvial::geom_alluvium(width = 5 / 12, alpha = alpha) +
+      ggalluvial::geom_stratum(width = 5 / 12, fill = "aliceblue", color = "black") +
+      ggalluvial::stat_stratum(
+        ggplot2::aes(label = after_stat(stratum)),
+        geom = "text",
+        size = 3
+      ) +
+      ggplot2::scale_fill_manual(values = feature_palette, drop = FALSE) +
+      ggplot2::scale_x_discrete(
+        limits = c("label", axis_vars),
+        labels = c(target.rank, axis_vars),
+        expand = c(0.12, 0.12)
+      ) +
+      ggplot2::labs(
+        title = build_plot_title(target, target.rank),
+        x = NULL,
+        y = if (identical(size_by, "count")) "sample count" else "log1p summed abundance"
+      ) +
+      ggplot2::theme_void() +
+      ggplot2::theme(
+        legend.position = "none",
+        axis.title.y = ggplot2::element_blank(),
+        axis.text.y = ggplot2::element_blank(),
+        axis.ticks.y = ggplot2::element_blank(),
+        axis.text.x = ggplot2::element_text(size = 9, colour = "black"),
+        plot.title = ggplot2::element_text(hjust = 0.1, size = 10),
+        text = ggplot2::element_text(size = 8)
+      )
+
+    plots[[length(plots) + 1]] <- p
+    rendered_targets <- c(rendered_targets, target)
   }
 
-  if (length(targets.bac) == 1){
-    print(p1)
-    dev.off()
-  }else{
-    multiplot(plotlist=plotlist, cols=plotCols, rows=plotRows)
-    dev.off()
+  if (length(plots) == 0) {
+    stop("No alluvial plots were generated. Check `targets.bac`, `target.rank`, and sample overlap.")
   }
 
+  file_stub <- sprintf(
+    "Alluvial.%s.%s.%s%s%s.pdf",
+    project,
+    outcome,
+    ifelse(is.null(column1), "", paste0(column1, ".")),
+    ifelse(is.null(column2), "", paste0(column2, ".")),
+    ifelse(is.null(name), format(Sys.Date(), "%y%m%d"), paste0(name, ".", format(Sys.Date(), "%y%m%d")))
+  )
+  pdf_path <- file.path(out_path, file_stub)
+
+  grDevices::pdf(pdf_path, height = height, width = width)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  if (length(plots) == 1) {
+    print(plots[[1]])
+  } else {
+    multiplot(plotlist = plots, cols = plotCols, rows = plotRows)
+  }
+
+  invisible(plots)
 }
