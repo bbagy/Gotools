@@ -2,9 +2,17 @@
 % Please edit documentation in R/Go_mirkat_v1.R
 \name{Go_mirkat}
 \alias{Go_mirkat}
-\title{Microbiome Regression-Based Kernel Association Test (MiRKAT)}
+\title{Microbiome Regression-Based Kernel Association Test (MiRKAT / MiRKAT-LMM)}
 \usage{
-Go_mirkat(psIN, project, cate.vars, cate.conf = NULL, orders, name = NULL)
+Go_mirkat(
+  psIN,
+  project,
+  cate.vars,
+  cate.conf = NULL,
+  orders,
+  name = NULL,
+  strata_var = NULL
+)
 }
 \arguments{
 \item{psIN}{Phyloseq object containing microbiome data.}
@@ -18,24 +26,34 @@ Go_mirkat(psIN, project, cate.vars, cate.conf = NULL, orders, name = NULL)
 \item{orders}{A vector specifying the order of levels in the categorical variable.}
 
 \item{name}{Optional name for the output file.}
+
+\item{strata_var}{Column name to use as subject ID for MiRKAT-LMM (repeated measures).
+When provided and valid (each block contains >1 group level), MiRKAT_LMM() is used.
+When strata_var perfectly confounds mvar (cross-sectional design), falls back to
+standard MiRKAT() with a warning — identical logic to Go_bdivPM().}
 }
 \value{
-The function generates a CSV file containing the MiRKAT analysis results, including P-values for the association between microbial communities and the categorical outcome. The file is saved in the specified output directory.
+CSV table of p-values saved to {project}_{date}/table/mirkat/.
 }
 \description{
-Microbiome Regression-Based Kernel Association Test (MiRKAT)
+Microbiome Regression-Based Kernel Association Test (MiRKAT / MiRKAT-LMM)
 }
 \details{
-This function performs the MiRKAT (Microbiome Regression-Based Kernel Association Test) on microbiome data. MiRKAT is a non-parametric method used for assessing the association between microbial community composition and a categorical outcome variable, accounting for potential confounders.
+This function performs MiRKAT or MiRKAT-LMM on microbiome data.
+\itemize{
+\item No strata_var / confounded strata → MiRKAT() (standard, cross-sectional)
+\item Valid strata_var (repeated measures) → MiRKAT_LMM() (accounts for within-subject correlation)
+}
 
-The function handles multiple comparisons by considering different combinations of groups within the categorical variables and accounts for confounding factors if provided. It computes various UniFrac distances and converts them into kernel matrices for the MiRKAT analysis.
+The output CSV includes a 'method' column indicating which test was applied per comparison.
 }
 \examples{
-Go_mirkat(psIN = my_phyloseq_object,
-         project = "MyMicrobiomeProject",
-         cate.vars = c("TreatmentGroup"),
-         cate.conf = c("Age", "BMI"),
-         orders = c("Control", "Treatment"),
-         name = "MiRKAT_analysis")
+# Standard (cross-sectional)
+Go_mirkat(psIN = ps, project = "Proj", cate.vars = "Group",
+          orders = c("Control", "Treatment"))
+
+# With repeated measures (MiRKAT-LMM)
+Go_mirkat(psIN = ps, project = "Proj", cate.vars = "Group",
+          orders = c("Neg", "CD"), strata_var = "PatientID")
 
 }
