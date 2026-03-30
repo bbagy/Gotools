@@ -2,7 +2,7 @@
 % Please edit documentation in R/Go_bdivMK_V1.R
 \name{Go_bdivMK}
 \alias{Go_bdivMK}
-\title{Beta-diversity with MiRKAT / MiRKAT_LMM (facet annotation + CSV saving)}
+\title{Beta-Diversity Ordination with MiRKAT / MiRKAT-LMM}
 \usage{
 Go_bdivMK(
   psIN,
@@ -15,7 +15,7 @@ Go_bdivMK(
   ellipse = TRUE,
   statistics = TRUE,
   mycols = NULL,
-  rand.eff = NULL,
+  paired = NULL,
   combination = NULL,
   shapes = NULL,
   ID = NULL,
@@ -23,49 +23,62 @@ Go_bdivMK(
   name = NULL,
   addnumber = TRUE,
   height,
-  width
+  width,
+  plotCols = 2,
+  plotRows = 1,
+  strata_var = NULL
 )
 }
 \arguments{
-\item{psIN}{phyloseq object}
+\item{psIN}{Phyloseq object.}
 
-\item{cate.vars}{grouping variables to test (vector)}
+\item{cate.vars}{Grouping variable(s) to test.}
 
-\item{project}{project name (used in filenames)}
+\item{project}{Project name (used in filenames).}
 
-\item{orders}{factor order vector (optional)}
+\item{orders}{Factor level order vector.}
 
-\item{distance_metrics}{e.g. c("bray","unifrac","wunifrac",...)}
+\item{distance_metrics}{e.g. c("bray","unifrac","wunifrac").}
 
-\item{cate.conf}{covariates (character vector) \link{currently not used inside MiRKAT core test}}
+\item{cate.conf}{Covariate column name(s) (optional).}
 
-\item{plot}{ordination method(s), e.g. "PCoA"}
+\item{plot}{Ordination method, e.g. "PCoA".}
 
-\item{ellipse}{TRUE/FALSE or grouping name for ellipse color}
+\item{ellipse}{TRUE / FALSE / grouping column for ellipse color.}
 
-\item{statistics}{TRUE to compute MiRKAT/MiRKAT_LMM p-values}
+\item{statistics}{Logical. Compute and annotate MiRKAT p-values.}
 
-\item{mycols}{manual color vector}
+\item{mycols}{Manual color palette.}
 
-\item{rand.eff}{random-effect column for MiRKAT_LMM (e.g., "UID"); NULL → MiRKAT}
+\item{paired}{Column name for paired-line overlay (optional).}
 
-\item{combination}{NULL or 2/3/4 (subset pages; single PDF)}
+\item{combination}{NULL or integer (2/3) for pairwise combinations.}
 
-\item{shapes}{shape mapping column (optional)}
+\item{shapes}{Column name for point shape mapping (optional).}
 
-\item{ID}{text label column (optional)}
+\item{ID}{Column name for text labels (optional).}
 
-\item{facet}{facet column (optional)}
+\item{facet}{Facet column name (optional).}
 
-\item{name}{extra name suffix (optional)}
+\item{name}{Extra filename suffix (optional).}
 
-\item{addnumber}{add n to group labels}
+\item{addnumber}{Add (n=x) to group legend labels.}
 
-\item{height, width}{PDF size}
+\item{height, width}{PDF dimensions.}
+
+\item{plotCols, plotRows}{Multiplot grid dimensions.}
+
+\item{strata_var}{Subject/block ID column for MiRKAT-LMM (repeated measures).
+\itemize{
+\item NULL or confounded design  → MiRKAT() \link{subtitle shows fallback notice}
+\item Valid repeated-measures ID → MiRKAT_LMM()
+Same logic as strata_var in Go_bdivPM().
+}}
 }
 \value{
-PDFs and CSVs written to disk
+PDF(s) + CSV tables written to {project}_{date}/pdf/ and table/mirkat/.
 }
 \description{
-Beta-diversity with MiRKAT / MiRKAT_LMM (facet annotation + CSV saving)
+Identical structure to Go_bdivPM() — PCoA plots with kernel-based association
+test (MiRKAT or MiRKAT-LMM) annotated in the plot corner and saved to CSV.
 }

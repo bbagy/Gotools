@@ -5,9 +5,11 @@
 #'
 #' @param physeq_object A Phyloseq object containing OTU/ASV counts and associated sample data.
 #' @param step Step size for rarefaction curve plotting.
-#' @param label Optional labels for the curves.
-#' @param color Color to be used for the curves.
-#' @param xlimit Maximum limit for the x-axis (sequence sample size).
+#' @param label Optional sample label mapping. Supply either a metadata column
+#'   name or a vector with one value per sample.
+#' @param color Optional color mapping. Supply either a metadata column name, a
+#'   vector with one value per sample, or a single constant color value.
+#' @param xlimit Optional maximum limit for the x-axis (sequence sample size).
 #' @param plot Logical; if TRUE, the function plots the rarefaction curve.
 #' @param parallel Logical; if TRUE, uses parallel processing for faster computation.
 #' @param se Logical; if TRUE, includes standard error in the rarefaction curves.
@@ -17,7 +19,7 @@
 #'
 #' @examples
 #' # Assuming 'ps' is a Phyloseq object
-#' Go_rare_markdown(ps, step = 10, label = "SampleLabel", color = "red", xlimit = 1000, plot = TRUE)
+#' Go_rare(ps, step = 10, label = "SampleLabel", color = "Group", xlimit = 1000, plot = TRUE)
 #'
 #' @export
 #' @importFrom phyloseq phyloseq otu_table taxa_are_rows sample_data
@@ -26,7 +28,10 @@
 #' @importFrom ggplot2 ggplot aes_string labs geom_text geom_line geom_ribbon theme_classic
 
 
-Go_rare <- function(physeq_object, step = 10, label = NULL, color = NULL, xlimit, plot = TRUE, parallel = FALSE, se = TRUE) {
+Go_rare <- function(physeq_object, step = 10, label = NULL, color = NULL, xlimit = NULL, plot = TRUE, parallel = FALSE, se = TRUE) {
+  if (!inherits(physeq_object, "phyloseq")) {
+    stop("`physeq_object` must be a phyloseq object.")
+  }
   
   x <- methods::as(phyloseq::otu_table(physeq_object), "matrix")
   if (phyloseq::taxa_are_rows(physeq_object)) { x <- t(x) }
@@ -62,55 +67,115 @@ Go_rare <- function(physeq_object, step = 10, label = NULL, color = NULL, xlimit
   }
   
   df <- do.call(rbind, out)
+  labels <- data.frame(x = tot, y = S, Sample = rownames(x), stringsAsFactors = FALSE)
   
   # Get sample data
+  sample_df <- NULL
   if (!is.null(phyloseq::sample_data(physeq_object, FALSE))) {
     sdf <- methods::as(phyloseq::sample_data(physeq_object), "data.frame")
     sdf$Sample <- rownames(sdf)
-    data <- merge(df, sdf, by = "Sample")
-    labels <- data.frame(x = tot, y = S, Sample = rownames(x))
+    sample_df <- sdf
+    data <- merge(df, sdf, by = "Sample", all.x = TRUE)
     labels <- merge(labels, sdf, by = "Sample")
+  } else {
+    data <- df
   }
   
-  # Add, any custom-supplied plot-mapped variables
-  if ( length(color) > 1 ) {
-    data$color <- color
-    names(data)[names(data) == "color"] <- deparse(substitute(color))
-    color <- deparse(substitute(color))
+  sample_order <- rownames(x)
+
+  add_sample_mapping <- function(target_df, spec, column_name) {
+    if (is.null(spec)) {
+      return(target_df)
+    }
+
+    if (length(spec) == 1 && is.character(spec) && !is.null(sample_df) && spec %in% colnames(sample_df)) {
+      return(target_df)
+    }
+
+    if (length(spec) == 1) {
+      target_df[[column_name]] <- spec
+      return(target_df)
+    }
+
+    if (length(spec) != length(sample_order)) {
+      stop(sprintf("`%s` must be a metadata column name, a single value, or a vector with one value per sample.", column_name))
+    }
+
+    map_df <- data.frame(
+      Sample = sample_order,
+      value = spec,
+      stringsAsFactors = FALSE
+    )
+    colnames(map_df)[2] <- column_name
+    merge(target_df, map_df, by = "Sample", all.x = TRUE)
   }
-  
-  if ( length(label) > 1 ) {
-    labels$label <- label
-    names(labels)[names(labels) == "label"] <- deparse(substitute(label))
-    label <- deparse(substitute(label))
+
+  data <- add_sample_mapping(data, color, ".plot_color")
+  labels <- add_sample_mapping(labels, label, ".plot_label")
+
+  color_mapping <- NULL
+  color_constant <- NULL
+  if (!is.null(color)) {
+    if (length(color) == 1 && is.character(color) && !is.null(sample_df) && color %in% colnames(sample_df)) {
+      color_mapping <- color
+    } else if (".plot_color" %in% colnames(data)) {
+      if (length(unique(stats::na.omit(data$.plot_color))) <= 1) {
+        color_constant <- unique(stats::na.omit(data$.plot_color))[1]
+      } else {
+        color_mapping <- ".plot_color"
+      }
+    }
   }
-  
-  p <- ggplot2::ggplot(data = data,
-                       ggplot2::aes_string(x = "Size",
-                                           y = ".S",
-                                           group = "Sample",
-                                           color = color))
-  
-  p <- p + ggplot2::labs(x = "Sequence Sample Size", y = "Species Richness")
-  p <- p + xlim(NA, xlimit) + theme_classic()
-  
+
+  label_mapping <- NULL
   if (!is.null(label)) {
+    if (length(label) == 1 && is.character(label) && !is.null(sample_df) && label %in% colnames(sample_df)) {
+      label_mapping <- label
+    } else if (".plot_label" %in% colnames(labels)) {
+      label_mapping <- ".plot_label"
+    }
+  }
+
+  base_mapping <- ggplot2::aes_string(x = "Size", y = ".S", group = "Sample")
+  if (!is.null(color_mapping)) {
+    base_mapping <- ggplot2::aes_string(x = "Size", y = ".S", group = "Sample", color = color_mapping)
+  }
+
+  p <- ggplot2::ggplot(data = data, base_mapping)
+  p <- p + ggplot2::labs(x = "Sequence Sample Size", y = "Species Richness")
+  p <- p + ggplot2::theme_classic()
+
+  if (!is.null(xlimit)) {
+    p <- p + ggplot2::coord_cartesian(xlim = c(NA, xlimit))
+  }
+
+  if (!is.null(label_mapping)) {
     p <- p + ggplot2::geom_text(data = labels,
                                 ggplot2::aes_string(x = "x",
                                                     y = "y",
-                                                    label = label,
-                                                    color = color),
+                                                    label = label_mapping,
+                                                    color = color_mapping),
                                 size = 4, hjust = 0)
   }
-  
-  p <- p + ggplot2::geom_line()
+
+  if (is.null(color_constant)) {
+    p <- p + ggplot2::geom_line()
+  } else {
+    p <- p + ggplot2::geom_line(color = color_constant)
+  }
+
   if (se) { ## add standard error if available
-    p <- p +
-      ggplot2::geom_ribbon(ggplot2::aes_string(ymin = ".S - .se",
-                                               ymax = ".S + .se",
-                                               color = NULL,
-                                               fill = color),
-                           alpha = 0.2)
+    ribbon_mapping <- if (is.null(color_mapping)) {
+      ggplot2::aes_string(ymin = ".S - .se", ymax = ".S + .se", group = "Sample")
+    } else {
+      ggplot2::aes_string(ymin = ".S - .se", ymax = ".S + .se", group = "Sample", fill = color_mapping)
+    }
+
+    if (is.null(color_constant)) {
+      p <- p + ggplot2::geom_ribbon(ribbon_mapping, alpha = 0.2, inherit.aes = FALSE)
+    } else {
+      p <- p + ggplot2::geom_ribbon(ribbon_mapping, alpha = 0.2, fill = color_constant, inherit.aes = FALSE)
+    }
   }
   if (plot) {
     suppressWarnings(plot(p))

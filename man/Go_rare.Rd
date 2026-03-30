@@ -9,7 +9,7 @@ Go_rare(
   step = 10,
   label = NULL,
   color = NULL,
-  xlimit,
+  xlimit = NULL,
   plot = TRUE,
   parallel = FALSE,
   se = TRUE
@@ -20,11 +20,13 @@ Go_rare(
 
 \item{step}{Step size for rarefaction curve plotting.}
 
-\item{label}{Optional labels for the curves.}
+\item{label}{Optional sample label mapping. Supply either a metadata column
+name or a vector with one value per sample.}
 
-\item{color}{Color to be used for the curves.}
+\item{color}{Optional color mapping. Supply either a metadata column name, a
+vector with one value per sample, or a single constant color value.}
 
-\item{xlimit}{Maximum limit for the x-axis (sequence sample size).}
+\item{xlimit}{Optional maximum limit for the x-axis (sequence sample size).}
 
 \item{plot}{Logical; if TRUE, the function plots the rarefaction curve.}
 
@@ -42,6 +44,6 @@ It provides an assessment of species richness across varying sequencing depths.
 }
 \examples{
 # Assuming 'ps' is a Phyloseq object
-Go_rare_markdown(ps, step = 10, label = "SampleLabel", color = "red", xlimit = 1000, plot = TRUE)
+Go_rare(ps, step = 10, label = "SampleLabel", color = "Group", xlimit = 1000, plot = TRUE)
 
 }

@@ -5,9 +5,8 @@
 \title{Hybrid Boxplot + Trajectory Plot for Repeated Measures}
 \usage{
 Go_hybridBoxTrajectory(
-  df = NULL,
-  psIN = NULL,
-  project,
+  input = NULL,
+  project = NULL,
   outcomes,
   ref.var,
   traj.var,
@@ -24,15 +23,14 @@ Go_hybridBoxTrajectory(
   loess_min_n = 5,
   lm_min_n = 3,
   width = 8,
-  height = NULL
+  height = NULL,
+  df = NULL,
+  psIN = NULL
 )
 }
 \arguments{
-\item{df}{Data frame containing the variables to plot. Provide either
-\code{df} or \code{psIN}.}
-
-\item{psIN}{Phyloseq object. In the current version, \code{psIN} mode
-supports alpha-diversity outcomes and internally calls \code{Go_adiv()}.}
+\item{input}{Primary input object. Provide either a data frame or a
+phyloseq object here. This is the preferred interface.}
 
 \item{project}{Project name used for output folder and file naming.}
 
@@ -45,10 +43,11 @@ these should be alpha-diversity metrics such as \code{"Shannon"} or
 \item{traj.var}{Grouping variable used for the right trajectory panel.}
 
 \item{orders}{Optional ordering specification for the grouping variables.
-For this function, provide a named list such as
-\code{list(ref = c("NC", "CD"), traj = c("Neg", "Mild", "Mod"))}.
-The \code{ref} entry controls the left reference panel order and filtering,
-and the \code{traj} entry controls the right trajectory panel order and filtering.}
+You can provide either a single character vector, which will be filtered
+with \code{intersect()} against each panel variable, or a named list such
+as \code{list(ref = c("NC", "CD"), traj = c("Neg", "Mild", "Mod"))}.
+A single vector keeps the function aligned with the broader Gotool style,
+while the list form allows different order sets for the two panels.}
 
 \item{time.var}{Numeric time variable for the trajectory x-axis.}
 
@@ -57,8 +56,11 @@ random intercept in the LMM.}
 
 \item{name}{Optional name tag appended to output files.}
 
-\item{mycols}{Optional named color vector. Names should cover all values in
-\code{ref.levels} and \code{traj.levels}.}
+\item{mycols}{Optional color vector. You can provide either a named vector
+such as \code{c(NC = "#4C78A8", CD = "#E45756", Neg = "#72B7B2",
+  Mild = "#F58518", Mod = "#B279A2")} or an unnamed palette vector such as
+the output of \code{Go_myCols()}, which will be assigned in order to the
+panel levels after \code{orders} are resolved.}
 
 \item{statistics}{Logical; if \code{TRUE}, fit an LMM for each outcome in
 the trajectory panel and export ANOVA / emmeans tables.}
@@ -84,6 +86,12 @@ the median observed time.}
 
 \item{height}{Output PDF height in inches. If \code{NULL}, height is set from
 the number of outcomes.}
+
+\item{df}{Deprecated compatibility input for a data frame. If supplied,
+it will be merged into \code{input} internally.}
+
+\item{psIN}{Deprecated compatibility input for a phyloseq object. If
+supplied, it will be merged into \code{input} internally.}
 }
 \value{
 Invisibly returns a list containing plots, fitted model summaries,
@@ -98,12 +106,19 @@ optional \code{emmeans} contrasts.
 \examples{
 \dontrun{
 Go_hybridBoxTrajectory(
-  df = dat,
+  input = dat,
   project = "MAPS",
   outcomes = c("Chao1", "Shannon"),
   ref.var = "TruncGroup",
   traj.var = "TruncITxOnly",
   orders = list(ref = c("NC", "CD"), traj = c("Neg", "Mild", "Mod")),
+  mycols = c(
+    NC = "#4C78A8",
+    CD = "#E45756",
+    Neg = "#72B7B2",
+    Mild = "#F58518",
+    Mod = "#B279A2"
+  ),
   time.var = "POD_num",
   subject.var = "subject_id"
 )
