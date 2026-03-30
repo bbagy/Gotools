@@ -23,6 +23,12 @@
 #' @param plotRows Number of rows in the multiplot layout.
 #' @param strata_var (NEW) Column name to use as permutation blocks for PERMANOVA.
 #' @param p_adjust P-value adjustment method for PERMANOVA labels (e.g., "BH", "bonferroni").
+#' @param marginal Logical; add marginal distributions with `ggMarginal()` when
+#'   the plot is a single non-faceted ordination panel.
+#' @param marginal_type Marginal plot type passed to `ggExtra::ggMarginal()`,
+#'   for example `"density"`, `"boxplot"`, or `"histogram"`.
+#' @param marginal_size Relative size of the marginal panels.
+#' @param marginal_alpha Transparency applied to marginal densities or fills.
 #'
 #' @return PDF(s) and CSV tables on disk.
 #' @export
@@ -42,9 +48,14 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                     height, width,
                     plotCols = 2, plotRows = 1,
                     strata_var = NULL,
-                    p_adjust = "BH") {
+                    p_adjust = "BH",
+                    marginal = FALSE,
+                    marginal_type = c("density", "boxplot", "histogram"),
+                    marginal_size = 5,
+                    marginal_alpha = 0.35) {
 
   if(!is.null(dev.list())) dev.off()
+  marginal_type <- match.arg(marginal_type)
 
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
@@ -113,6 +124,29 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
   .has_any <- function(x, key) !is.null(x) && length(x) >= 1 && any(x %in% key)
   .adj_label <- function(method) {
     if (tolower(as.character(method)) == "bh") "FDR(BH)" else sprintf("Adj(%s)", method)
+  }
+  .can_use_marginal <- function() {
+    isTRUE(marginal) &&
+      is.null(facet) &&
+      is.null(combination) &&
+      length(distance_metrics) == 1 &&
+      length(plot) == 1 &&
+      length(cate.vars) == 1
+  }
+  .apply_marginal <- function(p) {
+    if (!.can_use_marginal()) return(p)
+    if (!requireNamespace("ggExtra", quietly = TRUE)) {
+      warning("ggExtra is required for marginal = TRUE. Returning the base ordination plot.")
+      return(p)
+    }
+    ggExtra::ggMarginal(
+      p,
+      type = marginal_type,
+      size = marginal_size,
+      alpha = marginal_alpha,
+      groupColour = TRUE,
+      groupFill = TRUE
+    )
   }
   .axis_percent <- function(ordi_obj) {
     # Prefer relative eigenvalues when available.
@@ -411,7 +445,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                  y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)"),
                  title = sprintf("%s (%s)%s", mvar, distance_metric, title_suffix),
                  subtitle = subtitle_text) +
-            facet_wrap(~ method, scales="free") + theme_bw() +
+            theme_bw() +
             theme(strip.background = element_blank(),
                   legend.position = "bottom",
                   legend.title = element_blank(),
@@ -424,6 +458,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                   legend.margin = ggplot2::margin(0, 0, 0, 0, "cm"),
                   plot.subtitle = element_text(size = 6, lineheight = 0.9))
 
+          if (length(ord_meths) > 1) {
+            p <- p + facet_wrap(~ method, scales = "free")
+          }
+
           if(!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
           p <- p + guides(
             color = ggplot2::guide_legend(ncol = 1, byrow = TRUE),
@@ -431,8 +469,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
           )
           if (!is.null(ID) && ID %in% names(pdataframe)) p <- p + ggrepel::geom_text_repel(aes_string(label = ID), size = 2)
 
-          if (ellipse == TRUE) p <- p + stat_ellipse(type="norm", linetype=2)
-          else if (!is.null(ellipse) && ellipse != TRUE) p <- p + stat_ellipse(aes_string(group=ellipse, color=ellipse), type="norm", linetype=2)
+          if (isTRUE(ellipse)) p <- p + stat_ellipse(type="norm", linetype=2)
+          else if (!isFALSE(ellipse) && !is.null(ellipse)) p <- p + stat_ellipse(aes_string(group=ellipse, color=ellipse), type="norm", linetype=2)
 
           # ======= PERMANOVA (코너 고정) ======= #
           if (statistics){
@@ -530,6 +568,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                   plot.title=element_text(size=8,face="bold")) +
             geom_vline(xintercept = 0, linewidth = 0.1) + geom_hline(yintercept = 0, linewidth = 0.1)
 
+          p <- .apply_marginal(p)
           plotlist[[length(plotlist)+1]] <- p
         }
       }
@@ -609,7 +648,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                y = paste0("Axis 2 (", sprintf("%.2f", axis2_percent_avg),"%)"),
                title = sprintf("%s (%s)%s", mvar, distance_metric, title_suffix),
                subtitle = subtitle_text) +
-          facet_wrap(~ method, scales="free") + theme_bw() +
+          theme_bw() +
           theme(strip.background = element_blank(),
                 legend.position = "bottom",
                 legend.title = element_blank(),
@@ -623,6 +662,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 plot.title=element_text(size=8,face="bold"),
                 plot.subtitle = element_text(size = 6, lineheight = 0.9))
 
+        if (length(ord_meths) > 1) {
+          p <- p + facet_wrap(~ method, scales = "free")
+        }
+
         if(!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
         p <- p + guides(
           color = ggplot2::guide_legend(ncol = 1, byrow = TRUE),
@@ -630,8 +673,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         )
         if (!is.null(ID) && ID %in% names(pdataframe)) p <- p + ggrepel::geom_text_repel(aes_string(label = ID), size = 2)
 
-        if (ellipse == TRUE) p <- p + stat_ellipse(type="norm", linetype=2)
-        else if (!is.null(ellipse) && ellipse != TRUE) p <- p + stat_ellipse(aes_string(group=ellipse, color=ellipse), type="norm", linetype=2)
+        if (isTRUE(ellipse)) p <- p + stat_ellipse(type="norm", linetype=2)
+        else if (!isFALSE(ellipse) && !is.null(ellipse)) p <- p + stat_ellipse(aes_string(group=ellipse, color=ellipse), type="norm", linetype=2)
 
         # ======= PERMANOVA (코너 고정) ======= #
         if (statistics){
@@ -732,6 +775,7 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 aspect.ratio = 1) +
           geom_vline(xintercept = 0, linewidth = 0.1) + geom_hline(yintercept = 0, linewidth = 0.1)
 
+        p <- .apply_marginal(p)
         plotlist[[length(plotlist)+1]] <- p
       }
       multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)

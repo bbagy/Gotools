@@ -26,7 +26,11 @@ Go_bdivMK(
   width,
   plotCols = 2,
   plotRows = 1,
-  strata_var = NULL
+  strata_var = NULL,
+  marginal = FALSE,
+  marginal_type = c("density", "boxplot", "histogram"),
+  marginal_size = 5,
+  marginal_alpha = 0.35
 )
 }
 \arguments{
@@ -74,6 +78,16 @@ Go_bdivMK(
 \item Valid repeated-measures ID → MiRKAT_LMM()
 Same logic as strata_var in Go_bdivPM().
 }}
+
+\item{marginal}{Logical; add marginal distributions with \code{ggMarginal()} when
+the plot is a single non-faceted ordination panel.}
+
+\item{marginal_type}{Marginal plot type passed to \code{ggExtra::ggMarginal()},
+for example \code{"density"}, \code{"boxplot"}, or \code{"histogram"}.}
+
+\item{marginal_size}{Relative size of the marginal panels.}
+
+\item{marginal_alpha}{Transparency applied to marginal densities or fills.}
 }
 \value{
 PDF(s) + CSV tables written to {project}_{date}/pdf/ and table/mirkat/.

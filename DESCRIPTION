@@ -58,6 +58,7 @@ Suggests:
     ellipse,
     e1071,
     ggalluvial,
+    ggExtra,
     ggforce,
     gplots,
     gridExtra,

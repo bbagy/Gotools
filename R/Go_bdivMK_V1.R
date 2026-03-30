@@ -26,6 +26,12 @@
 #'   - NULL or confounded design  → MiRKAT() [subtitle shows fallback notice]
 #'   - Valid repeated-measures ID → MiRKAT_LMM()
 #'   Same logic as strata_var in Go_bdivPM().
+#' @param marginal Logical; add marginal distributions with `ggMarginal()` when
+#'   the plot is a single non-faceted ordination panel.
+#' @param marginal_type Marginal plot type passed to `ggExtra::ggMarginal()`,
+#'   for example `"density"`, `"boxplot"`, or `"histogram"`.
+#' @param marginal_size Relative size of the marginal panels.
+#' @param marginal_alpha Transparency applied to marginal densities or fills.
 #'
 #' @return PDF(s) + CSV tables written to {project}_{date}/pdf/ and table/mirkat/.
 #' @export
@@ -45,9 +51,14 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
                       addnumber   = TRUE,
                       height, width,
                       plotCols    = 2, plotRows = 1,
-                      strata_var  = NULL) {
+                      strata_var  = NULL,
+                      marginal = FALSE,
+                      marginal_type = c("density", "boxplot", "histogram"),
+                      marginal_size = 5,
+                      marginal_alpha = 0.35) {
 
   if (!is.null(dev.list())) dev.off()
+  marginal_type <- match.arg(marginal_type)
 
   # ── out dirs ──────────────────────────────────────────────────────────────
   out        <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
@@ -94,6 +105,29 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
   }
   .has_any    <- function(x, key) !is.null(x) && length(x) >= 1 && any(x %in% key)
   .adj_label  <- function(method) if (tolower(as.character(method)) == "bh") "FDR(BH)" else sprintf("Adj(%s)", method)
+  .can_use_marginal <- function() {
+    isTRUE(marginal) &&
+      is.null(facet) &&
+      is.null(combination) &&
+      length(distance_metrics) == 1 &&
+      length(plot) == 1 &&
+      length(cate.vars) == 1
+  }
+  .apply_marginal <- function(p) {
+    if (!.can_use_marginal()) return(p)
+    if (!requireNamespace("ggExtra", quietly = TRUE)) {
+      warning("ggExtra is required for marginal = TRUE. Returning the base ordination plot.")
+      return(p)
+    }
+    ggExtra::ggMarginal(
+      p,
+      type = marginal_type,
+      size = marginal_size,
+      alpha = marginal_alpha,
+      groupColour = TRUE,
+      groupFill = TRUE
+    )
+  }
   .axis_percent <- function(ordi_obj) {
     rel <- try(ordi_obj$values$Relative_eig, silent = TRUE)
     if (!inherits(rel, "try-error") && !is.null(rel) && length(rel) >= 2)
@@ -403,7 +437,7 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
                         y       = paste0("Axis 2 (", sprintf("%.2f", axis2_pct), "%)"),
                         title   = sprintf("%s (%s)", mvar, distance_metric),
                         subtitle = subtitle_text) +
-            facet_wrap(~ method, scales = "free") + theme_bw() +
+            theme_bw() +
             theme(strip.background  = element_blank(),
                   legend.position   = "bottom", legend.title = element_blank(),
                   legend.justification = "left", legend.box = "vertical",
@@ -413,6 +447,10 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
                   legend.key.width  = ggplot2::unit(0.35, "cm"),
                   legend.margin     = ggplot2::margin(0,0,0,0,"cm"),
                   plot.subtitle     = element_text(size = 6, lineheight = 0.9))
+
+          if (length(plot) > 1) {
+            p <- p + facet_wrap(~ method, scales = "free")
+          }
 
           if (!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
           p <- p + guides(color = ggplot2::guide_legend(ncol = 1, byrow = TRUE),
@@ -493,6 +531,7 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
             geom_vline(xintercept = 0, linewidth = 0.1) +
             geom_hline(yintercept = 0, linewidth = 0.1)
 
+          p <- .apply_marginal(p)
           plotlist[[length(plotlist) + 1]] <- p
         }
       }
@@ -569,7 +608,7 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
                       y        = paste0("Axis 2 (", sprintf("%.2f", axis2_pct), "%)"),
                       title    = sprintf("%s (%s)", mvar, distance_metric),
                       subtitle = subtitle_text) +
-          facet_wrap(~ method, scales = "free") + theme_bw() +
+          theme_bw() +
           theme(strip.background  = element_blank(),
                 legend.position   = "bottom", legend.title = element_blank(),
                 legend.justification = "left", legend.box = "vertical",
@@ -580,6 +619,10 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
                 legend.margin     = ggplot2::margin(0,0,0,0,"cm"),
                 plot.title        = element_text(size = 8, face = "bold"),
                 plot.subtitle     = element_text(size = 6, lineheight = 0.9))
+
+        if (length(plot) > 1) {
+          p <- p + facet_wrap(~ method, scales = "free")
+        }
 
         if (!is.null(mycols)) p <- p + scale_color_manual(values = mycols)
         p <- p + guides(color = ggplot2::guide_legend(ncol = 1, byrow = TRUE),
@@ -658,6 +701,7 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
           geom_vline(xintercept = 0, linewidth = 0.1) +
           geom_hline(yintercept = 0, linewidth = 0.1)
 
+        p <- .apply_marginal(p)
         plotlist[[length(plotlist) + 1]] <- p
       }
       multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
