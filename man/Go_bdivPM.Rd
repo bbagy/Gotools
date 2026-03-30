@@ -27,7 +27,11 @@ Go_bdivPM(
   plotCols = 2,
   plotRows = 1,
   strata_var = NULL,
-  p_adjust = "BH"
+  p_adjust = "BH",
+  marginal = FALSE,
+  marginal_type = c("density", "boxplot", "histogram"),
+  marginal_size = 5,
+  marginal_alpha = 0.35
 )
 }
 \arguments{
@@ -76,6 +80,16 @@ Go_bdivPM(
 \item{strata_var}{(NEW) Column name to use as permutation blocks for PERMANOVA.}
 
 \item{p_adjust}{P-value adjustment method for PERMANOVA labels (e.g., "BH", "bonferroni").}
+
+\item{marginal}{Logical; add marginal distributions with \code{ggMarginal()} when
+the plot is a single non-faceted ordination panel.}
+
+\item{marginal_type}{Marginal plot type passed to \code{ggExtra::ggMarginal()},
+for example \code{"density"}, \code{"boxplot"}, or \code{"histogram"}.}
+
+\item{marginal_size}{Relative size of the marginal panels.}
+
+\item{marginal_alpha}{Transparency applied to marginal densities or fills.}
 }
 \value{
 PDF(s) and CSV tables on disk.

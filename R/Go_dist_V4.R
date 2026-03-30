@@ -55,7 +55,7 @@ Go_dist <- function(psIN, project, cate.vars, name=NULL, distance_metrics){
       dm1.mat  <- as.matrix(dm1)
       dm1.df <- data.frame(dm1.mat)
       
-      df <- melt(as.matrix(dm1), varnames = c("row", "col"))
+      df <- reshape2::melt(as.matrix(dm1), varnames = c("row", "col"))
       
       
       sub_dist <- list()
@@ -68,7 +68,7 @@ Go_dist <- function(psIN, project, cate.vars, name=NULL, distance_metrics){
         sub_dist[[group]][!lower.tri(sub_dist[[group]])] <- NA
       }
       
-      dmgroups<- melt(sub_dist)
+      dmgroups<- reshape2::melt(sub_dist)
       dmgroups.df <- dmgroups[complete.cases(dmgroups), ]
       dmgroups.df[,mvar] <- factor(dmgroups.df$L1, levels=names(sub_dist))
       dmgroups.df$L1 <- NULL
@@ -103,7 +103,7 @@ Go_dist <- function(psIN, project, cate.vars, name=NULL, distance_metrics){
       }
       
       
-      across_dist.groups<- melt(group_dists);head(across_dist.groups)
+      across_dist.groups<- reshape2::melt(group_dists);head(across_dist.groups)
       colnames(across_dist.groups) <- c("Var1",	"Var2",	distance_metric, mvar);head(across_dist.groups)
       
       merge.dm.df <- rbind(dmgroups.df,across_dist.groups)
@@ -128,4 +128,3 @@ Go_dist <- function(psIN, project, cate.vars, name=NULL, distance_metrics){
   }
   return(dm)
 }
-
