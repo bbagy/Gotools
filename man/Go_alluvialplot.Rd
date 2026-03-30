@@ -2,7 +2,7 @@
 % Please edit documentation in R/Go_alluvialplot_V2.R
 \name{Go_alluvialplot}
 \alias{Go_alluvialplot}
-\title{Generate Alluvial Plots for Microbial Community Analysis}
+\title{Generate alluvial plots for selected taxa}
 \usage{
 Go_alluvialplot(
   project,
@@ -13,69 +13,79 @@ Go_alluvialplot(
   outcome,
   column1 = NULL,
   column2 = NULL,
-  orders,
+  orders = NULL,
   name = NULL,
   height = 2,
   width = 3,
   plotCols = 2,
-  plotRows = 1
+  plotRows = 1,
+  size_by = c("abundance", "count"),
+  alpha = 0.85,
+  palette = NULL
 )
 }
 \arguments{
-\item{project}{A string indicating the project name, used for directory and file naming.}
+\item{project}{Project name used for output directory and file naming.}
 
-\item{SigASVs}{Either a file path to a CSV containing significant ASVs or a data frame.}
+\item{SigASVs}{Either a CSV path or a data frame containing significant
+features and taxonomy columns.}
 
-\item{map}{A file path to a CSV containing sample metadata or a data frame.}
+\item{map}{Either a CSV path or a data frame containing sample metadata.}
 
-\item{targets.bac}{A vector of target bacterial species for the plot.}
+\item{targets.bac}{Character vector of taxa to plot.}
 
-\item{outcome}{The primary outcome or variable of interest.}
+\item{target.rank}{Taxonomy column used to match \code{targets.bac}, for example
+\code{"Genus"} or \code{"Species"}.}
 
-\item{column1}{(Optional) An additional column for stratifying the data.}
+\item{outcome}{Primary metadata variable shown on the last axis.}
 
-\item{column2}{(Optional) Another column for further stratification.}
+\item{column1}{Optional intermediate metadata variable.}
 
-\item{orders}{The order of factors to arrange the plot.}
+\item{column2}{Optional second intermediate metadata variable.}
 
-\item{name}{(Optional) A name for the plot for labeling purposes.}
+\item{orders}{Optional level order used for categorical axes.}
 
-\item{height}{Height of the output plot.}
+\item{name}{Optional label appended to the output file name.}
 
-\item{width}{Width of the output plot.}
+\item{height}{Height of the output PDF.}
 
-\item{plotCols}{Number of columns in the plot layout.}
+\item{width}{Width of the output PDF.}
 
-\item{plotRows}{Number of rows in the plot layout.}
+\item{plotCols}{Number of columns for multi-panel layout.}
 
-\item{Addcolumn}{A vector of additional columns from the metadata to be included in the plot.}
+\item{plotRows}{Number of rows for multi-panel layout.}
+
+\item{size_by}{Whether ribbon size should reflect summed abundance or sample
+count per path. One of \code{"abundance"} or \code{"count"}.}
+
+\item{alpha}{Ribbon transparency.}
+
+\item{palette}{Optional named color vector. Names should match feature
+labels. Unnamed vectors are recycled in feature order.}
 }
 \value{
-Saves alluvial plots as PDF files in the specified project directory.
+Invisibly returns a list of ggplot objects, one per requested target.
+A PDF is written to the dated project \verb{pdf/} directory.
 }
 \description{
-This function creates alluvial plots to visualize the associations between microbial species and
-various experimental groups or conditions.
-}
-\details{
-The function merges microbial data with sample metadata to create informative alluvial plots. It
-allows for customizing the stratification and visualization of data based on specified microbial
-targets and metadata columns.
+Builds alluvial plots from a significant-feature table and sample metadata.
+Each target taxon is rendered as one panel showing how feature-level signal
+flows across the requested metadata axes.
 }
 \examples{
-# Example usage:
-Go_alluvialplot(project = "MyProject",
-                SigASVs = "path_to_sig_ASVs.csv",
-                map = "path_to_metadata.csv",
-                targets.bac = c("Bacteroides_fragilis", "Escherichia_coli"),
-                target.rank = "Genus" # or "Species
-                Addcolumn = c("Age", "Gender"),
-                outcome = "TreatmentResponse",
-                column1 = "Diet",
-                column2 = "BMI",
-                orders = c("Control", "Treatment"),
-                name = "AlluvialAnalysis",
-                height = 2, width = 3,
-                plotCols = 2, plotRows = 1)
+\dontrun{
+Go_alluvialplot(
+  project = "MyProject",
+  SigASVs = "path_to_sig_ASVs.csv",
+  map = "path_to_metadata.csv",
+  targets.bac = c("Bacteroides", "Escherichia"),
+  target.rank = "Genus",
+  outcome = "TreatmentResponse",
+  column1 = "Diet",
+  column2 = "BMI_group",
+  orders = c("Control", "Treatment"),
+  size_by = "count"
+)
+}
 
 }

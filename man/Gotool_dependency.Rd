@@ -2,22 +2,35 @@
 % Please edit documentation in R/Gotool_dependency.R
 \name{Gotool_dependency}
 \alias{Gotool_dependency}
-\title{Install and Load Necessary Packages for Gotools}
+\title{Install or repair Gotools dependencies}
 \usage{
-Gotool_dependency()
+Gotool_dependency(ask = interactive())
+}
+\arguments{
+\item{ask}{If \code{TRUE} (default in interactive sessions), prompt before
+installing. Set \code{FALSE} to install without prompting.}
 }
 \value{
-This function does not return anything. It invisibly loads the required packages into the R session.
+Invisibly returns \code{TRUE} when all required packages are available
+after the check, or \code{FALSE} when installation is cancelled.
 }
 \description{
-This function automates the process of installing and loading a predefined set of CRAN and Bioconductor packages necessary for the Gotools package. It checks if each package is already installed; if not, it installs the package and then loads it into the R session.
+Checks a curated set of CRAN and Bioconductor packages used by \code{Gotools}.
+Packages that are already installed and loadable are left untouched.
+Missing packages are installed, and installed-but-broken packages are
+reinstalled.
 }
 \details{
-The function handles two types of packages: CRAN packages and Bioconductor packages. It first installs and loads CRAN packages, followed by Bioconductor packages. For Bioconductor package installation, \code{BiocManager} is used.
+This is a dependency installer and health check, not a package attach helper.
+It uses \code{requireNamespace()} to test whether each package is loadable.
+Packages that pass the check are not reinstalled or attached.
 
-If \code{crayon} is installed, success messages are printed in color. The function is designed to be used at the beginning of a session to ensure all dependencies for Gotools are available.
+\code{BiocManager} is installed automatically when Bioconductor packages need
+action.
 }
 \examples{
+\dontrun{
 Gotool_dependency()
+}
 
 }
