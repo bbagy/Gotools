@@ -667,6 +667,64 @@ compute_mrs <- function(ps_v1_sub, outcome_col,
   invisible(list(roc = roc_obj, auc = auc_val, weights = weights))
 }
 
+compute_mrs_gotools <- function(ps_v1_sub, outcome_col,
+                                pos_class, neg_class,
+                                grp_name, comp_label) {
+
+  source("/Users/heekukpark/Dropbox/04_scripts/R_source/Gotools/R/Go_MRS_fit.R")
+  source("/Users/heekukpark/Dropbox/04_scripts/R_source/Gotools/R/Go_MRS_plot.R")
+
+  sd_sub <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+  sd_sub <- sd_sub[sd_sub[[outcome_col]] %in% c(pos_class, neg_class), , drop = FALSE]
+  if (nrow(sd_sub) < 15) {
+    message(glue("  {grp_name} {comp_label} [Go_MRS_fit]: n<15, skip"))
+    return(invisible(NULL))
+  }
+
+  ps_v1_sub2 <- prune_samples(rownames(sd_sub), ps_v1_sub)
+  sd_sub2 <- data.frame(sample_data(ps_v1_sub2), stringsAsFactors = FALSE)
+  sd_sub2$trajectory_mrs <- factor(sd_sub2[[outcome_col]], levels = c(neg_class, pos_class))
+  rownames(sd_sub2) <- rownames(data.frame(sample_data(ps_v1_sub2), stringsAsFactors = FALSE))
+  sample_data(ps_v1_sub2) <- sample_data(sd_sub2)
+
+  fit_mrs <- Go_MRS_fit(
+    psIN = ps_v1_sub2,
+    outcome = "trajectory_mrs",
+    taxrank = "Species",
+    transform = "log_rel",
+    top_n = 20,
+    alpha = 0.5,
+    nfolds = 5,
+    validation = "apparent",
+    score_scale = "link"
+  )
+
+  p_fit <- Go_MRS_plot(
+    fit = fit_mrs,
+    plot_type = "score",
+    title = glue("{grp_name}: {comp_label} [Go_MRS_fit]"),
+    style = "paper",
+    order = c(neg_class, pos_class),
+    mycol = c("#2166AC", "#D73027")
+  )
+  ggsave(make_path(dir_pdf, glue("5_MRS_GoMRS_{grp_name}_{comp_label}")), p_fit, width = 5, height = 5)
+
+  pred_tab <- fit_mrs$predictions |>
+    dplyr::mutate(
+      Group = grp_name,
+      Comparison = comp_label,
+      observed_label = factor(observed, levels = c(0, 1), labels = c(neg_class, pos_class)),
+      AUC = fit_mrs$metrics$auc
+    )
+  write.csv(
+    pred_tab,
+    make_path(dir_tab, glue("5_MRS_GoMRS_{grp_name}_{comp_label}"), "csv"),
+    row.names = FALSE
+  )
+
+  invisible(fit_mrs)
+}
+
 ps_v1_traj2 <- subset_samples(
   ps2.traj, Timepoint == "V1" & !is.na(trajectory)
 )
@@ -693,6 +751,7 @@ invisible(lapply(mrs_comps, function(mc) {
              sd_tmp$trajectory %in% c(pos_val, neg_val)
   ps_sub  <- prune_samples(keep, ps_v1_traj2)
   compute_mrs(ps_sub, "trajectory", pos_val, neg_val, grp_val, lbl_val)
+  compute_mrs_gotools(ps_sub, "trajectory", pos_val, neg_val, grp_val, lbl_val)
 }))
 cat("  -> saved\n")
 
