@@ -2,33 +2,32 @@
 % Please edit documentation in R/Go_mycols.R
 \name{Go_myCols}
 \alias{Go_myCols}
-\title{Generate and Display Custom Color Palettes}
+\title{Generate custom color palettes}
 \usage{
-Go_myCols(custumCols = NULL, RColorBrewer = NULL, piratepal = NULL)
+Go_myCols(palette = NULL, preview = TRUE, ...)
 }
 \arguments{
-\item{custumCols}{A character string specifying a predefined set of custom colors (e.g., 'cols1', 'cols2', 'cols3').}
+\item{palette}{Optional palette name. This is the recommended modern entry
+point and accepts names from the built-in sets, \code{RColorBrewer}, or
+\code{yarrr::piratepal()}.}
 
-\item{RColorBrewer}{A character string specifying a palette from the RColorBrewer package.}
+\item{preview}{Logical; if \code{TRUE}, draw a simple palette preview. Default
+\code{TRUE}.}
 
-\item{piratepal}{A character string specifying a palette from the piratepal function in the yarrr package.}
+\item{...}{Legacy palette selectors kept only for backward compatibility.
+New code should use \code{palette} only.}
 }
 \value{
-A vector of color values corresponding to the selected palette.
+A character vector of hex colors.
 }
 \description{
-This function provides options for generating color palettes from predefined sets,
-RColorBrewer palettes, or piratepal palettes. It displays a barplot of the selected
-color palette and returns the color values.
+Returns a color vector from a built-in \code{Gotools} palette, an
+\code{RColorBrewer} qualitative palette, or a \code{yarrr::piratepal()}
+palette. Previewing the palette is optional.
 }
 \examples{
-# Generate and display a palette from custom colors set 1
-my_colors <- Go_myCols(custumCols = "cols1")
-
-# Generate and display a palette from RColorBrewer
-my_colors <- Go_myCols(RColorBrewer = "Set1")
-
-# Generate and display a palette from piratepal
-my_colors <- Go_myCols(piratepal = "basel")
-
+Go_myCols(palette = "cols1")
+Go_myCols(palette = "Set1")
+Go_myCols(palette = "basel")
+Go_myCols(palette = "taxaStack", preview = FALSE)
 }

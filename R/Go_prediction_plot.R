@@ -72,6 +72,15 @@ Go_prediction_plot <- function(result,
                                pr_width = 4,
                                pr_height = 4.5,
                                imp_width = 7) {
+  needed <- c("pROC", "PRROC", "ggplot2")
+  missing <- needed[!vapply(needed, requireNamespace, logical(1), quietly = TRUE)]
+  if (length(missing) > 0) {
+    stop(
+      "[Go_prediction_plot] Required package(s) not installed: ",
+      paste(missing, collapse = ", "),
+      ".\nRun Gotool_dependency() first and retry."
+    )
+  }
 
   resolve_outdirs <- function(x) {
     if (is.character(x) && length(x) >= 1 && all(nzchar(x))) {

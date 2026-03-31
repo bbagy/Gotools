@@ -7,22 +7,35 @@ This repository contains a set of tools for reproducible microbiome analysis. It
 
 `Gotools` was built on R 4.2.2.
 
-Install the latest version of `Gotools` from GitHub, then run the dependency
-installer once:
+For a fresh install, use this order:
 
 ```r
 # install.packages("devtools")
-devtools::install_github("bbagy/Gotools")
+devtools::install_github("bbagy/Gotools", force = TRUE)
 library(Gotools)
 Gotool_dependency()
 ```
 
-`Gotool_dependency()` is the main dependency entrypoint for `Gotools`.
-It checks required CRAN and Bioconductor packages, installs missing packages,
-and repairs packages that are installed but not loadable.
+This order matters.
+
+- `devtools::install_github()` installs the package itself
+- `library(Gotools)` makes `Gotool_dependency()` available
+- `Gotool_dependency()` then installs or repairs the broader CRAN/Bioconductor stack used by `Gotools`
+
+`Gotool_dependency()` is the main dependency entrypoint for `Gotools`. It checks
+required CRAN and Bioconductor packages, installs missing packages, and repairs
+packages that are installed but not loadable.
 
 This includes common microbiome dependencies such as `phyloseq`,
 `microbiome`, `DESeq2`, `ALDEx2`, and `ANCOMBC`.
+
+If you update `Gotools` later, the clean refresh path is the same:
+
+```r
+devtools::install_github("bbagy/Gotools", force = TRUE)
+library(Gotools)
+Gotool_dependency()
+```
 
 If installation fails, the most common cause is a missing system tool rather
 than an R package issue. In particular:
