@@ -117,19 +117,6 @@
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b
 
-suppressPackageStartupMessages({
-  library(phyloseq)
-  library(ranger)
-  library(xgboost)
-  library(pROC)
-  library(PRROC)
-  library(ggplot2)
-  library(dplyr)
-  library(tidyr)
-  library(stringr)
-  library(lightgbm)
-})
-
 Go_prediction <- function(
     psIN,
     project,
@@ -152,6 +139,27 @@ Go_prediction <- function(
   method <- match.arg(method)
   set.seed(seed)
   stopifnot(inherits(psIN, "phyloseq"))
+
+  check_prediction_dependencies <- function(method) {
+    base_pkgs <- c("phyloseq", "ranger", "pROC", "PRROC", "ggplot2", "dplyr", "tidyr", "stringr")
+    method_pkgs <- switch(
+      method,
+      randomforest = character(0),
+      xgboost = "xgboost",
+      lightgbm = "lightgbm"
+    )
+    needed <- c(base_pkgs, method_pkgs)
+    missing <- needed[!vapply(needed, requireNamespace, logical(1), quietly = TRUE)]
+    if (length(missing) > 0) {
+      stop(
+        "[Go_prediction] Required package(s) not installed: ",
+        paste(missing, collapse = ", "),
+        ".\nRun Gotool_dependency() first and retry."
+      )
+    }
+  }
+
+  check_prediction_dependencies(method)
 
   ## --- 내부 유틸 --------------------------------------------------------------
   .map_direction_safe <- function(feature_names, dir_lookup) {
