@@ -128,7 +128,7 @@ Go_MRS_plot <- function(fit,
   coef_df <- fit$coefficients
 
   if (identical(style, "auto")) {
-    style <- if (identical(info$engine, "cv.glmnet") && identical(plot_type, "score")) "paper" else "default"
+    style <- if (info$engine %in% c("cv.glmnet", "weighted_sum_glmnet") && identical(plot_type, "score")) "paper" else "default"
   }
 
   if (plot_type == "roc") {

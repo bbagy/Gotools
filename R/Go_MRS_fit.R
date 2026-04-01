@@ -40,9 +40,14 @@
 #' @param alpha Elastic-net mixing parameter for glmnet models.
 #' @param nfolds Number of folds for \code{cv.glmnet()}.
 #' @param standardize Logical; passed to \code{cv.glmnet()}.
-#' @param validation One of \code{"apparent"} or \code{"oof"}.
+#' @param validation One of \code{"apparent"} or \code{"oof"}. \code{NULL}
+#'   is treated as \code{"apparent"}.
 #' @param score_scale One of \code{"response"} or \code{"link"} for returned
 #'   scores from glmnet.
+#' @param score_method One of \code{"weighted_sum"} or \code{"predict"}.
+#'   \code{"weighted_sum"} is the default and reproduces the
+#'   \code{compute_mrs()} strategy used in
+#'   \code{20260329_CCM_Phase2_Trajectory_Deep.R}.
 #' @param na_action Currently only \code{"complete"} is supported.
 #'
 #' @return A list of class \code{"Go_MRS_fit"}.
@@ -62,8 +67,9 @@ Go_MRS_fit <- function(psIN,
                        alpha = 0.5,
                        nfolds = 5,
                        standardize = TRUE,
-                       validation = c("apparent", "oof"),
+                       validation = NULL,
                        score_scale = c("response", "link"),
+                       score_method = "weighted_sum",
                        na_action = c("complete")) {
 
   `%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
@@ -71,8 +77,10 @@ Go_MRS_fit <- function(psIN,
   outcome_type <- match.arg(outcome_type)
   family <- match.arg(family)
   transform <- match.arg(transform)
-  validation <- match.arg(validation)
+  validation <- if (is.null(validation)) "apparent" else match.arg(validation, c("apparent", "oof"))
   score_scale <- match.arg(score_scale)
+  score_method <- match.arg(score_method, c("weighted_sum", "predict", "legacy_mrs"))
+  if (identical(score_method, "legacy_mrs")) score_method <- "weighted_sum"
   na_action <- match.arg(na_action)
 
   if (!inherits(psIN, "phyloseq")) stop("`psIN` must be a phyloseq object.")
@@ -189,7 +197,11 @@ Go_MRS_fit <- function(psIN,
     if (is.null(tt) || !(taxrank %in% colnames(tt))) {
       stop(sprintf("taxrank '%s' not found in tax_table(psIN).", taxrank))
     }
-    ps_work <- phyloseq::tax_glom(ps_work, taxrank = taxrank, NArm = TRUE)
+    ps_work <- phyloseq::tax_glom(
+      ps_work,
+      taxrank = taxrank,
+      NArm = !identical(score_method, "weighted_sum")
+    )
   }
 
   otu_mat <- as(phyloseq::otu_table(ps_work), "matrix")
@@ -209,7 +221,7 @@ Go_MRS_fit <- function(psIN,
   otu_mat <- otu_mat[, keep_taxa, drop = FALSE]
   if (!ncol(relab)) stop("No taxa remain after prevalence/abundance filtering.")
 
-  if (!is.null(top_n)) {
+  if (!is.null(top_n) && !identical(score_method, "weighted_sum")) {
     top_n <- min(as.integer(top_n), ncol(relab))
     keep_top <- order(colMeans(relab), decreasing = TRUE)[seq_len(top_n)]
     relab <- relab[, keep_top, drop = FALSE]
@@ -222,6 +234,14 @@ Go_MRS_fit <- function(psIN,
     relative = relab,
     count = otu_mat
   )
+
+  if (!is.null(top_n) && identical(score_method, "weighted_sum")) {
+    top_n <- min(as.integer(top_n), ncol(feat_micro))
+    keep_top <- order(colMeans(feat_micro), decreasing = TRUE)[seq_len(top_n)]
+    feat_micro <- feat_micro[, keep_top, drop = FALSE]
+    relab <- relab[, keep_top, drop = FALSE]
+    otu_mat <- otu_mat[, keep_top, drop = FALSE]
+  }
 
   label_map <- make_tax_labels(ps_work, taxrank)
   feature_names_raw <- colnames(feat_micro)
@@ -292,7 +312,15 @@ Go_MRS_fit <- function(psIN,
     }, logical(1)), drop = FALSE]
     if (!ncol(predictor_df)) stop("No informative predictors remain after filtering.")
 
-    x_mat <- stats::model.matrix(~ . - 1, data = predictor_df)
+    if (identical(score_method, "weighted_sum")) {
+      if (outcome_type_detected != "binary") stop("score_method = 'weighted_sum' currently supports binary outcomes only.")
+      if (length(meta_vars)) stop("score_method = 'weighted_sum' does not support `meta_vars`.")
+      if (!is.null(random_effect) && nzchar(random_effect)) stop("score_method = 'weighted_sum' does not support `random_effect`.")
+      if (identical(validation, "oof")) stop("score_method = 'weighted_sum' requires validation = 'apparent'.")
+      x_mat <- as.matrix(predictor_df)
+    } else {
+      x_mat <- stats::model.matrix(~ . - 1, data = predictor_df)
+    }
     cv_fit <- glmnet::cv.glmnet(
       x = x_mat,
       y = y_model,
@@ -302,7 +330,21 @@ Go_MRS_fit <- function(psIN,
       standardize = standardize
     )
 
-    if (identical(validation, "oof")) {
+    if (identical(score_method, "weighted_sum")) {
+      coef_mat <- as.matrix(stats::coef(cv_fit, s = "lambda.min"))
+      coef_df <- data.frame(
+        feature = rownames(coef_mat),
+        estimate = as.numeric(coef_mat[, 1]),
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
+      coef_df <- coef_df[coef_df$feature != "(Intercept)" & coef_df$estimate != 0, , drop = FALSE]
+      coef_df <- coef_df[order(abs(coef_df$estimate), decreasing = TRUE), , drop = FALSE]
+      if (!nrow(coef_df)) stop("No non-zero coefficients remain for legacy MRS scoring.")
+      feat_mat <- as.matrix(predictor_df[, coef_df$feature, drop = FALSE])
+      weight_mat <- matrix(coef_df$estimate, ncol = 1, dimnames = list(coef_df$feature, "estimate"))
+      score <- as.numeric(feat_mat %*% weight_mat)
+    } else if (identical(validation, "oof")) {
       nfolds_oof <- max(2, min(nfolds, nrow(x_mat)))
       foldid <- sample(rep(seq_len(nfolds_oof), length.out = nrow(x_mat)))
       score <- rep(NA_real_, nrow(x_mat))
@@ -345,17 +387,19 @@ Go_MRS_fit <- function(psIN,
       )
     }
 
-    coef_mat <- as.matrix(stats::coef(cv_fit, s = "lambda.min"))
-    coef_df <- data.frame(
-      feature = rownames(coef_mat),
-      estimate = as.numeric(coef_mat[, 1]),
-      stringsAsFactors = FALSE,
-      row.names = NULL
-    )
-    coef_df <- coef_df[coef_df$feature != "(Intercept)" & coef_df$estimate != 0, , drop = FALSE]
-    coef_df <- coef_df[order(abs(coef_df$estimate), decreasing = TRUE), , drop = FALSE]
+    if (!identical(score_method, "weighted_sum")) {
+      coef_mat <- as.matrix(stats::coef(cv_fit, s = "lambda.min"))
+      coef_df <- data.frame(
+        feature = rownames(coef_mat),
+        estimate = as.numeric(coef_mat[, 1]),
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
+      coef_df <- coef_df[coef_df$feature != "(Intercept)" & coef_df$estimate != 0, , drop = FALSE]
+      coef_df <- coef_df[order(abs(coef_df$estimate), decreasing = TRUE), , drop = FALSE]
+    }
 
-    engine <- "cv.glmnet"
+    engine <- if (identical(score_method, "weighted_sum")) "weighted_sum_glmnet" else "cv.glmnet"
     formula_used <- stats::as.formula(
       paste0("~ ", paste(sprintf("`%s`", colnames(predictor_df)), collapse = " + "))
     )
@@ -452,6 +496,7 @@ Go_MRS_fit <- function(psIN,
       validation = validation,
       taxrank = taxrank,
       transform = transform,
+      score_method = score_method,
       features = feature_names_used,
       formula = formula_used,
       positive_class = positive_class,
