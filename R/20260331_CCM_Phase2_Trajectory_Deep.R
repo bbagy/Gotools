@@ -83,10 +83,8 @@ cst_cols <- c(
   "IV-A" = "#FDBB84",
   "IV-B" = "#E31A1C",
   "IV-C" = "#990000",
-  "V"    =
+  "V"    = "#A6DBA0"
 )
-
-
 
 #------------------------------#
 #----         Input         ---#
@@ -301,10 +299,13 @@ for (grp in c("Grp1", "Grp2")) Go_alluvialplot(
   project = project, data = droplevels(dplyr::filter(cst_wide, studygrp2 == grp)), mode = "transition", axes = c("V1", "V2", "V3"),
   fill_var = "trajectory", orders = all_cst,
   name = paste0("2_CST_transition_by_trajectory_", grp),
-  height = 6, width = 8, mycol = traj_cols
+  height = 5, width = 6, mycol = traj_cols
 )
 cat("  -> saved\n")
 
+
+
+unique(cst_wide$trajectory)
 
 ##############################################################################
 #  3. HIERARCHICAL CLUSTERING HEATMAP
@@ -541,25 +542,14 @@ cat("  -> saved\n")
 ##############################################################################
 cat("\n=== [5] MRS — Microbial Risk Score ===\n")
 
-get_local_script_dir <- function() {
-  cmd_args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", cmd_args, value = TRUE)
-  if (length(file_arg) > 0) {
-    return(dirname(normalizePath(sub("^--file=", "", file_arg[1]))))
-  }
-  normalizePath(getwd())
-}
-
-if (!exists("Go_MRS_fit", mode = "function")) {
-  source(file.path(get_local_script_dir(), "Go_MRS_fit.R"))
-}
-if (!exists("Go_MRS_plot", mode = "function")) {
-  source(file.path(get_local_script_dir(), "Go_MRS_plot.R"))
-}
+source("/Users/heekukpark/Dropbox/04_scripts/R_source/Gotools/R/Go_MRS_fit.R")
+source("/Users/heekukpark/Dropbox/04_scripts/R_source/Gotools/R/Go_MRS_plot.R")
 
 compute_mrs <- function(ps_v1_sub, outcome_col,
                         pos_class, neg_class,
                         grp_name, comp_label) {
+
+  `%||%` <- function(x, y) if (is.null(x) || length(x) == 0 || all(is.na(x))) y else x
 
   sd_sub <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
   sd_sub <- sd_sub[sd_sub[[outcome_col]] %in% c(pos_class, neg_class), , drop = FALSE]
@@ -570,7 +560,9 @@ compute_mrs <- function(ps_v1_sub, outcome_col,
 
   ps_v1_sub2 <- prune_samples(rownames(sd_sub), ps_v1_sub)
   sd_sub2 <- data.frame(sample_data(ps_v1_sub2), stringsAsFactors = FALSE)
+  rownames(sd_sub2) <- phyloseq::sample_names(ps_v1_sub2)
   sd_sub2$trajectory_mrs <- factor(sd_sub2[[outcome_col]], levels = c(neg_class, pos_class))
+  if (!identical(rownames(sd_sub2), phyloseq::sample_names(ps_v1_sub2))) stop("sample_data rownames do not match ps_v1_sub2 sample_names.")
   sample_data(ps_v1_sub2) <- sample_data(sd_sub2)
 
   fit_mrs <- Go_MRS_fit(
@@ -578,7 +570,7 @@ compute_mrs <- function(ps_v1_sub, outcome_col,
     outcome = "trajectory_mrs",
     taxrank = "Species",
     top_n = 20,
-    validation = "oof"
+    validation = NULL
   )
 
   p_mrs <- Go_MRS_plot(
@@ -632,18 +624,17 @@ mrs_comps <- list(
        label = "relapse_vs_clearance")
 )
 
-invisible(lapply(mrs_comps, function(mc) {
+for (mc in mrs_comps) {
   grp_val <- mc$grp
   pos_val <- mc$pos
   neg_val <- mc$neg
   lbl_val <- mc$label
-  # prune_samples with logical vector avoids subset_samples env issue
-  sd_tmp  <- data.frame(sample_data(ps_v1_traj2), stringsAsFactors = FALSE)
-  keep    <- sd_tmp$studygrp2 == grp_val &
-             sd_tmp$trajectory %in% c(pos_val, neg_val)
-  ps_sub  <- prune_samples(keep, ps_v1_traj2)
-  compute_mrs(ps_sub, "trajectory", pos_val, neg_val, grp_val, lbl_val)
-}))
+  sd_tmp <- data.frame(sample_data(ps_v1_traj2), stringsAsFactors = FALSE)
+  keep <- sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c(pos_val, neg_val)
+  keep_ids <- rownames(sd_tmp)[keep]
+  ps_v1_sub <- prune_samples(keep_ids, ps_v1_traj2)
+  compute_mrs(ps_v1_sub, "trajectory", pos_val, neg_val, grp_val, lbl_val)
+}
 cat("  -> saved\n")
 
 
