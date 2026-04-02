@@ -27,6 +27,8 @@
 #'
 #' @export
 Gotool_dependency <- function(ask = interactive()) {
+  .gotools_signature()
+
   deps <- list(
     cran = c(
       "rmarkdown", "magick", "ape", "Boruta", "car", "cluster", "CLME",
@@ -179,15 +181,9 @@ Gotool_dependency <- function(ask = interactive()) {
   }
 
   if (requireNamespace("crayon", quietly = TRUE)) {
-    cat(crayon::blue("#--------------------------------------------------------------# \n"))
-    cat(crayon::blue("#------       General analysis Of microbiome (Go)        ------# \n"))
-    cat(crayon::blue("#------    Quick statistics and visualization tools      ------# \n"))
-    cat(crayon::blue("#------                (with R markdown)                 ------# \n"))
-    cat(crayon::blue("#--------------------------------------------------------------# \n"))
     cat(crayon::yellow("All required Gotools dependencies are available.\n"))
     cat(crayon::blue("#--------------------------------------------------------------# \n"))
   } else {
-    cat("#--------------------------------------------------------------# \n")
     cat("All required Gotools dependencies are available.\n")
     cat("#--------------------------------------------------------------# \n")
   }
