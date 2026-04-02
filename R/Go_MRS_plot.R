@@ -30,7 +30,7 @@
 #'
 #' @export
 Go_MRS_plot <- function(fit,
-                        plot_type = c("score", "roc", "coef"),
+                        plot_type = c("all", "score", "roc", "coef"),
                         top_n = 20,
                         title = NULL,
                         style = c("auto", "default", "paper"),
@@ -41,7 +41,7 @@ Go_MRS_plot <- function(fit,
 
   `%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
 
-  plot_type <- match.arg(plot_type)
+  plot_type <- if (missing(plot_type)) "all" else plot_type
   style <- match.arg(style)
   if (!inherits(fit, "Go_MRS_fit")) stop("`fit` must be a Go_MRS_fit object.")
   if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Package `ggplot2` is required.")
@@ -58,7 +58,7 @@ Go_MRS_plot <- function(fit,
   resolve_outdir <- function(project) {
     project_use <- project %||% "MRS"
     today <- format(Sys.Date(), "%y%m%d")
-    root <- file.path(sprintf("%s_%s", clean_tag(project_use), today), "pdf", "MRS")
+    root <- file.path(sprintf("%s_%s", clean_tag(project_use), today), "pdf", "MRS_plot")
     dir.create(root, recursive = TRUE, showWarnings = FALSE)
     root
   }
@@ -71,6 +71,7 @@ Go_MRS_plot <- function(fit,
   }
 
   maybe_save_plot <- function(p, plot_type, engine, project, name) {
+    if (is.null(project) || is.null(name)) return(p)
     out_path <- resolve_outdir(project = project)
     file_name <- build_filename(plot_type = plot_type, engine = engine, name = name)
     pdf_w <- attr(p, "recommended_width") %||% 5
@@ -101,10 +102,14 @@ Go_MRS_plot <- function(fit,
     } else {
       sprintf("p = %.2f (NS)", p)
     }
+    v_max  <- max(val_vec, na.rm = TRUE)
+    v_min  <- min(val_vec, na.rm = TRUE)
+    v_rng  <- v_max - v_min
+    y_pos  <- v_max + v_rng * 0.05
     ggplot2::annotate(
       "text",
       x = 1.5,
-      y = max(val_vec, na.rm = TRUE) * 0.95,
+      y = y_pos,
       label = lbl,
       size = 4,
       fontface = "italic"
@@ -127,8 +132,107 @@ Go_MRS_plot <- function(fit,
   pred <- fit$predictions
   coef_df <- fit$coefficients
 
+  format_plot_subtitle <- function(subtitle, metrics, info) {
+    subtitle <- subtitle %||% ""
+    if (!identical(info$outcome_type, "binary")) return(subtitle)
+
+    auc_txt <- if (!is.null(metrics$auc) && !is.na(metrics$auc)) {
+      ci <- metrics$auc_ci
+      if (!is.null(ci) && length(ci) == 3 && all(is.finite(ci))) {
+        sprintf("AUC = %.3f (95%% CI: %.3f\u2013%.3f)", metrics$auc, ci[1], ci[3])
+      } else {
+        sprintf("AUC = %.3f", metrics$auc)
+      }
+    } else {
+      NULL
+    }
+    if (is.null(auc_txt)) return(subtitle)
+
+    subtitle_clean <- gsub("\\s*\\|\\s*AUC = [^|]+", "", subtitle)
+    subtitle_clean <- trimws(subtitle_clean)
+    if (!nzchar(subtitle_clean)) return(auc_txt)
+    paste0(subtitle_clean, "\n", auc_txt)
+  }
+
+  wrap_plot_subtitle <- function(x, width = 55) {
+    if (!nzchar(x %||% "")) return(x)
+    parts <- strsplit(x, "\n", fixed = TRUE)[[1]]
+    wrapped <- unlist(lapply(parts, function(part) {
+      part <- trimws(part)
+      if (!nzchar(part)) return("")
+      segs <- strsplit(part, " \\| ", fixed = FALSE)[[1]]
+      segs <- trimws(segs)
+      if (length(segs) <= 1) return(strwrap(part, width = width))
+
+      core_idx <- which(grepl("^(outcome =|validation =|features =|AUC =)", segs))
+      if (!length(core_idx)) return(strwrap(part, width = width))
+
+      out <- character(0)
+      first_core <- min(core_idx)
+      if (first_core > 1) {
+        out <- c(out, paste(segs[seq_len(first_core - 1)], collapse = " | "))
+      }
+
+      outcome_idx <- which(grepl("^outcome =", segs))
+      validation_idx <- which(grepl("^validation =", segs))
+      features_idx <- which(grepl("^features =", segs))
+      auc_idx <- which(grepl("^AUC =", segs))
+
+      if (length(outcome_idx)) {
+        end_idx <- c(validation_idx, features_idx, auc_idx)
+        end_idx <- end_idx[end_idx > outcome_idx[1]]
+        next_idx <- if (length(end_idx)) min(end_idx) - 1 else length(segs)
+        out <- c(out, paste(segs[outcome_idx[1]:next_idx], collapse = " | "))
+      }
+
+      if (length(features_idx)) {
+        end_idx <- c(auc_idx)
+        end_idx <- end_idx[end_idx > features_idx[1]]
+        next_idx <- if (length(end_idx)) min(end_idx) - 1 else length(segs)
+        out <- c(out, paste(segs[features_idx[1]:next_idx], collapse = " | "))
+      }
+
+      if (length(auc_idx)) {
+        out <- c(out, paste(segs[auc_idx[1]:length(segs)], collapse = " | "))
+      }
+
+      out[nzchar(out)]
+    }))
+    paste(wrapped[nzchar(wrapped)], collapse = "\n")
+  }
+
+  format_plot_title <- function(x, default) {
+    out <- x %||% default
+    out <- gsub("_", " ", out, fixed = TRUE)
+    trimws(out)
+  }
+
+  subtitle <- format_plot_subtitle(subtitle, fit$metrics, info)
+  subtitle <- wrap_plot_subtitle(subtitle, width = 52)
+
+  if (length(plot_type) > 1 || identical(plot_type, "all")) {
+    plot_types <- unique(if (identical(plot_type, "all")) c("score", "roc", "coef") else plot_type)
+    out_list <- lapply(plot_types, function(pt) {
+      Go_MRS_plot(
+        fit = fit,
+        plot_type = pt,
+        top_n = top_n,
+        title = title,
+        style = style,
+        project = project,
+        name = name,
+        order = order,
+        mycol = mycol
+      )
+    })
+    names(out_list) <- plot_types
+    return(invisible(out_list))
+  }
+
+  plot_type <- match.arg(plot_type, c("score", "roc", "coef"))
+
   if (identical(style, "auto")) {
-    style <- if (info$engine %in% c("cv.glmnet", "weighted_sum_glmnet") && identical(plot_type, "score")) "paper" else "default"
+    style <- if (info$engine %in% c("cv.glmnet", "weighted_sum_glmnet", "mrs_glmnet") && identical(plot_type, "score")) "paper" else "default"
   }
 
   if (plot_type == "roc") {
@@ -155,10 +259,14 @@ Go_MRS_plot <- function(fit,
         x = "1 - Specificity",
         y = "Sensitivity"
       ) +
-      ggplot2::theme_bw(base_size = 12)
+      ggplot2::theme_bw(base_size = 12) +
+      ggplot2::theme(
+        plot.title = ggplot2::element_text(face = "bold", hjust = 0.2),
+        plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.2, lineheight = 1.05, margin = ggplot2::margin(b = 8))
+      )
     p <- attach_plot_size_info(p, group_labels = c("ROC"), panel_width = 4.2, min_width = 4.2, base_height = 4.2)
     p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
-    return(p)
+    return(invisible(p))
   }
 
   if (plot_type == "coef") {
@@ -178,10 +286,15 @@ Go_MRS_plot <- function(fit,
         x = "Estimate",
         y = NULL
       ) +
-      ggplot2::theme_bw(base_size = 12)
+      ggplot2::theme_bw(base_size = 12) +
+      ggplot2::theme(
+        plot.title = ggplot2::element_text(face = "bold", hjust = 0.2),
+        plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.2, lineheight = 1.05, margin = ggplot2::margin(b = 8)),
+        axis.text.y = ggplot2::element_text(face = "italic")
+      )
     p <- attach_plot_size_info(p, group_labels = coef_sub$feature, panel_width = 4.8, min_width = 6.0, base_height = 5.2)
     p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
-    return(p)
+    return(invisible(p))
   }
 
   if (info$outcome_type == "binary") {
@@ -206,17 +319,17 @@ Go_MRS_plot <- function(fit,
       ) +
         ggplot2::geom_boxplot(alpha = 0.7, outlier.shape = NA, width = 0.55) +
         ggplot2::geom_jitter(width = 0.15, size = 1.5, alpha = 0.5) +
-        annotate_wilcox(grp_vec, pred$score) +
         ggplot2::scale_fill_manual(values = fill_vals, labels = grp_order, name = NULL) +
         ggplot2::labs(
-          title = title %||% "Score Distribution",
+          title = format_plot_title(title, "Score Distribution"),
           subtitle = subtitle,
-          x = "Observed group",
+          x = "Trajectory",
           y = "Microbial Risk Score (MRS)"
         ) +
         ggplot2::theme_classic(base_size = 12) +
         ggplot2::theme(
-          plot.title = ggplot2::element_text(face = "bold"),
+          plot.title = ggplot2::element_text(face = "bold", hjust = 0.2),
+          plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.2, lineheight = 1.05, margin = ggplot2::margin(b = 8)),
           axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5)
         )
     } else {
@@ -229,9 +342,9 @@ Go_MRS_plot <- function(fit,
         ggplot2::geom_jitter(width = 0.08, size = 1.5, alpha = 0.6) +
         ggplot2::scale_fill_manual(values = fill_vals) +
         ggplot2::labs(
-          title = title %||% "Score Distribution",
+          title = format_plot_title(title, "Score Distribution"),
           subtitle = subtitle,
-          x = "Observed group",
+          x = "Trajectory",
           y = "Model score"
         ) +
         ggplot2::theme_bw(base_size = 12)
@@ -240,12 +353,12 @@ Go_MRS_plot <- function(fit,
     p <- attach_plot_size_info(
       p,
       group_labels = grp_order,
-      panel_width = 3.8,
-      min_width = 4.8,
-      base_height = 5.0
+      panel_width = 3.3,
+      min_width = 3.0,
+      base_height = 3.8
     )
     p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
-    return(p)
+    return(invisible(p))
   }
 
   p <- ggplot2::ggplot(
@@ -264,5 +377,5 @@ Go_MRS_plot <- function(fit,
 
   p <- attach_plot_size_info(p, group_labels = c("Observed"), panel_width = 4.8, min_width = 5.0, base_height = 4.8)
   p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
-  p
+  invisible(p)
 }

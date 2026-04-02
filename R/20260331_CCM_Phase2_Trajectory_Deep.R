@@ -18,12 +18,16 @@
 #    2.  Sankey / alluvial — CST transition V1->V2->V3 by trajectory
 #    3.  Hierarchical clustering heatmap — top species x V1 samples
 #    4.  Spearman co-occurrence heatmap — significant bacteria pairs
-#    5.  MRS (Microbial Risk Score) — weighted microbial predictor
+#    5.  MRS (Microbial Risk Score) with covariate — elastic net
 #    6.  Logistic regression — OR table + forest plot (Cell Table 2)
 #    7.  JSD longitudinal change — compositional stability
 #    8.  Dysbiosis score — CST-based molBV proxy (Cell Fig.2)
 #    9.  Combined summary figure (patchwork)
+#    10. ConDA-dist — trajectory pairwise DA
+#    10-1. ConDA-dist — trajectory pairwise DA with Bray
+#    11. Beta diversity — trajectory PCoA at V1/V2
 ##############################################################################
+# rm(list=ls())
 source("~/Dropbox/04_scripts/R_source/20260326_git_package_upload_helper.R")
 git_commit_and_push("Gotools", document = F, commit_message = "Update: v1.2")
 git_commit_and_push("intoASV",document = F, commit_message = "Update: v1.2")
@@ -267,16 +271,6 @@ cat("  -> saved\n")
 ##############################################################################
 cat("\n=== [2] Sankey: CST V1->V2->V3 by trajectory ===\n")
 
-if (!exists("Go_alluvialplot", mode = "function")) {
-  cmd_args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", cmd_args, value = TRUE)
-  this_dir <- if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg[1])))
-  } else {
-    normalizePath(getwd())
-  }
-  source(file.path(this_dir, "Go_alluvialplot_V2.R"))
-}
 
 map_full <- data.frame(sample_data(ps2.traj), stringsAsFactors = FALSE)
 
@@ -314,12 +308,7 @@ unique(cst_wide$trajectory)
 ##############################################################################
 cat("\n=== [3] Hierarchical heatmap: top species x V1 ===\n")
 
-ps_v1_traj <- subset_samples(
-  ps2.traj,
-  Timepoint == "V1" &
-    studygrp2 %in% c("Grp1", "Grp2") &
-    !is.na(trajectory)
-)
+ps_v1_traj <- subset_samples(ps2.traj, Timepoint == "V1" & studygrp2 %in% c("Grp1", "Grp2") &!is.na(trajectory))
 
 tryCatch({
 
@@ -537,104 +526,185 @@ cat("  -> saved\n")
 
 
 ##############################################################################
-#  5. MRS — Microbial Risk Score
-#     (Cell 2025 Fig.3C — "polygenic risk score analog")
+#  5. MRS — Microbial Risk Score with covariate  (elastic net)
 ##############################################################################
-cat("\n=== [5] MRS — Microbial Risk Score ===\n")
+cat("\n=== [5] MRS — Microbial Risk Score with covariate ===\n")
 
 source("/Users/heekukpark/Dropbox/04_scripts/R_source/Gotools/R/Go_MRS_fit.R")
 source("/Users/heekukpark/Dropbox/04_scripts/R_source/Gotools/R/Go_MRS_plot.R")
-
-compute_mrs <- function(ps_v1_sub, outcome_col,
-                        pos_class, neg_class,
-                        grp_name, comp_label) {
-
-  `%||%` <- function(x, y) if (is.null(x) || length(x) == 0 || all(is.na(x))) y else x
-
-  sd_sub <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
-  sd_sub <- sd_sub[sd_sub[[outcome_col]] %in% c(pos_class, neg_class), , drop = FALSE]
-  if (nrow(sd_sub) < 15) {
-    message(glue("  {grp_name} {comp_label}: n<15, skip"))
-    return(invisible(NULL))
-  }
-
-  ps_v1_sub2 <- prune_samples(rownames(sd_sub), ps_v1_sub)
-  sd_sub2 <- data.frame(sample_data(ps_v1_sub2), stringsAsFactors = FALSE)
-  rownames(sd_sub2) <- phyloseq::sample_names(ps_v1_sub2)
-  sd_sub2$trajectory_mrs <- factor(sd_sub2[[outcome_col]], levels = c(neg_class, pos_class))
-  if (!identical(rownames(sd_sub2), phyloseq::sample_names(ps_v1_sub2))) stop("sample_data rownames do not match ps_v1_sub2 sample_names.")
-  sample_data(ps_v1_sub2) <- sample_data(sd_sub2)
-
-  fit_mrs <- Go_MRS_fit(
-    psIN = ps_v1_sub2,
-    outcome = "trajectory_mrs",
-    taxrank = "Species",
-    top_n = 20,
-    validation = NULL
-  )
-
-  p_mrs <- Go_MRS_plot(
-    fit = fit_mrs,
-    plot_type = "score",
-    title = glue("{grp_name}: {comp_label}"),
-    style = "paper",
-    project = project,
-    name = glue("5_MRS_{grp_name}_{comp_label}"),
-    order = c(neg_class, pos_class),
-    mycol = c("#2166AC", "#D73027")
-  )
-
-  ggsave(
-    make_path(dir_pdf, glue("5_MRS_{grp_name}_{comp_label}")),
-    p_mrs,
-    width = attr(p_mrs, "recommended_width") %||% 5,
-    height = attr(p_mrs, "recommended_height") %||% 5
-  )
-
-  auc_val <- fit_mrs$metrics$auc %||% NA_real_
-  mrs_tab <- fit_mrs$data_used |>
-    mutate(
-      MRS = fit_mrs$predictions$score[match(rownames(fit_mrs$data_used), fit_mrs$predictions$SampleID)],
-      Group = grp_name,
-      Comparison = comp_label,
-      AUC = round(auc_val, 3)
-    ) |>
-    select(any_of(c("StudyID", "trajectory_mrs", "MRS", "Group", "Comparison", "AUC")))
-
-  write.csv(
-    mrs_tab,
-    make_path(dir_tab, glue("5_MRS_{grp_name}_{comp_label}"), "csv"),
-    row.names = FALSE
-  )
-  invisible(fit_mrs)
-}
 
 ps_v1_traj2 <- subset_samples(
   ps2.traj, Timepoint == "V1" & !is.na(trajectory)
 )
 
-mrs_comps <- list(
-  list(grp = "Grp1", pos = "CIN2_CIN2", neg = "WNL_WNL",
-       label = "failure_vs_success"),
-  list(grp = "Grp1", pos = "WNL_CIN2",  neg = "WNL_WNL",
-       label = "recurrence_vs_success"),
-  list(grp = "Grp2", pos = "CIN2_CIN2", neg = "WNL_WNL",
-       label = "persistent_vs_clearance"),
-  list(grp = "Grp2", pos = "WNL_CIN2",  neg = "WNL_WNL",
-       label = "relapse_vs_clearance")
-)
+mrs_covars <- c("simpleCST", "hivstatus")
 
-for (mc in mrs_comps) {
-  grp_val <- mc$grp
-  pos_val <- mc$pos
-  neg_val <- mc$neg
-  lbl_val <- mc$label
-  sd_tmp <- data.frame(sample_data(ps_v1_traj2), stringsAsFactors = FALSE)
-  keep <- sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c(pos_val, neg_val)
-  keep_ids <- rownames(sd_tmp)[keep]
-  ps_v1_sub <- prune_samples(keep_ids, ps_v1_traj2)
-  compute_mrs(ps_v1_sub, "trajectory", pos_val, neg_val, grp_val, lbl_val)
+format_mrs_title <- function(grp_name, comp_label) {
+  title_map <- c(
+    "failure_vs_success_cov"      = "Success vs treatment failure",
+    "recurrence_vs_success_cov"   = "Success vs recurrence",
+    "persistent_vs_clearance_cov" = "Clearance vs persistent",
+    "relapse_vs_clearance_cov"    = "Clearance vs relapse",
+    "WNL_WNL_vs_HPVneg_cov"       = "HPV- vs clearance",
+    "WNL_CIN2_vs_HPVneg_cov"      = "HPV- vs recurrence",
+    "CIN2_CIN2_vs_HPVneg_cov"     = "HPV- vs persistent/failure"
+  )
+  title_txt <- title_map[[comp_label]]
+  if (is.null(title_txt) || is.na(title_txt) || !nzchar(title_txt)) {
+    title_txt <- gsub("_cov$", "", comp_label)
+  }
+  glue("{grp_name}: {title_txt}")
 }
+
+run_mrs_cov <- function(ps_in, grp_name, pos_class, neg_class, comp_label,
+                        plot_title, mycol, seed_val = 1234) {
+  sd_sub2 <- data.frame(sample_data(ps_in), stringsAsFactors = FALSE)
+  n_sub <- nrow(sd_sub2)
+  cat(glue("  [MRS-covar] {grp_name} {comp_label}: {neg_class} vs {pos_class}\n"))
+  cat(glue("    samples after filter: {n_sub}\n"))
+  if (n_sub < 15) {
+    message(glue("  {grp_name} {comp_label}: n={n_sub} (<15), skip"))
+    return(invisible(NULL))
+  }
+  rownames(sd_sub2) <- phyloseq::sample_names(ps_in)
+  if (!identical(rownames(sd_sub2), phyloseq::sample_names(ps_in))) {
+    stop("sample_data rownames do not match ps_in sample_names.")
+  }
+  sample_data(ps_in) <- sample_data(sd_sub2)
+  fit_mrs <- Go_MRS_fit(psIN = ps_in, outcome = "trajectory_mrs", taxrank = "ASV", top_n = 100, meta_vars = intersect(mrs_covars, colnames(sd_sub2)), validation = "oof", seed = seed_val, project = project, name = glue("5_MRS_{grp_name}_{comp_label}"))
+  Go_MRS_plot(fit = fit_mrs, title = plot_title, style = "paper", project = project, name = glue("5_MRS_{grp_name}_{comp_label}"), order = c(neg_class, pos_class), mycol = mycol)
+  invisible(fit_mrs)
+}
+
+traj_key_v1 <- traj_meta |>
+  dplyr::distinct(StudyID, .keep_all = TRUE) |>
+  dplyr::mutate(trajectory = as.character(trajectory))
+
+sd_v1_grp3ref <- data.frame(sample_data(ps2), stringsAsFactors = FALSE) |>
+  tibble::rownames_to_column(".SampleID") |>
+  dplyr::filter(Timepoint == "V1", studygrp2 %in% c("Grp1", "Grp2", "Grp3")) |>
+  dplyr::select(-dplyr::any_of("trajectory")) |>
+  dplyr::left_join(
+    traj_key_v1 |> dplyr::select(StudyID, trajectory),
+    by = "StudyID"
+  ) |>
+  tibble::column_to_rownames(".SampleID")
+
+ps_v1_grp3ref <- prune_samples(rownames(sd_v1_grp3ref), ps2)
+sample_data(ps_v1_grp3ref) <- sample_data(sd_v1_grp3ref)
+ref_label <- "HPVneg_ref"
+ref_col <- "#4DAF4A"
+
+# Grp1: CIN2_CIN2 vs WNL_WNL
+grp_val <- "Grp1"; pos_val <- "CIN2_CIN2"; neg_val <- "WNL_WNL"; lbl_val <- "failure_vs_success_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_traj2), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c(pos_val, neg_val)]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_traj2)
+ps_v1_sub <- subset_samples(ps_v1_sub, trajectory %in% c(pos_val, neg_val))
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- factor(sd_sub2[["trajectory"]], levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c("#2166AC", "#D73027"))
+
+# Grp1: WNL_CIN2 vs WNL_WNL
+grp_val <- "Grp1"; pos_val <- "WNL_CIN2"; neg_val <- "WNL_WNL"; lbl_val <- "recurrence_vs_success_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_traj2), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c(pos_val, neg_val)]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_traj2)
+ps_v1_sub <- subset_samples(ps_v1_sub, trajectory %in% c(pos_val, neg_val))
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- factor(sd_sub2[["trajectory"]], levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c("#2166AC", "#D73027"))
+
+# Grp2: CIN2_CIN2 vs WNL_WNL
+grp_val <- "Grp2"; pos_val <- "CIN2_CIN2"; neg_val <- "WNL_WNL"; lbl_val <- "persistent_vs_clearance_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_traj2), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c(pos_val, neg_val)]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_traj2)
+ps_v1_sub <- subset_samples(ps_v1_sub, trajectory %in% c(pos_val, neg_val))
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- factor(sd_sub2[["trajectory"]], levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c("#2166AC", "#D73027"))
+
+# Grp2: WNL_CIN2 vs WNL_WNL
+grp_val <- "Grp2"; pos_val <- "WNL_CIN2"; neg_val <- "WNL_WNL"; lbl_val <- "relapse_vs_clearance_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_traj2), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c(pos_val, neg_val)]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_traj2)
+ps_v1_sub <- subset_samples(ps_v1_sub, trajectory %in% c(pos_val, neg_val))
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- factor(sd_sub2[["trajectory"]], levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c("#2166AC", "#D73027"))
+
+# Grp1: WNL_WNL vs HPV-
+grp_val <- "Grp1"; pos_val <- "WNL_WNL"; neg_val <- ref_label; lbl_val <- "WNL_WNL_vs_HPVneg_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_grp3ref), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[(sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory == pos_val) | sd_tmp$studygrp2 == "Grp3"]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_grp3ref)
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- ifelse(sd_sub2$studygrp2 == "Grp3", neg_val, as.character(sd_sub2$trajectory))
+sd_sub2$trajectory_mrs <- factor(sd_sub2$trajectory_mrs, levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c(ref_col, traj_cols[pos_val]))
+
+# Grp1: WNL_CIN2 vs HPV-
+grp_val <- "Grp1"; pos_val <- "WNL_CIN2"; neg_val <- ref_label; lbl_val <- "WNL_CIN2_vs_HPVneg_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_grp3ref), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[(sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory == pos_val) | sd_tmp$studygrp2 == "Grp3"]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_grp3ref)
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- ifelse(sd_sub2$studygrp2 == "Grp3", neg_val, as.character(sd_sub2$trajectory))
+sd_sub2$trajectory_mrs <- factor(sd_sub2$trajectory_mrs, levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c(ref_col, traj_cols[pos_val]))
+
+# Grp1: CIN2_CIN2 vs HPV-
+grp_val <- "Grp1"; pos_val <- "CIN2_CIN2"; neg_val <- ref_label; lbl_val <- "CIN2_CIN2_vs_HPVneg_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_grp3ref), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[(sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory == pos_val) | sd_tmp$studygrp2 == "Grp3"]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_grp3ref)
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- ifelse(sd_sub2$studygrp2 == "Grp3", neg_val, as.character(sd_sub2$trajectory))
+sd_sub2$trajectory_mrs <- factor(sd_sub2$trajectory_mrs, levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c(ref_col, traj_cols[pos_val]))
+
+# Grp2: WNL_WNL vs HPV-
+grp_val <- "Grp2"; pos_val <- "WNL_WNL"; neg_val <- ref_label; lbl_val <- "WNL_WNL_vs_HPVneg_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_grp3ref), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[(sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory == pos_val) | sd_tmp$studygrp2 == "Grp3"]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_grp3ref)
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- ifelse(sd_sub2$studygrp2 == "Grp3", neg_val, as.character(sd_sub2$trajectory))
+sd_sub2$trajectory_mrs <- factor(sd_sub2$trajectory_mrs, levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c(ref_col, traj_cols[pos_val]))
+
+# Grp2: WNL_CIN2 vs HPV-
+grp_val <- "Grp2"; pos_val <- "WNL_CIN2"; neg_val <- ref_label; lbl_val <- "WNL_CIN2_vs_HPVneg_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_grp3ref), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[(sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory == pos_val) | sd_tmp$studygrp2 == "Grp3"]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_grp3ref)
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- ifelse(sd_sub2$studygrp2 == "Grp3", neg_val, as.character(sd_sub2$trajectory))
+sd_sub2$trajectory_mrs <- factor(sd_sub2$trajectory_mrs, levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c(ref_col, traj_cols[pos_val]))
+
+# Grp2: CIN2_CIN2 vs HPV-
+grp_val <- "Grp2"; pos_val <- "CIN2_CIN2"; neg_val <- ref_label; lbl_val <- "CIN2_CIN2_vs_HPVneg_cov"
+sd_tmp <- data.frame(sample_data(ps_v1_grp3ref), stringsAsFactors = FALSE)
+keep_ids <- rownames(sd_tmp)[(sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory == pos_val) | sd_tmp$studygrp2 == "Grp3"]
+ps_v1_sub <- prune_samples(keep_ids, ps_v1_grp3ref)
+sd_sub2 <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
+sd_sub2$trajectory_mrs <- ifelse(sd_sub2$studygrp2 == "Grp3", neg_val, as.character(sd_sub2$trajectory))
+sd_sub2$trajectory_mrs <- factor(sd_sub2$trajectory_mrs, levels = c(neg_val, pos_val))
+sample_data(ps_v1_sub) <- sample_data(sd_sub2)
+run_mrs_cov(ps_v1_sub, grp_val, pos_val, neg_val, lbl_val, format_mrs_title(grp_val, lbl_val), c(ref_col, traj_cols[pos_val]))
+
 cat("  -> saved\n")
 
 
@@ -643,123 +713,8 @@ cat("  -> saved\n")
 ##############################################################################
 cat("\n=== [6] Logistic regression — Forest plot ===\n")
 
-run_logistic <- function(ps_v1_sub, outcome_col, pos_class,
-                         covars = c("hivstatus", "simpleCST"),
-                         grp_name, comp_label) {
-
-  sd_lr <- data.frame(sample_data(ps_v1_sub), stringsAsFactors = FALSE)
-  sd_lr <- sd_lr[!is.na(sd_lr[[outcome_col]]), ]
-  if (nrow(sd_lr) < 15) return(invisible(NULL))
-
-  sd_lr$y <- as.integer(sd_lr[[outcome_col]] == pos_class)
-
-  ps_sp  <- tax_glom(ps_v1_sub, taxrank = "Species", NArm = FALSE)
-  ps_sp  <- prune_samples(rownames(sd_lr), ps_sp)
-  ps_rel <- transform_sample_counts(
-    ps_sp, function(x) log(x / sum(x) * 100 + 1)
-  )
-  otu_m <- as.matrix(otu_table(ps_rel))
-  if (!taxa_are_rows(ps_rel)) otu_m <- t(otu_m)
-
-  n_top_lr <- min(15L, nrow(otu_m))
-  top15    <- names(
-    sort(rowMeans(otu_m), decreasing = TRUE)
-  )[seq_len(n_top_lr)]
-  tx       <- data.frame(tax_table(ps_rel)[top15, ], stringsAsFactors = FALSE)
-  taxa_ids <- make.names(
-    ifelse(!is.na(tx$Species),
-           paste(tx$Genus, tx$Species),
-           paste(tx$Genus, "sp."))
-  )
-
-  feat_df <- data.frame(
-    t(otu_m[top15, , drop = FALSE]), check.names = FALSE
-  )
-  colnames(feat_df) <- taxa_ids
-  feat_df  <- feat_df[rownames(sd_lr), , drop = FALSE]
-  avail_cov <- intersect(covars, colnames(sd_lr))
-
-  results <- purrr::map_dfr(taxa_ids, function(taxa) {
-    d <- cbind(
-      y     = sd_lr$y,
-      taxon = feat_df[[taxa]],
-      sd_lr[, avail_cov, drop = FALSE]
-    )
-    fm <- as.formula(
-      paste("y ~ taxon +", paste(avail_cov, collapse = " + "))
-    )
-    tryCatch({
-      m   <- glm(fm, data = d, family = binomial)
-      res <- broom::tidy(m, exponentiate = TRUE, conf.int = TRUE)
-      res |>
-        filter(term == "taxon") |>
-        mutate(taxa = taxa, OR = estimate, LCI = conf.low, UCI = conf.high)
-    }, error = function(e) NULL)
-  })
-
-  if (is.null(results) || nrow(results) == 0) return(invisible(NULL))
-
-  results <- results |>
-    mutate(
-      sig        = p.value < 0.05,
-      taxa_clean = stringr::str_replace_all(taxa, "\\.", " ")
-    ) |>
-    arrange(OR)
-
-  p_forest <- ggplot(
-    results,
-    aes(y = reorder(taxa_clean, OR), x = OR, color = sig)
-  ) +
-    geom_vline(xintercept = 1, linetype = "dashed", color = "grey60") +
-    geom_errorbarh(
-      aes(xmin = LCI, xmax = UCI), height = 0.25, linewidth = 0.7
-    ) +
-    geom_point(aes(size = -log10(p.value + 1e-6)), shape = 18) +
-    geom_text(
-      aes(label = ifelse(sig, sprintf("%.2f", OR), "")),
-      hjust = -0.3, size = 3, fontface = "italic"
-    ) +
-    scale_color_manual(
-      values = c("TRUE" = "#D73027", "FALSE" = "grey50"),
-      labels = c("TRUE" = "p < 0.05", "FALSE" = "NS"),
-      name   = NULL
-    ) +
-    scale_size_continuous(range = c(2, 6), name = "-log10(p)") +
-    labs(
-      title    = glue("{grp_name}: {comp_label}"),
-      subtitle = glue(
-        "Outcome: {pos_class} vs others  |  adjusted OR (V1 taxa)"
-      ),
-      x = "Adjusted OR (95% CI)", y = NULL
-    ) +
-    theme_classic(base_size = 12) +
-    theme(
-      plot.title      = element_text(face = "bold"),
-      axis.text.y     = element_text(face = "italic", size = 9),
-      legend.position = "bottom"
-    )
-
-  ggsave(
-    make_path(dir_pdf, glue("6_forest_{grp_name}_{comp_label}")),
-    p_forest, width = 7, height = 6
-  )
-  write.csv(
-    results |>
-      select("taxa_clean", "OR", "LCI", "UCI", "p.value", "sig"),
-    make_path(
-      dir_tab, glue("6_logistic_{grp_name}_{comp_label}"), "csv"
-    ),
-    row.names = FALSE
-  )
-  invisible(results)
-}
-
-lr_comps <- list(
-  list(grp = "Grp1", pos = "CIN2_CIN2", label = "treatment_failure"),
-  list(grp = "Grp1", pos = "WNL_CIN2",  label = "recurrence"),
-  list(grp = "Grp2", pos = "CIN2_CIN2", label = "persistent"),
-  list(grp = "Grp2", pos = "WNL_CIN2",  label = "relapse")
-)
+source("/Users/heekukpark/Dropbox/04_scripts/R_source/Gotools/R/Go_OR_fit.R")
+source("/Users/heekukpark/Dropbox/04_scripts/R_source/Gotools/R/Go_OR_plot.R")
 
 ps_v1_traj3 <- subset_samples(
   ps2.traj,
@@ -768,20 +723,58 @@ ps_v1_traj3 <- subset_samples(
     !is.na(trajectory)
 )
 
-invisible(lapply(lr_comps, function(lc) {
-  grp_val <- lc$grp
-  pos_val <- lc$pos
-  lbl_val <- lc$label
-  sd_tmp  <- data.frame(sample_data(ps_v1_traj3), stringsAsFactors = FALSE)
-  keep    <- sd_tmp$studygrp2 == grp_val
-  ps_sub  <- prune_samples(keep, ps_v1_traj3)
-  run_logistic(
-    ps_sub, "trajectory", pos_val,
-    covars     = c("hivstatus", "simpleCST"),
-    grp_name   = grp_val,
-    comp_label = lbl_val
-  )
-}))
+# Grp1: CIN2_CIN2 vs others
+grp_val <- "Grp1"; pos_val <- "CIN2_CIN2"; lbl_val <- "treatment_failure"
+sd_tmp <- data.frame(sample_data(ps_v1_traj3), stringsAsFactors = FALSE)
+keep <- sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c("WNL_WNL", pos_val)
+ps_sub <- prune_samples(keep, ps_v1_traj3)
+sd_sub <- data.frame(sample_data(ps_sub), stringsAsFactors = FALSE)
+cat(glue("  [OR] {grp_val} {lbl_val}: {pos_val} vs WNL_WNL\n"))
+cat(glue("    samples after filter: {nrow(sd_sub)}\n"))
+if (nrow(sd_sub) >= 15) {
+  fit_or <- Go_OR_fit(psIN = ps_sub, outcome = "trajectory", pos_class = pos_val, taxrank = "Species", covars = c("hivstatus", "simpleCST"), transform = "log_rel", top_n = 15, project = project, name = glue("6_OR_{grp_val}_{lbl_val}"))
+  Go_OR_plot(fit = fit_or, title = glue("{grp_val}: {lbl_val}"), order = c("WNL_WNL", pos_val), style = "paper", project = project, name = glue("{grp_val}_{lbl_val}"))
+} else message(glue("  {grp_val} {lbl_val}: n={nrow(sd_sub)} (<15), skip"))
+
+# Grp1: WNL_CIN2 vs others
+grp_val <- "Grp1"; pos_val <- "WNL_CIN2"; lbl_val <- "recurrence"
+sd_tmp <- data.frame(sample_data(ps_v1_traj3), stringsAsFactors = FALSE)
+keep <- sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c("WNL_WNL", pos_val)
+ps_sub <- prune_samples(keep, ps_v1_traj3)
+sd_sub <- data.frame(sample_data(ps_sub), stringsAsFactors = FALSE)
+cat(glue("  [OR] {grp_val} {lbl_val}: {pos_val} vs WNL_WNL\n"))
+cat(glue("    samples after filter: {nrow(sd_sub)}\n"))
+if (nrow(sd_sub) >= 15) {
+  fit_or <- Go_OR_fit(psIN = ps_sub, outcome = "trajectory", pos_class = pos_val, taxrank = "Species", covars = c("hivstatus", "simpleCST"), transform = "log_rel", top_n = 15, project = project, name = glue("6_OR_{grp_val}_{lbl_val}"))
+  Go_OR_plot(fit = fit_or, title = glue("{grp_val}: {lbl_val}"), order = c("WNL_WNL", pos_val), style = "paper", project = project, name = glue("{grp_val}_{lbl_val}"))
+} else message(glue("  {grp_val} {lbl_val}: n={nrow(sd_sub)} (<15), skip"))
+
+# Grp2: CIN2_CIN2 vs others
+grp_val <- "Grp2"; pos_val <- "CIN2_CIN2"; lbl_val <- "persistent"
+sd_tmp <- data.frame(sample_data(ps_v1_traj3), stringsAsFactors = FALSE)
+keep <- sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c("WNL_WNL", pos_val)
+ps_sub <- prune_samples(keep, ps_v1_traj3)
+sd_sub <- data.frame(sample_data(ps_sub), stringsAsFactors = FALSE)
+cat(glue("  [OR] {grp_val} {lbl_val}: {pos_val} vs WNL_WNL\n"))
+cat(glue("    samples after filter: {nrow(sd_sub)}\n"))
+if (nrow(sd_sub) >= 15) {
+  fit_or <- Go_OR_fit(psIN = ps_sub, outcome = "trajectory", pos_class = pos_val, taxrank = "Species", covars = c("hivstatus", "simpleCST"), transform = "log_rel", top_n = 15, project = project, name = glue("6_OR_{grp_val}_{lbl_val}"))
+  Go_OR_plot(fit = fit_or, title = glue("{grp_val}: {lbl_val}"), order = c("WNL_WNL", pos_val), style = "paper", project = project, name = glue("{grp_val}_{lbl_val}"))
+} else message(glue("  {grp_val} {lbl_val}: n={nrow(sd_sub)} (<15), skip"))
+
+# Grp2: WNL_CIN2 vs others
+grp_val <- "Grp2"; pos_val <- "WNL_CIN2"; lbl_val <- "relapse"
+sd_tmp <- data.frame(sample_data(ps_v1_traj3), stringsAsFactors = FALSE)
+keep <- sd_tmp$studygrp2 == grp_val & sd_tmp$trajectory %in% c("WNL_WNL", pos_val)
+ps_sub <- prune_samples(keep, ps_v1_traj3)
+sd_sub <- data.frame(sample_data(ps_sub), stringsAsFactors = FALSE)
+cat(glue("  [OR] {grp_val} {lbl_val}: {pos_val} vs WNL_WNL\n"))
+cat(glue("    samples after filter: {nrow(sd_sub)}\n"))
+if (nrow(sd_sub) >= 15) {
+  fit_or <- Go_OR_fit(psIN = ps_sub, outcome = "trajectory", pos_class = pos_val, taxrank = "Species", covars = c("hivstatus", "simpleCST"), transform = "log_rel", top_n = 15, project = project, name = glue("6_OR_{grp_val}_{lbl_val}"))
+  Go_OR_plot(fit = fit_or, title = glue("{grp_val}: {lbl_val}"), order = c("WNL_WNL", pos_val), style = "paper", project = project, name = glue("{grp_val}_{lbl_val}"))
+} else message(glue("  {grp_val} {lbl_val}: n={nrow(sd_sub)} (<15), skip"))
+
 cat("  -> saved\n")
 
 
@@ -894,10 +887,10 @@ sd_dysbio <- data.frame(
     studygrp2 %in% c("Grp1", "Grp2"),
     Timepoint %in% c("V1", "V2", "V3"),
     !is.na(trajectory),
-    !is.na(simpleCST)
+    !is.na(CST)
   ) |>
   mutate(
-    dysbiosis_score = cst_score_map[simpleCST],
+    dysbiosis_score = cst_score_map[CST],
     trajectory      = factor(trajectory, levels = names(traj_labels)),
     Timepoint       = factor(Timepoint,  levels = c("V1", "V2", "V3"))
   )
@@ -1028,22 +1021,117 @@ cat("  -> saved\n")
 
 
 ##############################################################################
+#  10. ConDA-dist — trajectory pairwise DA
+##############################################################################
+cat("\n=== [10] ConDA-dist by trajectory comparisons ===\n")
+
+if (!exists("Go_ConDaDist")) {
+  conda_r_dir <- "/Users/heekukpark/Dropbox/04_scripts/ConDA-dist/ConDA-dist/R"
+  if (dir.exists(conda_r_dir)) {
+    for (f in list.files(conda_r_dir, pattern = "[.]R$", full.names = TRUE)) {
+      source(f)
+    }
+  } else {
+    stop("ConDA-dist R directory not found.")
+  }
+}
+
+da.col <- c("#74ADD1", "#E31A1C")
+traj_comps <- list(
+  list(grp = "Grp1", g1 = "WNL_WNL", g2 = "CIN2_CIN2", label = "success_vs_failure"),
+  list(grp = "Grp1", g1 = "WNL_WNL", g2 = "WNL_CIN2", label = "success_vs_recurrence"),
+  list(grp = "Grp1", g1 = "WNL_WNL", g2 = "CIN2_WNL", label = "success_vs_late_resp"),
+  list(grp = "Grp2", g1 = "WNL_WNL", g2 = "CIN2_CIN2", label = "clearance_vs_persistent"),
+  list(grp = "Grp2", g1 = "WNL_WNL", g2 = "WNL_CIN2", label = "clearance_vs_relapse"),
+  list(grp = "Grp2", g1 = "WNL_WNL", g2 = "CIN2_WNL", label = "clearance_vs_late_clear")
+)
+
+conda_result <- NULL
+for (da in c("deseq2", "ancombc2")) {
+  cat(glue("  [ConDA-dist] method = {da}\n"))
+
+  for (tp in c("V1", "V2")) {
+    ps_tp <- subset_samples(ps2.traj, Timepoint == tp & !is.na(trajectory))
+
+    for (tc in traj_comps) {
+      ps_sub <- subset_samples(
+        ps_tp,
+        studygrp2 == tc$grp & trajectory %in% c(tc$g1, tc$g2)
+      )
+      sd_sub <- data.frame(sample_data(ps_sub), stringsAsFactors = FALSE)
+      traj_present <- intersect(c(tc$g1, tc$g2), unique(as.character(sd_sub$trajectory)))
+      if (length(traj_present) < 2 || nrow(sd_sub) < 10) {
+        message(glue("  skip {da} {tp} {tc$grp} {tc$label}: insufficient samples"))
+        next
+      }
+
+      nm <- glue("{tc$grp}_{tp}")
+      cat(glue("    {tp} {tc$grp} {tc$g1} vs {tc$g2} (n={nrow(sd_sub)})\n"))
+      conda_result <- Go_ConDaDist(psIN = ps_sub, project = project, group_var = "trajectory", group_1 = tc$g1, group_2 = tc$g2, covariates = intersect(c("hivstatus", "simpleCST", "Batchs"), colnames(sd_sub)), methods = da, distances = NULL, name = nm)
+    }
+  }
+  if (!is.null(conda_result)) {
+    Go_volcanoPlot(project = project, result = conda_result, fc = 0, mycols = da.col, name = NULL, font = 3, height = 5, width = 6)
+  }
+}
+cat("  -> saved\n")
+
+
+##############################################################################
+#  10-1. ConDA-dist — trajectory pairwise DA with Bray
+##############################################################################
+cat("\n=== [10-1] ConDA-dist by trajectory comparisons with Bray ===\n")
+
+conda_result <- NULL
+cat("  [ConDA-dist] methods = deseq2 + ancombc2 | distance = bray\n")
+
+for (tp in c("V1", "V2")) {
+  ps_tp <- subset_samples(ps2.traj, Timepoint == tp & !is.na(trajectory))
+
+  for (tc in traj_comps) {
+    ps_sub <- subset_samples(
+      ps_tp,
+      studygrp2 == tc$grp & trajectory %in% c(tc$g1, tc$g2)
+    )
+    sd_sub <- data.frame(sample_data(ps_sub), stringsAsFactors = FALSE)
+    traj_present <- intersect(c(tc$g1, tc$g2), unique(as.character(sd_sub$trajectory)))
+    if (length(traj_present) < 2 || nrow(sd_sub) < 10) {
+      message(glue("  skip {tp} {tc$grp} {tc$label}: insufficient samples"))
+      next
+    }
+
+    nm <- glue("{tc$grp}_{tp}")
+    cat(glue("    {tp} {tc$grp} {tc$g1} vs {tc$g2} (n={nrow(sd_sub)})\n"))
+    conda_result <- Go_ConDaDist(psIN = ps_sub, project = project, group_var = "trajectory", group_1 = tc$g1, group_2 = tc$g2, covariates = intersect(c("hivstatus", "simpleCST", "Batchs"), colnames(sd_sub)), methods = c("deseq2", "ancombc2"), distances = "bray", name = nm)
+  }
+}
+if (!is.null(conda_result)) {
+  Go_volcanoPlot(project = project, result = conda_result, fc = 0, mycols = da.col, name = NULL, font = 3, height = 5, width = 6)
+}
+cat("  -> saved\n")
+
+
+##############################################################################
+#  11. Beta diversity — trajectory PCoA at V1/V2
+##############################################################################
+cat("\n=== [11] Beta diversity by trajectory at V1/V2 ===\n")
+
+for (tp in c("V1", "V2")) {
+  ps2.traj.tp <- subset_samples(ps2.traj, Timepoint == tp & !is.na(trajectory))
+
+  for (g in c("Grp1", "Grp2")) {
+    ps2.traj.tp.sel <- subset_samples(ps2.traj.tp, studygrp2 == g)
+    if (nsamples(ps2.traj.tp.sel) < 5) {
+      message(glue("  skip bdiv {g} {tp}: insufficient samples"))
+      next
+    }
+
+    Go_bdivPM(psIN = ps2.traj.tp.sel, cate.vars = "trajectory", project = project, orders = orders, distance_metrics = c("bray", "wunifrac"), cate.conf = c("hivstatus", "simpleCST", "Batchs"), mycols = cols2, facet = NULL, name = sprintf("%s_%s_trajectory", g, tp), height = 5, width = 5)
+  }
+}
+cat("  -> saved\n")
+
+
+##############################################################################
 #  Done
 ##############################################################################
-cat("\n")
-cat(strrep("=", 66), "\n")
-cat("  CCM Phase 2 Trajectory Deep Analysis — COMPLETE\n")
-cat(glue("  Output: {dir_pdf}/\n\n"))
-cat("  Fig 1 : Trajectory distribution bar chart\n")
-cat("  Fig 2 : CST transition Sankey (Grp1, Grp2)\n")
-cat("  Fig 3 : Hierarchical clustering heatmap (V1 samples)\n")
-cat("  Fig 4 : Spearman co-occurrence heatmap (Grp1, Grp2)\n")
-cat("  Fig 5 : MRS — Microbial Risk Score (4 comparisons)\n")
-cat("  Fig 6 : Logistic regression forest plot (4 comparisons)\n")
-cat("  Fig 7 : JSD longitudinal change (V1->V2, V1->V3)\n")
-cat("  Fig 8 : Dysbiosis score (CST-proxy) over time\n")
-cat("  Fig 9 : Combined summary figure (patchwork)\n")
-cat(strrep("=", 66), "\n")
-
-
-getwd()

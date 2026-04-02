@@ -22,32 +22,52 @@
 #' @param outcome Character scalar; outcome column in \code{sample_data(psIN)}.
 #' @param taxrank Character taxonomic rank. Defaults to \code{"ASV"}.
 #' @param meta_vars Optional character vector of sample-level covariates to add
-#'   to the predictor matrix.
+#'   to the predictor matrix. In \code{score_method = "deep_mrs"}, these
+#'   covariates are expanded with \code{model.matrix()} when needed and are
+#'   included alongside microbial features.
 #' @param random_effect Optional character scalar; grouping variable in
 #'   \code{sample_data(psIN)} for mixed models.
 #' @param outcome_type One of \code{"auto"}, \code{"continuous"},
 #'   \code{"binary"}, or \code{"count"}.
 #' @param family One of \code{"auto"}, \code{"gaussian"}, \code{"binomial"},
 #'   or \code{"poisson"}.
-#' @param transform One of \code{"log_rel"}, \code{"relative"}, or
-#'   \code{"count"}.
-#' @param top_n Optional integer; keep the top N taxa by mean abundance before
-#'   model fitting. \code{NULL} keeps all taxa.
-#' @param prevalence_min Optional prevalence filter on relative abundance
-#'   presence rate. Defaults to \code{0}.
+#' @param transform Feature transform applied before model fitting. One of
+#'   \code{"clr"} (default; centered log-ratio, compositionally correct),
+#'   \code{"log_rel"} (\code{log(relab * 100 + 1)}), \code{"relative"}
+#'   (raw relative abundance), or \code{"count"} (raw OTU counts).
+#' @param top_n Optional integer; retain at most the top N taxa by variance
+#'   (\code{"clr"}) or mean abundance (other transforms) before model fitting.
+#'   \code{NULL} (default) passes all prevalence/abundance-filtered taxa to
+#'   glmnet, which then applies L1 sparsity internally.
+#' @param prevalence_min Optional prevalence filter (proportion of samples with
+#'   non-zero relative abundance). Defaults to \code{0}.
 #' @param abundance_min Optional mean relative abundance filter. Defaults to
 #'   \code{0}.
-#' @param alpha Elastic-net mixing parameter for glmnet models.
-#' @param nfolds Number of folds for \code{cv.glmnet()}.
-#' @param standardize Logical; passed to \code{cv.glmnet()}.
-#' @param validation One of \code{"apparent"} or \code{"oof"}. \code{NULL}
-#'   is treated as \code{"apparent"}.
+#' @param alpha Elastic-net mixing parameter passed to \code{cv.glmnet()}.
+#'   \code{0.5} (default) balances L1 sparsity and L2 ridge shrinkage.
+#' @param nfolds Number of CV folds for \code{cv.glmnet()}. Defaults to
+#'   \code{5}.
+#' @param seed Integer seed for reproducible fold assignment when
+#'   \code{foldid} is not supplied. Defaults to \code{1234}.
+#' @param foldid Optional integer vector passed to \code{cv.glmnet()} to fix
+#'   fold membership. Length must match the analysis sample count after
+#'   filtering/NA removal.
+#' @param standardize Logical; passed to \code{cv.glmnet()}. Defaults to
+#'   \code{TRUE}.
+#' @param validation One of \code{"oof"} (default; out-of-fold cross-validation
+#'   for unbiased score estimation) or \code{"apparent"} (train-set scoring,
+#'   inflates AUC).
 #' @param score_scale One of \code{"response"} or \code{"link"} for returned
-#'   scores from glmnet.
-#' @param score_method One of \code{"weighted_sum"} or \code{"predict"}.
-#'   \code{"weighted_sum"} is the default and reproduces the
-#'   \code{compute_mrs()} strategy used in
-#'   \code{20260329_CCM_Phase2_Trajectory_Deep.R}.
+#'   scores from glmnet predict (used only when
+#'   \code{score_method = "predict"}).
+#' @param score_method One of \code{"deep_mrs"} (default; elastic net
+#'   coefficients as weights, weighted-sum MRS), \code{"weighted_sum"} or
+#'   \code{"legacy_mrs"} (backward-compatible aliases for \code{"deep_mrs"}),
+#'   or \code{"predict"} (uses \code{stats::predict.cv.glmnet()} directly).
+#' @param project Optional project name used to save the fitted object.
+#' @param name Optional file tag for saving the fitted object. When both
+#'   \code{project} and \code{name} are provided, the fitted object is saved to
+#'   \code{<project>_YYMMDD/table/MRS_tab/}.
 #' @param na_action Currently only \code{"complete"} is supported.
 #'
 #' @return A list of class \code{"Go_MRS_fit"}.
@@ -55,38 +75,52 @@
 #' @export
 Go_MRS_fit <- function(psIN,
                        outcome,
-                       taxrank = "ASV",
-                       meta_vars = NULL,
+                       taxrank       = "ASV",
+                       meta_vars     = NULL,
                        random_effect = NULL,
-                       outcome_type = c("auto", "continuous", "binary", "count"),
-                       family = c("auto", "gaussian", "binomial", "poisson"),
-                       transform = c("log_rel", "relative", "count"),
-                       top_n = NULL,
+                       outcome_type  = c("auto", "continuous", "binary", "count"),
+                       family        = c("auto", "gaussian", "binomial", "poisson"),
+                       transform     = c("clr", "log_rel", "relative", "count"),
+                       top_n         = NULL,
                        prevalence_min = 0,
-                       abundance_min = 0,
-                       alpha = 0.5,
-                       nfolds = 5,
-                       standardize = TRUE,
-                       validation = NULL,
-                       score_scale = c("response", "link"),
-                       score_method = "weighted_sum",
-                       na_action = c("complete")) {
+                       abundance_min  = 0,
+                       alpha         = 0.5,
+                       nfolds        = 5,
+                       seed          = 1234,
+                       foldid        = NULL,
+                       standardize   = TRUE,
+                       validation    = c("oof", "apparent"),
+                       score_scale   = c("response", "link"),
+                       score_method  = "deep_mrs",
+                       project       = NULL,
+                       name          = NULL,
+                       na_action     = c("complete"),
+                       verbose       = TRUE) {
 
   `%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
+  log_msg <- function(...) if (isTRUE(verbose)) message(...)
+  clean_tag <- function(x) {
+    x <- gsub("[^A-Za-z0-9._-]+", "_", x)
+    x <- gsub("_+", "_", x)
+    x <- gsub("^_|_$", "", x)
+    x
+  }
 
   outcome_type <- match.arg(outcome_type)
   family <- match.arg(family)
   transform <- match.arg(transform)
-  validation <- if (is.null(validation)) "apparent" else match.arg(validation, c("apparent", "oof"))
+  validation <- match.arg(validation)
   score_scale <- match.arg(score_scale)
-  score_method <- match.arg(score_method, c("weighted_sum", "predict", "legacy_mrs"))
-  if (identical(score_method, "legacy_mrs")) score_method <- "weighted_sum"
+  score_method <- match.arg(score_method, c("deep_mrs", "weighted_sum", "predict", "legacy_mrs"))
+  if (score_method %in% c("weighted_sum", "legacy_mrs")) score_method <- "deep_mrs"
   na_action <- match.arg(na_action)
+  if (!is.null(seed)) seed <- as.integer(seed)[1]
 
   if (!inherits(psIN, "phyloseq")) stop("`psIN` must be a phyloseq object.")
   if (!requireNamespace("phyloseq", quietly = TRUE)) stop("Package `phyloseq` is required.")
 
   meta <- data.frame(phyloseq::sample_data(psIN), check.names = FALSE, stringsAsFactors = FALSE)
+  log_msg(sprintf("[Go_MRS_fit] start: outcome='%s' taxrank='%s' n_samples=%d", outcome, taxrank, nrow(meta)))
   if (!is.character(outcome) || length(outcome) != 1 || !outcome %in% names(meta)) {
     stop("`outcome` must be a sample_data column name in `psIN`.")
   }
@@ -112,6 +146,33 @@ Go_MRS_fit <- function(psIN,
     stop("Unsupported outcome type.")
   }
 
+  safe_coef_df <- function(cv_fit_obj) {
+    for (s_val in c("lambda.min", "lambda.1se")) {
+      cm <- as.matrix(stats::coef(cv_fit_obj, s = s_val))
+      df <- data.frame(feature = rownames(cm), estimate = as.numeric(cm[, 1]),
+                       stringsAsFactors = FALSE, row.names = NULL)
+      df <- df[df$feature != "(Intercept)" & df$estimate != 0, , drop = FALSE]
+      if (nrow(df) > 0) {
+        if (!identical(s_val, "lambda.min"))
+          warning(sprintf("[Go_MRS_fit] lambda.min gave 0 features; using %s.", s_val))
+        return(df[order(abs(df$estimate), decreasing = TRUE), , drop = FALSE])
+      }
+    }
+    nz_idx <- which(cv_fit_obj$nzero > 0)
+    if (length(nz_idx) > 0) {
+      lam_nz <- cv_fit_obj$lambda[nz_idx[length(nz_idx)]]
+      cm <- as.matrix(stats::coef(cv_fit_obj, s = lam_nz))
+      df <- data.frame(feature = rownames(cm), estimate = as.numeric(cm[, 1]),
+                       stringsAsFactors = FALSE, row.names = NULL)
+      df <- df[df$feature != "(Intercept)" & df$estimate != 0, , drop = FALSE]
+      if (nrow(df) > 0) {
+        warning("[Go_MRS_fit] lambda.min/1se gave 0 features; using most-regularized non-zero lambda.")
+        return(df[order(abs(df$estimate), decreasing = TRUE), , drop = FALSE])
+      }
+    }
+    NULL
+  }
+
   infer_family <- function(outcome_type_detected) {
     switch(
       outcome_type_detected,
@@ -127,14 +188,22 @@ Go_MRS_fit <- function(psIN,
     if (outcome_type_detected == "binary") {
       y_bin <- as.integer(y)
       if (requireNamespace("pROC", quietly = TRUE)) {
-        roc_obj <- pROC::roc(response = y_bin, predictor = score, quiet = TRUE)
+        roc_obj <- pROC::roc(response = y_bin, predictor = score,
+                             direction = "<", quiet = TRUE)
         out$roc <- roc_obj
         out$auc <- as.numeric(pROC::auc(roc_obj))
+        auc_ci <- tryCatch(as.numeric(pROC::ci.auc(roc_obj)), error = function(e) NULL)
+        out$auc_ci <- auc_ci
+        youden_idx <- which.max(roc_obj$sensitivities + roc_obj$specificities - 1)
+        out$threshold <- roc_obj$thresholds[youden_idx]
       } else {
         out$roc <- NULL
         out$auc <- NA_real_
+        out$auc_ci <- NULL
+        out$threshold <- 0.5
       }
-      pred_class <- as.integer(score >= 0.5)
+      thresh <- if (!is.null(out$threshold) && is.finite(out$threshold)) out$threshold else 0.5
+      pred_class <- as.integer(score >= thresh)
       out$accuracy <- mean(pred_class == y_bin, na.rm = TRUE)
     } else {
       y_num <- as.numeric(y)
@@ -149,7 +218,8 @@ Go_MRS_fit <- function(psIN,
                               outcome_type_detected, outcome_type_mode,
                               random_effect_used, validation_used,
                               n_obs, n_features,
-                              taxrank_used, transform_used, metrics) {
+                              taxrank_used, transform_used, metrics,
+                              covars_used) {
     metric_txt <- switch(
       outcome_type_detected,
       binary = paste0(
@@ -169,6 +239,7 @@ Go_MRS_fit <- function(psIN,
       " | transform = ", transform_used,
       " | outcome = ", outcome_type_detected, " [", outcome_type_mode, "]",
       " | random effect = ", random_effect_used %||% "none",
+      " | covars = ", if (length(covars_used)) paste(covars_used, collapse = ",") else "none",
       " | validation = ", validation_used,
       " | features = ", n_features,
       " | n = ", n_obs,
@@ -178,10 +249,28 @@ Go_MRS_fit <- function(psIN,
 
   make_tax_labels <- function(ps_obj, taxrank_used) {
     taxa_ids <- phyloseq::taxa_names(ps_obj)
-    if (identical(taxrank_used, "ASV") || is.null(phyloseq::tax_table(ps_obj, errorIfNULL = FALSE))) {
+    tt <- phyloseq::tax_table(ps_obj, errorIfNULL = FALSE)
+    if (is.null(tt)) {
       return(stats::setNames(taxa_ids, taxa_ids))
     }
-    tt <- as.data.frame(phyloseq::tax_table(ps_obj), stringsAsFactors = FALSE)
+    tt <- as.data.frame(tt, stringsAsFactors = FALSE)
+    if (identical(taxrank_used, "ASV")) {
+      genus_vals <- if ("Genus" %in% colnames(tt)) tt$Genus else rep(NA_character_, nrow(tt))
+      species_vals <- if ("Species" %in% colnames(tt)) tt$Species else rep(NA_character_, nrow(tt))
+      family_vals <- if ("Family" %in% colnames(tt)) tt$Family else rep(NA_character_, nrow(tt))
+      lab <- ifelse(
+        !is.na(species_vals) & species_vals != "",
+        paste(genus_vals, species_vals),
+        ifelse(!is.na(genus_vals) & genus_vals != "",
+               paste(genus_vals, "sp."),
+               ifelse(!is.na(family_vals) & family_vals != "",
+                      paste(family_vals, "taxon"),
+                      taxa_ids))
+      )
+      lab[is.na(lab) | lab == ""] <- taxa_ids[is.na(lab) | lab == ""]
+      lab <- make.unique(as.character(lab))
+      return(stats::setNames(lab, taxa_ids))
+    }
     if (taxrank_used %in% colnames(tt)) {
       vals <- tt[[taxrank_used]]
       vals[is.na(vals) | vals == ""] <- taxa_ids[is.na(vals) | vals == ""]
@@ -200,7 +289,7 @@ Go_MRS_fit <- function(psIN,
     ps_work <- phyloseq::tax_glom(
       ps_work,
       taxrank = taxrank,
-      NArm = !identical(score_method, "weighted_sum")
+      NArm = score_method != "deep_mrs"
     )
   }
 
@@ -208,6 +297,7 @@ Go_MRS_fit <- function(psIN,
   if (phyloseq::taxa_are_rows(ps_work)) otu_mat <- t(otu_mat)
 
   if (!nrow(otu_mat) || !ncol(otu_mat)) stop("No OTU data found in `psIN`.")
+  log_msg(sprintf("[Go_MRS_fit] OTU matrix: n_samples=%d n_features=%d", nrow(otu_mat), ncol(otu_mat)))
 
   relab <- sweep(otu_mat, 1, pmax(1e-12, rowSums(otu_mat)), "/")
   keep_taxa <- rep(TRUE, ncol(relab))
@@ -220,28 +310,39 @@ Go_MRS_fit <- function(psIN,
   relab <- relab[, keep_taxa, drop = FALSE]
   otu_mat <- otu_mat[, keep_taxa, drop = FALSE]
   if (!ncol(relab)) stop("No taxa remain after prevalence/abundance filtering.")
+  log_msg(sprintf("[Go_MRS_fit] after prevalence/abundance filter: n_features=%d", ncol(relab)))
 
-  if (!is.null(top_n) && !identical(score_method, "weighted_sum")) {
+  if (!is.null(top_n) && score_method != "deep_mrs") {
     top_n <- min(as.integer(top_n), ncol(relab))
     keep_top <- order(colMeans(relab), decreasing = TRUE)[seq_len(top_n)]
-    relab <- relab[, keep_top, drop = FALSE]
+    relab   <- relab[, keep_top, drop = FALSE]
     otu_mat <- otu_mat[, keep_top, drop = FALSE]
   }
 
   feat_micro <- switch(
     transform,
-    log_rel = log(relab * 100 + 1),
+    log_rel  = log(relab * 100 + 1),
     relative = relab,
-    count = otu_mat
+    count    = otu_mat,
+    clr      = {
+      p_clr <- relab + 1e-6
+      log(p_clr) - rowMeans(log(p_clr))
+    }
   )
 
-  if (!is.null(top_n) && identical(score_method, "weighted_sum")) {
+  if (!is.null(top_n) && score_method == "deep_mrs") {
     top_n <- min(as.integer(top_n), ncol(feat_micro))
-    keep_top <- order(colMeans(feat_micro), decreasing = TRUE)[seq_len(top_n)]
+    rank_vec <- if (identical(transform, "clr")) {
+      apply(feat_micro, 2, var)
+    } else {
+      colMeans(feat_micro)
+    }
+    keep_top <- order(rank_vec, decreasing = TRUE)[seq_len(top_n)]
     feat_micro <- feat_micro[, keep_top, drop = FALSE]
     relab <- relab[, keep_top, drop = FALSE]
     otu_mat <- otu_mat[, keep_top, drop = FALSE]
   }
+  log_msg(sprintf("[Go_MRS_fit] after top_n: n_features=%d", ncol(feat_micro)))
 
   label_map <- make_tax_labels(ps_work, taxrank)
   feature_names_raw <- colnames(feat_micro)
@@ -272,11 +373,23 @@ Go_MRS_fit <- function(psIN,
     work_df <- stats::na.omit(work_df)
   }
   if (!nrow(work_df)) stop("No complete rows available after NA filtering.")
+  log_msg(sprintf("[Go_MRS_fit] after NA filter: n_samples=%d", nrow(work_df)))
+  if (!is.null(foldid)) {
+    if (length(foldid) != nrow(work_df)) {
+      stop("`foldid` length must match the number of analysis samples after filtering/NA removal.")
+    }
+    foldid <- as.integer(foldid)
+    if (any(is.na(foldid))) stop("`foldid` must not contain NA.")
+    if (length(unique(foldid)) < 2) stop("`foldid` must contain at least 2 unique folds.")
+  } else if (!is.null(seed)) {
+    set.seed(seed)
+    log_msg(sprintf("[Go_MRS_fit] using seed=%d", seed))
+  }
 
   if (outcome_type_detected == "binary") {
     y_vals <- work_df[[outcome]]
     if (is.factor(y_vals) || is.character(y_vals)) {
-      levs <- unique(as.character(y_vals))
+      levs <- if (is.factor(y_vals)) levels(y_vals) else unique(as.character(y_vals))
       if (length(levs) != 2) stop("Binary outcome must have exactly 2 levels.")
       work_df[[outcome]] <- factor(as.character(y_vals), levels = levs)
       y_model <- as.integer(work_df[[outcome]] == levs[2])
@@ -293,7 +406,7 @@ Go_MRS_fit <- function(psIN,
     negative_class <- NULL
   }
 
-  feature_names_used <- setdiff(colnames(feat_micro), ".SampleID")
+  feature_names_used <- colnames(feat_micro)
   if (length(meta_vars)) {
     feature_names_used <- c(feature_names_used, meta_vars)
   }
@@ -301,6 +414,7 @@ Go_MRS_fit <- function(psIN,
   has_random <- !is.null(random_effect) && nzchar(random_effect)
 
   if (!has_random) {
+    log_msg(sprintf("[Go_MRS_fit] fitting glmnet: family=%s validation=%s score_method=%s", family_used, validation, score_method))
     if (!requireNamespace("glmnet", quietly = TRUE)) {
       stop("Package `glmnet` is required for cv.glmnet models.")
     }
@@ -312,12 +426,21 @@ Go_MRS_fit <- function(psIN,
     }, logical(1)), drop = FALSE]
     if (!ncol(predictor_df)) stop("No informative predictors remain after filtering.")
 
-    if (identical(score_method, "weighted_sum")) {
-      if (outcome_type_detected != "binary") stop("score_method = 'weighted_sum' currently supports binary outcomes only.")
-      if (length(meta_vars)) stop("score_method = 'weighted_sum' does not support `meta_vars`.")
-      if (!is.null(random_effect) && nzchar(random_effect)) stop("score_method = 'weighted_sum' does not support `random_effect`.")
-      if (identical(validation, "oof")) stop("score_method = 'weighted_sum' requires validation = 'apparent'.")
-      x_mat <- as.matrix(predictor_df)
+    if (score_method == "deep_mrs") {
+      if (outcome_type_detected != "binary") stop("score_method = 'deep_mrs' currently supports binary outcomes only.")
+      if (!is.null(random_effect) && nzchar(random_effect)) stop("score_method = 'deep_mrs' does not support `random_effect`.")
+      micro_cols <- intersect(setdiff(colnames(feat_micro), ".SampleID"), colnames(predictor_df))
+      meta_cols <- setdiff(colnames(predictor_df), micro_cols)
+      x_micro <- if (length(micro_cols)) as.matrix(predictor_df[, micro_cols, drop = FALSE]) else NULL
+      x_meta <- if (length(meta_cols)) stats::model.matrix(~ . - 1, data = predictor_df[, meta_cols, drop = FALSE]) else NULL
+      if (is.null(x_micro) && is.null(x_meta)) stop("No predictors remain for deep_mrs.")
+      if (is.null(x_micro)) {
+        x_mat <- x_meta
+      } else if (is.null(x_meta)) {
+        x_mat <- x_micro
+      } else {
+        x_mat <- cbind(x_micro, x_meta)
+      }
     } else {
       x_mat <- stats::model.matrix(~ . - 1, data = predictor_df)
     }
@@ -327,33 +450,31 @@ Go_MRS_fit <- function(psIN,
       family = family_used,
       alpha = alpha,
       nfolds = nfolds,
+      foldid = foldid,
       standardize = standardize
     )
 
-    if (identical(score_method, "weighted_sum")) {
-      coef_mat <- as.matrix(stats::coef(cv_fit, s = "lambda.min"))
-      coef_df <- data.frame(
-        feature = rownames(coef_mat),
-        estimate = as.numeric(coef_mat[, 1]),
-        stringsAsFactors = FALSE,
-        row.names = NULL
-      )
-      coef_df <- coef_df[coef_df$feature != "(Intercept)" & coef_df$estimate != 0, , drop = FALSE]
-      coef_df <- coef_df[order(abs(coef_df$estimate), decreasing = TRUE), , drop = FALSE]
-      if (!nrow(coef_df)) stop("No non-zero coefficients remain for legacy MRS scoring.")
-      feat_mat <- as.matrix(predictor_df[, coef_df$feature, drop = FALSE])
-      weight_mat <- matrix(coef_df$estimate, ncol = 1, dimnames = list(coef_df$feature, "estimate"))
-      score <- as.numeric(feat_mat %*% weight_mat)
-    } else if (identical(validation, "oof")) {
+    if (score_method == "deep_mrs" && identical(validation, "oof")) {
       nfolds_oof <- max(2, min(nfolds, nrow(x_mat)))
-      foldid <- sample(rep(seq_len(nfolds_oof), length.out = nrow(x_mat)))
+      foldid_oof <- if (!is.null(foldid)) {
+        foldid
+      } else {
+        sample(rep(seq_len(nfolds_oof), length.out = nrow(x_mat)))
+      }
+      folds_oof <- sort(unique(foldid_oof))
       score <- rep(NA_real_, nrow(x_mat))
 
-      for (k in seq_len(nfolds_oof)) {
-        train_idx <- foldid != k
-        test_idx <- foldid == k
+      for (k in folds_oof) {
+        train_idx <- foldid_oof != k
+        test_idx  <- foldid_oof == k
         if (!any(test_idx)) next
-        if (family_used == "binomial" && length(unique(y_model[train_idx])) < 2) next
+        if (length(unique(y_model[train_idx])) < 2) next
+
+        foldid_train <- NULL
+        if (!is.null(foldid)) {
+          foldid_train <- foldid_oof[train_idx]
+          foldid_train <- match(foldid_train, unique(foldid_train))
+        }
 
         fit_k <- glmnet::cv.glmnet(
           x = x_mat[train_idx, , drop = FALSE],
@@ -361,6 +482,85 @@ Go_MRS_fit <- function(psIN,
           family = family_used,
           alpha = alpha,
           nfolds = max(2, min(nfolds, sum(train_idx))),
+          foldid = foldid_train,
+          standardize = standardize
+        )
+        coef_k <- as.matrix(stats::coef(fit_k, s = "lambda.min"))
+        coef_k_df <- data.frame(
+          feature  = rownames(coef_k),
+          estimate = as.numeric(coef_k[, 1]),
+          stringsAsFactors = FALSE
+        )
+        coef_k_df <- coef_k_df[coef_k_df$feature != "(Intercept)" & coef_k_df$estimate != 0, , drop = FALSE]
+        if (!nrow(coef_k_df)) next
+        avail_feats <- intersect(coef_k_df$feature, colnames(x_mat))
+        if (!length(avail_feats)) next
+        coef_k_df <- coef_k_df[coef_k_df$feature %in% avail_feats, , drop = FALSE]
+        wt_k <- stats::setNames(coef_k_df$estimate, coef_k_df$feature)
+        score[test_idx] <- as.numeric(x_mat[test_idx, names(wt_k), drop = FALSE] %*% wt_k)
+      }
+
+      if (anyNA(score)) {
+        warning("[Go_MRS_fit] Some OOF deep_mrs folds produced no features; filling NAs with apparent weighted-sum.")
+        coef_app_df <- safe_coef_df(cv_fit)
+        if (!is.null(coef_app_df) && nrow(coef_app_df) > 0) {
+          wt_app    <- stats::setNames(coef_app_df$estimate, coef_app_df$feature)
+          avail_app <- intersect(names(wt_app), colnames(x_mat))
+          app_score <- as.numeric(x_mat[, avail_app, drop = FALSE] %*% wt_app[avail_app])
+          score[is.na(score)] <- app_score[is.na(score)]
+        }
+        if (anyNA(score)) {
+          warning("[Go_MRS_fit] Apparent fallback also unavailable; remaining NAs set to 0.")
+          score[is.na(score)] <- 0
+        }
+      }
+
+      coef_df <- safe_coef_df(cv_fit)
+      if (is.null(coef_df) || !nrow(coef_df)) {
+        warning("[Go_MRS_fit] OOF: no features in final model coefficient report; coef table will be empty.")
+        coef_df <- data.frame(feature = character(0), estimate = numeric(0),
+                              stringsAsFactors = FALSE)
+      }
+    } else if (score_method == "deep_mrs") {
+      coef_df <- safe_coef_df(cv_fit)
+      if (is.null(coef_df) || !nrow(coef_df)) {
+        stop("[Go_MRS_fit] No features selected by glmnet at any lambda. Check data quality, sample size, or increase top_n.")
+      }
+      avail_feats <- intersect(coef_df$feature, colnames(x_mat))
+      coef_df     <- coef_df[coef_df$feature %in% avail_feats, , drop = FALSE]
+      feat_mat    <- x_mat[, avail_feats, drop = FALSE]
+      weight_mat  <- matrix(coef_df$estimate, ncol = 1,
+                            dimnames = list(coef_df$feature, "estimate"))
+      score <- as.numeric(feat_mat %*% weight_mat)
+    } else if (identical(validation, "oof")) {
+      nfolds_oof <- max(2, min(nfolds, nrow(x_mat)))
+      foldid_oof <- if (!is.null(foldid)) {
+        foldid
+      } else {
+        sample(rep(seq_len(nfolds_oof), length.out = nrow(x_mat)))
+      }
+      folds_oof <- sort(unique(foldid_oof))
+      score <- rep(NA_real_, nrow(x_mat))
+
+      for (k in folds_oof) {
+        train_idx <- foldid_oof != k
+        test_idx <- foldid_oof == k
+        if (!any(test_idx)) next
+        if (family_used == "binomial" && length(unique(y_model[train_idx])) < 2) next
+
+        foldid_train <- NULL
+        if (!is.null(foldid)) {
+          foldid_train <- foldid_oof[train_idx]
+          foldid_train <- match(foldid_train, unique(foldid_train))
+        }
+
+        fit_k <- glmnet::cv.glmnet(
+          x = x_mat[train_idx, , drop = FALSE],
+          y = y_model[train_idx],
+          family = family_used,
+          alpha = alpha,
+          nfolds = max(2, min(nfolds, sum(train_idx))),
+          foldid = foldid_train,
           standardize = standardize
         )
 
@@ -387,7 +587,7 @@ Go_MRS_fit <- function(psIN,
       )
     }
 
-    if (!identical(score_method, "weighted_sum")) {
+    if (score_method != "deep_mrs") {
       coef_mat <- as.matrix(stats::coef(cv_fit, s = "lambda.min"))
       coef_df <- data.frame(
         feature = rownames(coef_mat),
@@ -399,13 +599,14 @@ Go_MRS_fit <- function(psIN,
       coef_df <- coef_df[order(abs(coef_df$estimate), decreasing = TRUE), , drop = FALSE]
     }
 
-    engine <- if (identical(score_method, "weighted_sum")) "weighted_sum_glmnet" else "cv.glmnet"
+    engine <- if (score_method == "deep_mrs") "mrs_glmnet" else "cv.glmnet"
     formula_used <- stats::as.formula(
       paste0("~ ", paste(sprintf("`%s`", colnames(predictor_df)), collapse = " + "))
     )
-    feature_names_used <- colnames(predictor_df)
+    feature_names_used <- colnames(x_mat)
     model_object <- cv_fit
   } else {
+    log_msg(sprintf("[Go_MRS_fit] fitting mixed model: family=%s validation=%s", family_used, validation))
     if (identical(validation, "oof")) {
       stop("validation = 'oof' is not yet implemented for mixed models. Use validation = 'apparent' for lmer/glmer.")
     }
@@ -480,7 +681,8 @@ Go_MRS_fit <- function(psIN,
     n_features = length(feature_names_used),
     taxrank_used = taxrank,
     transform_used = transform,
-    metrics = metrics
+    metrics = metrics,
+    covars_used = meta_vars
   )
 
   out <- list(
@@ -494,8 +696,11 @@ Go_MRS_fit <- function(psIN,
       outcome_type_mode = outcome_type_mode,
       random_effect = random_effect,
       validation = validation,
+      seed = seed,
+      foldid = foldid,
       taxrank = taxrank,
       transform = transform,
+      meta_vars = meta_vars,
       score_method = score_method,
       features = feature_names_used,
       formula = formula_used,
@@ -511,5 +716,14 @@ Go_MRS_fit <- function(psIN,
   )
 
   class(out) <- c("Go_MRS_fit", class(out))
+  if (!is.null(project) && !is.null(name)) {
+    out_dirs <- Go_path(project = project, pdf = "no", table = "yes", path = NULL)
+    out_dir <- file.path(out_dirs$tab, "MRS_tab")
+    dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+    save_path <- file.path(out_dir, paste0(clean_tag(name), ".rds"))
+    saveRDS(out, save_path)
+    out$saved_rds <- save_path
+    log_msg(sprintf("[Go_MRS_fit] saved RDS: %s", save_path))
+  }
   out
 }
