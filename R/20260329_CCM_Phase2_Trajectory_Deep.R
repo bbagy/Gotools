@@ -688,33 +688,41 @@ compute_mrs_gotools <- function(ps_v1_sub, outcome_col,
   sample_data(ps_v1_sub2) <- sample_data(sd_sub2)
 
   fit_mrs <- Go_MRS_fit(
-    psIN = ps_v1_sub2,
-    outcome = "trajectory_mrs",
-    taxrank = "Species",
-    transform = "log_rel",
-    top_n = 20,
-    alpha = 0.5,
-    nfolds = 5,
-    validation = "apparent",
-    score_scale = "link"
+    psIN         = ps_v1_sub2,
+    outcome      = "trajectory_mrs",
+    taxrank      = "Species",
+    score_method = "deep_mrs",
+    transform    = "clr",
+    validation   = "oof",
+    alpha        = 0.5,
+    nfolds       = 5
   )
 
   p_fit <- Go_MRS_plot(
-    fit = fit_mrs,
+    fit       = fit_mrs,
     plot_type = "score",
-    title = glue("{grp_name}: {comp_label} [Go_MRS_fit]"),
-    style = "paper",
-    order = c(neg_class, pos_class),
-    mycol = c("#2166AC", "#D73027")
+    title     = glue("{grp_name}: {comp_label} [Go_MRS_fit]"),
+    style     = "paper",
+    order     = c(neg_class, pos_class),
+    mycol     = c("#2166AC", "#D73027")
   )
   ggsave(make_path(dir_pdf, glue("5_MRS_GoMRS_{grp_name}_{comp_label}")), p_fit, width = 5, height = 5)
 
+  auc_val  <- round(fit_mrs$metrics$auc %||% NA_real_, 3)
+  auc_ci   <- fit_mrs$metrics$auc_ci
+  auc_txt  <- if (!is.null(auc_ci) && length(auc_ci) == 3 && all(is.finite(auc_ci))) {
+    glue("AUC = {auc_val} (95% CI: {round(auc_ci[1],3)}-{round(auc_ci[3],3)})")
+  } else {
+    glue("AUC = {auc_val}")
+  }
+  message(glue("  {grp_name} {comp_label} [Go_MRS_fit]: {auc_txt}  n={nrow(sd_sub)}"))
+
   pred_tab <- fit_mrs$predictions |>
     dplyr::mutate(
-      Group = grp_name,
-      Comparison = comp_label,
+      Group          = grp_name,
+      Comparison     = comp_label,
       observed_label = factor(observed, levels = c(0, 1), labels = c(neg_class, pos_class)),
-      AUC = fit_mrs$metrics$auc
+      AUC            = auc_val
     )
   write.csv(
     pred_tab,
