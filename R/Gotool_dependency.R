@@ -53,13 +53,16 @@ Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
       "tidyselect", "vctrs", "yarrr", "stringi", "tidyverse", "vegan",
       "VGAM", "picante", "xgboost", "zoo", "RcppZiggurat", "Rfast",
       "survival", "withr", "knitr", "kableExtra", "DT", "CVXR", "lightgbm",
-      "plyr", "MiRKAT", "speedyseq", "XML"
+      "plyr", "MiRKAT", "XML"
     ),
     bioc = c(
       "phyloseq", "microbiome", "Rhtslib", "dada2", "ggpubr", "ggfortify",
       "genefilter", "ggpmisc", "S4Vectors", "ShortRead", "illuminaio",
       "rstatix", "useful", "DECIPHER", "ComplexHeatmap", "DESeq2", "ALDEx2",
       "scater", "ANCOMBC", "Biostrings", "Maaslin2"
+    ),
+    github = c(
+      "speedyseq" = "mikemc/speedyseq"
     )
   )
 
@@ -91,19 +94,23 @@ Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
 
   not_loadable_cran <- deps$cran[!vapply(deps$cran, requireNamespace, logical(1), quietly = TRUE)]
   not_loadable_bioc <- deps$bioc[!vapply(deps$bioc, requireNamespace, logical(1), quietly = TRUE)]
+  github_pkgs <- names(deps$github)
+  not_loadable_github <- github_pkgs[!vapply(github_pkgs, requireNamespace, logical(1), quietly = TRUE)]
 
   fresh_cran <- not_loadable_cran[!not_loadable_cran %in% installed_names]
   broken_cran <- not_loadable_cran[not_loadable_cran %in% installed_names]
   fresh_bioc <- not_loadable_bioc[!not_loadable_bioc %in% installed_names]
   broken_bioc <- not_loadable_bioc[not_loadable_bioc %in% installed_names]
+  fresh_github <- not_loadable_github[!not_loadable_github %in% installed_names]
+  broken_github <- not_loadable_github[not_loadable_github %in% installed_names]
 
   loaded_namespaces <- loadedNamespaces()
   loaded_pkgs_needing_repair <- intersect(
-    c(broken_cran, broken_bioc),
+    c(broken_cran, broken_bioc, broken_github),
     loaded_namespaces
   )
 
-  all_needing_action <- c(fresh_cran, broken_cran, fresh_bioc, broken_bioc)
+  all_needing_action <- c(fresh_cran, broken_cran, fresh_bioc, broken_bioc, fresh_github, broken_github)
 
   if (length(all_needing_action) == 0) {
     message("[Gotools] All dependencies are installed and loadable.")
@@ -116,13 +123,13 @@ Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
     return(invisible(TRUE))
   }
 
-  if (length(c(fresh_cran, fresh_bioc)) > 0) {
-    message("[Gotools] Missing packages: ", paste(c(fresh_cran, fresh_bioc), collapse = ", "))
+  if (length(c(fresh_cran, fresh_bioc, fresh_github)) > 0) {
+    message("[Gotools] Missing packages: ", paste(c(fresh_cran, fresh_bioc, fresh_github), collapse = ", "))
   }
-  if (length(c(broken_cran, broken_bioc)) > 0) {
+  if (length(c(broken_cran, broken_bioc, broken_github)) > 0) {
     message(
       "[Gotools] Installed but not loadable (will reinstall): ",
-      paste(c(broken_cran, broken_bioc), collapse = ", ")
+      paste(c(broken_cran, broken_bioc, broken_github), collapse = ", ")
     )
   }
 
@@ -145,6 +152,11 @@ Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
   if (length(c(fresh_bioc, broken_bioc)) > 0 && !requireNamespace("BiocManager", quietly = TRUE)) {
     message("[Gotools] Installing BiocManager first...")
     utils::install.packages("BiocManager", quiet = TRUE)
+  }
+
+  if (length(c(fresh_github, broken_github)) > 0 && !requireNamespace("remotes", quietly = TRUE)) {
+    message("[Gotools] Installing remotes first (needed for GitHub packages)...")
+    utils::install.packages("remotes", quiet = TRUE)
   }
 
   if ("ANCOMBC" %in% c(fresh_bioc, broken_bioc) || "CVXR" %in% c(fresh_cran, broken_cran)) {
@@ -224,9 +236,23 @@ Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
     BiocManager::install(broken_bioc, ask = FALSE, update = FALSE, force = TRUE, quiet = TRUE)
   }
 
+  if (length(fresh_github) > 0) {
+    message("[Gotools] Installing GitHub packages: ", paste(fresh_github, collapse = ", "))
+    for (pkg in fresh_github) {
+      remotes::install_github(deps$github[[pkg]], quiet = TRUE, upgrade = "never")
+    }
+  }
+  if (length(broken_github) > 0) {
+    message("[Gotools] Reinstalling broken GitHub packages: ", paste(broken_github, collapse = ", "))
+    for (pkg in broken_github) {
+      remotes::install_github(deps$github[[pkg]], quiet = TRUE, upgrade = "never", force = TRUE)
+    }
+  }
+
   remaining_cran <- deps$cran[!vapply(deps$cran, requireNamespace, logical(1), quietly = TRUE)]
   remaining_bioc <- deps$bioc[!vapply(deps$bioc, requireNamespace, logical(1), quietly = TRUE)]
-  remaining <- c(remaining_cran, remaining_bioc)
+  remaining_github <- github_pkgs[!vapply(github_pkgs, requireNamespace, logical(1), quietly = TRUE)]
+  remaining <- c(remaining_cran, remaining_bioc, remaining_github)
 
   if (length(remaining) > 0) {
     stop("[Gotools] Some dependencies are still not loadable: ", paste(remaining, collapse = ", "))
