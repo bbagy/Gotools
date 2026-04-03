@@ -63,6 +63,7 @@
 #' @importFrom dplyr group_by summarise ungroup
 #' @importFrom ggplot2 ggplot aes_string geom_boxplot geom_line geom_point theme_bw labs scale_fill_manual scale_colour_manual ggtitle
 #' @importFrom ggpubr stat_compare_means
+#' @importFrom grid grid.newpage pushViewport viewport grid.layout
 #'
 #' @examples
 #' \dontrun{
@@ -123,11 +124,6 @@ Go_groupBoxTimepoint <- function(df = NULL,
                                  baseline = NULL,   # 추가
                                  paired = NULL) {   # 추가
 
-  library(dplyr)
-  library(ggplot2)
-  library(ggpubr)
-  library(grid)
-
   if (is.null(df)) stop("Input dataframe (df) is required.")
   if (is.null(project)) stop("Project name is required.")
 
@@ -157,11 +153,11 @@ Go_groupBoxTimepoint <- function(df = NULL,
       if (numToPlot == 1) {
         print(plots[[i]])
       } else {
-        grid.newpage()
-        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+        grid::grid.newpage()
+        grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow(layout), ncol(layout))))
         for (j in i:(i + numToPlot - 1)) {
           matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
-          print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
+          print(plots[[j]], vp = grid::viewport(layout.pos.row = matchidx$row,
                                           layout.pos.col = matchidx$col))
         }
       }
@@ -218,7 +214,7 @@ Go_groupBoxTimepoint <- function(df = NULL,
         !!paste0("mean_", variable) := mean(!!sym(variable), na.rm = TRUE),
         .groups = "drop"
       ) %>%
-      ungroup()
+      dplyr::ungroup()
 
     if (!is.null(orders)) {
       df.sel[, timepoint] <- factor(df.sel[, timepoint], levels = intersect(orders, df.sel[, timepoint]))

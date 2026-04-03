@@ -210,7 +210,6 @@ Go_Maaslin2 <- function(psIN,
     if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager", repos = "https://cloud.r-project.org")
     BiocManager::install("Maaslin2", ask = FALSE, update = FALSE)
   }
-  suppressPackageStartupMessages(library(Maaslin2))
 
   ## ---------------- outputs ----------------
   out_root  <- sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d"))

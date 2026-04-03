@@ -10,8 +10,10 @@
 #' @param height A numeric value specifying the height of the output plots in inches.
 #' @param width A numeric value specifying the width of the output plots in inches.
 #'
-#' @import lme4
-#' @import ggplot2
+#' @importFrom lme4 lmer glmer
+#' @importFrom ggplot2 ggplot aes geom_pointrange geom_hline coord_flip
+#' @importFrom ggplot2 scale_color_manual scale_shape_manual labs theme_classic
+#' @importFrom ggplot2 ggsave
 #'
 #' @return This function does not return a value. It creates and saves forest plot PDFs in the specified directory.
 #' @examples
@@ -46,9 +48,9 @@ Go_forestplot <- function(df,
       } else if (tool == "glm") {
         mod <- glm(form, family = binomial(), data = df)
       } else if (tool == "lmer") {
-        mod <- lmer(form, data = df)
+        mod <- lme4::lmer(form, data = df)
       } else if (tool == "glmer") {
-        mod <- glmer(form, family = binomial(), data = df)
+        mod <- lme4::glmer(form, family = binomial(), data = df)
       } else {
         stop("Unknown tool specified")
       }
@@ -146,5 +148,4 @@ Go_forestplot <- function(df,
                    format(Sys.Date(), "%y%m%d")), plot = forest_plot, device = "pdf", width = width, height = height)
   }
 }
-
 

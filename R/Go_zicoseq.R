@@ -17,7 +17,7 @@
 #'
 #' @importFrom phyloseq sample_data otu_table tax_table
 #' @importFrom dplyr filter
-#' @import GUniFrac
+#' @importFrom GUniFrac ZicoSeq
 #'
 #' @examples
 #' \dontrun{
@@ -36,9 +36,6 @@ Go_zicoseq <- function(psIN,
                        con.vari = NULL,
                        orders){
   #===== Differential abundant test  (ZicoSeq)
-  # install.packages("GUniFrac")
-  library(GUniFrac)
-
   map <- data.frame(sample_data(psIN))
 
 
@@ -78,7 +75,7 @@ Go_zicoseq <- function(psIN,
   cat("Number of features after filtering:", nrow(otu_mat_filtered), "\n")
   set.seed(123)
 
-  zico_results <- ZicoSeq(
+  zico_results <- GUniFrac::ZicoSeq(
     meta.dat = meta_dat,
     feature.dat = otu_mat_filtered,
     grp.name = cate.outs,
@@ -105,6 +102,5 @@ Go_zicoseq <- function(psIN,
 
   return(zico_results)
 }
-
 
 

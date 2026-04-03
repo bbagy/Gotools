@@ -53,13 +53,13 @@ Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
       "tidyselect", "vctrs", "yarrr", "stringi", "tidyverse", "vegan",
       "VGAM", "picante", "xgboost", "zoo", "RcppZiggurat", "Rfast",
       "survival", "withr", "knitr", "kableExtra", "DT", "CVXR", "lightgbm",
-      "plyr"
+      "plyr", "MiRKAT", "speedyseq", "XML"
     ),
     bioc = c(
       "phyloseq", "microbiome", "Rhtslib", "dada2", "ggpubr", "ggfortify",
       "genefilter", "ggpmisc", "S4Vectors", "ShortRead", "illuminaio",
       "rstatix", "useful", "DECIPHER", "ComplexHeatmap", "DESeq2", "ALDEx2",
-      "scater", "ANCOMBC"
+      "scater", "ANCOMBC", "Biostrings", "Maaslin2"
     )
   )
 

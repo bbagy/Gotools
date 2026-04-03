@@ -22,12 +22,13 @@ A character vector of hex colors.
 }
 \description{
 Returns a color vector from a built-in \code{Gotools} palette, an
-\code{RColorBrewer} qualitative palette, or a \code{yarrr::piratepal()}
-palette. Previewing the palette is optional.
+\code{RColorBrewer} qualitative palette, or a \code{yarrr::piratepal()} palette.
+Previewing the palette is optional.
 }
 \examples{
 Go_myCols(palette = "cols1")
 Go_myCols(palette = "Set1")
 Go_myCols(palette = "basel")
-Go_myCols(palette = "taxaStack", preview = FALSE)
+Go_myCols(custom_cols = "cols2", preview = FALSE)
+
 }

@@ -66,10 +66,6 @@
 
 
 Go_kraken2Tops <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Virus","Fungi")) {
-
-  library(dplyr)
-  library(phyloseq)
-
   kingdom <- match.arg(kingdom)
 
   # ----------------------------
@@ -85,7 +81,7 @@ Go_kraken2Tops <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Virus","
   if (kingdom == "Virus") {
 
     # Only keep viral rows
-    virus <- kraken %>% filter(grepl("^d__Viruses", ID))
+    virus <- kraken %>% dplyr::filter(grepl("^d__Viruses", ID))
     virus$ID <- as.character(virus$ID)
 
     # Keep ONLY species-level rows
@@ -124,10 +120,10 @@ Go_kraken2Tops <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Virus","
     otu_mat <- as.matrix(virus[, setdiff(colnames(virus),"ID")])
     rownames(otu_mat) <- virus$ID
 
-    otu <- otu_table(otu_mat, taxa_are_rows=TRUE)
-    tax <- tax_table(as.matrix(taxonomy))
+    otu <- phyloseq::otu_table(otu_mat, taxa_are_rows=TRUE)
+    tax <- phyloseq::tax_table(as.matrix(taxonomy))
 
-    return(phyloseq(otu,tax))
+    return(phyloseq::phyloseq(otu,tax))
   }
 
 
@@ -195,10 +191,10 @@ Go_kraken2Tops <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Virus","
     taxonomy <- taxonomy[, c("Rank1","Phylum","Class","Order","Family","Genus","Species")]
     rownames(taxonomy) <- rownames(otu_mat)
 
-    otu <- otu_table(otu_mat, taxa_are_rows=TRUE)
-    tax <- tax_table(as.matrix(taxonomy))
+    otu <- phyloseq::otu_table(otu_mat, taxa_are_rows=TRUE)
+    tax <- phyloseq::tax_table(as.matrix(taxonomy))
 
-    return(phyloseq(otu,tax))
+    return(phyloseq::phyloseq(otu,tax))
   }
 
 
@@ -208,7 +204,7 @@ Go_kraken2Tops <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Virus","
   # ==========================================================
   if (kingdom == "Fungi") {
 
-    fungi <- kraken %>% filter(grepl("k__Fungi", ID))
+    fungi <- kraken %>% dplyr::filter(grepl("k__Fungi", ID))
 
     fungi <- fungi[grepl("s__", fungi$ID), ]  # species only
 
@@ -239,10 +235,10 @@ Go_kraken2Tops <- function(kraken2, bracken=NULL, kingdom=c("Bacteria","Virus","
     otu_mat <- as.matrix(fungi[, setdiff(colnames(fungi),"ID")])
     rownames(otu_mat) <- fungi$ID
 
-    otu <- otu_table(otu_mat, taxa_are_rows=TRUE)
-    tax <- tax_table(as.matrix(taxonomy))
+    otu <- phyloseq::otu_table(otu_mat, taxa_are_rows=TRUE)
+    tax <- phyloseq::tax_table(as.matrix(taxonomy))
 
-    return(phyloseq(otu,tax))
-  }
+    return(phyloseq::phyloseq(otu,tax))
+}
 
 }

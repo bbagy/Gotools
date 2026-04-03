@@ -123,7 +123,6 @@ mcc <- function(preds=NULL, actuals=NULL, x=NULL, y=NULL) {
 #' @export
 
 multiplot <- function(..., plotlist=NULL, file, cols=1, rows=1) {
-    require(grid)
     # Make a list from the ... arguments and plotlist
     plots <- c(list(...), plotlist)
     numPlots = length(plots)
@@ -139,13 +138,13 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, rows=1) {
             print(plots[[i]])
         } else {
             # Set up the page
-            grid.newpage()
-            pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+            grid::grid.newpage()
+            grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow(layout), ncol(layout))))
             # Make each plot, in the correct location
             for (j in i:(i+numToPlot-1)) {
                 # Get the i,j matrix positions of the regions that contain this subplot
                 matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
-                print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
+                print(plots[[j]], vp = grid::viewport(layout.pos.row = matchidx$row,
                 layout.pos.col = matchidx$col))
             }
         }

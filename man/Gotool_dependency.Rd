@@ -4,11 +4,14 @@
 \alias{Gotool_dependency}
 \title{Install or repair Gotools dependencies}
 \usage{
-Gotool_dependency(ask = interactive())
+Gotool_dependency(ask = interactive(), attach = TRUE)
 }
 \arguments{
 \item{ask}{If \code{TRUE} (default in interactive sessions), prompt before
 installing. Set \code{FALSE} to install without prompting.}
+
+\item{attach}{If \code{TRUE} (default), attach a curated set of essential
+analysis packages after dependency checks finish successfully.}
 }
 \value{
 Invisibly returns \code{TRUE} when all required packages are available
@@ -21,9 +24,15 @@ Missing packages are installed, and installed-but-broken packages are
 reinstalled.
 }
 \details{
-This is a dependency installer and health check, not a package attach helper.
+This function is designed to support interactive \code{Gotools} analyses.
+It checks whether required packages are installed and loadable, installs or
+repairs missing packages when needed, and can also attach a curated set of
+essential analysis libraries commonly used together with the \code{Gotools}
+family.
+
 It uses \code{requireNamespace()} to test whether each package is loadable.
-Packages that pass the check are not reinstalled or attached.
+Packages that pass the check are not reinstalled. When \code{attach = TRUE},
+core analysis packages are attached quietly at the end of the check.
 
 \code{BiocManager} is installed automatically when Bioconductor packages need
 action.

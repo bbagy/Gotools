@@ -256,7 +256,6 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
   }
 
   multiplot <- function(..., plotlist=NULL, file, cols=1, rows=1) {
-    require(grid)
     plots <- c(list(...), plotlist)
     numPlots = length(plots)
 
@@ -267,11 +266,11 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
       if (numToPlot == 1) {
         print(plots[[i]])
       } else {
-        grid.newpage()
-        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+        grid::grid.newpage()
+        grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow(layout), ncol(layout))))
         for (j in i:(i+numToPlot-1)) {
           matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
-          print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
+          print(plots[[j]], vp = grid::viewport(layout.pos.row = matchidx$row,
                                           layout.pos.col = matchidx$col))
         }
       }

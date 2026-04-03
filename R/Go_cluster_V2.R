@@ -22,11 +22,12 @@
 
 
 Go_cluster <- function(psIN, project,db, percent){
-  library(tibble)
-  library(dplyr)
-  # install.packages("remotes")
-  # remotes::install_github("mikemc/speedyseq")
-  library(speedyseq)
+  if (!requireNamespace("tibble", quietly = TRUE)) {
+    stop("Package `tibble` is required for Go_cluster().")
+  }
+  if (!requireNamespace("speedyseq", quietly = TRUE)) {
+    stop("Package `speedyseq` is required for Go_cluster().")
+  }
   # Packages that are required but not loaded:
   # library(DECIPHER)
   # library(Biostrings)
@@ -66,7 +67,7 @@ Go_cluster <- function(psIN, project,db, percent){
   ## Use dplyr to merge the columns of the seqtab matrix for ASVs in the same OTU
   # prep by adding sequences to the `clusters` data frame
   cluster <- clusters %>%
-    add_column(sequence = asv_sequences)
+    tibble::add_column(sequence = asv_sequences)
   
   merged_seqtab <- seqtab %>% 
     t %>%
@@ -75,7 +76,7 @@ Go_cluster <- function(psIN, project,db, percent){
   
   
   # rebuilt ASVs table 
-  clustered <- distinct(cluster, cluster, .keep_all = TRUE)
+  clustered <- dplyr::distinct(cluster, cluster, .keep_all = TRUE)
 
   merged_seqtab.t <- data.frame(t(merged_seqtab))
   merged_seqtab.t$seqs <- factor(clustered$sequence[match(as.factor(rownames(merged_seqtab.t)), as.factor(clustered$cluster))])
@@ -86,7 +87,7 @@ Go_cluster <- function(psIN, project,db, percent){
   seqtab <- as.matrix(t(merged_seqtab.t))
   
   #----- save seqs.fna for tree  -----#
-  seqs <- getSequences(seqtab)
+  seqs <- speedyseq::getSequences(seqtab)
   headers <- paste(">", seqs, sep="")
   fasta <- c(rbind(headers, seqs))
   write(fasta, file=sprintf("%s/ASVs%s.%s.%s.seqs.fna",  out, percent,project, format(Sys.Date(), "%y%m%d"),sep="/"))
@@ -129,6 +130,4 @@ Go_cluster <- function(psIN, project,db, percent){
   
   
 }
-
-
 

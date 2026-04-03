@@ -41,9 +41,6 @@
 #' @export
 
 Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL, collapse_pairs = FALSE) {
-  library(phyloseq)
-  library(stringr)
-
   # Read tab
   func.tab <- try(read.delim(tabPath, header = TRUE, sep = "\t", row.names = 1, check.names = FALSE), silent = TRUE)
 
@@ -151,7 +148,7 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL, coll
     func.tab <- func.tab[!grepl("ribosomal protein|UNGROUPED|unclassified|UNMAPPED|UNINTEGRATED", rownames(func.tab)), ]
 
     # ID와 Description 분리
-    func.tab1 <- data.frame(do.call(rbind, str_split(rownames(func.tab), ": ", n = 2)))
+    func.tab1 <- data.frame(do.call(rbind, stringr::str_split(rownames(func.tab), ": ", n = 2)))
     colnames(func.tab1) <- c("ID", "Description")
     func.tab1$Description[is.na(func.tab1$Description)] <- "Unknown"
 
@@ -193,7 +190,10 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL, coll
   }
 
   # Merge phyloseq
-  ps <- phyloseq(otu_table(otu, taxa_are_rows = TRUE), tax_table(tax))
+  ps <- phyloseq::phyloseq(
+    phyloseq::otu_table(otu, taxa_are_rows = TRUE),
+    phyloseq::tax_table(tax)
+  )
 
   print(ps)
 
