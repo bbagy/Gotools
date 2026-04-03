@@ -97,6 +97,12 @@ Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
   fresh_bioc <- not_loadable_bioc[!not_loadable_bioc %in% installed_names]
   broken_bioc <- not_loadable_bioc[not_loadable_bioc %in% installed_names]
 
+  loaded_namespaces <- loadedNamespaces()
+  loaded_pkgs_needing_repair <- intersect(
+    c(broken_cran, broken_bioc),
+    loaded_namespaces
+  )
+
   all_needing_action <- c(fresh_cran, broken_cran, fresh_bioc, broken_bioc)
 
   if (length(all_needing_action) == 0) {
@@ -117,6 +123,14 @@ Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
     message(
       "[Gotools] Installed but not loadable (will reinstall): ",
       paste(c(broken_cran, broken_bioc), collapse = ", ")
+    )
+  }
+
+  if (length(loaded_pkgs_needing_repair) > 0) {
+    stop(
+      "[Gotools] Some packages need reinstall but are currently loaded: ",
+      paste(loaded_pkgs_needing_repair, collapse = ", "),
+      ".\nRestart the R session, then run Gotool_dependency() again."
     )
   }
 
