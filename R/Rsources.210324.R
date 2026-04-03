@@ -215,7 +215,7 @@ normalizeByCols <- function (df, csum=1, level=NULL, delim="\\|")
         tmp$taxa <- rownames(tmp)
         tmp$splitter <- factor(unlist(lapply(rownames(tmp), function(x) unlist(strsplit(x, delim))[level])))
         names <- rownames(tmp)[order(tmp$splitter)]
-        tmp <- ddply(tmp, .(splitter), function(x) {
+        tmp <- plyr::ddply(tmp, .(splitter), function(x) {
             x <- x[, setdiff(colnames(x), c("taxa", "splitter"))]
             while (any(abs((colSums(x)-csum))>1e-13 & colSums(df)!=0, na.rm=T)) {
                 x <- sweep(x, 2, colSums(x)/csum, "/")
@@ -269,17 +269,15 @@ renameLevelsWithCounts <- function(fvec, originalLevelsAsNames=FALSE) {
 #' data_summary(data, varname = "value", groupnames = "group")
 #'
 #' @export
-#' @import plyr
 
 data_summary <- function(data, varname, groupnames){
-    require(plyr)
     summary_func <- function(x, col){
         c(mean = mean(x[[col]], na.rm=TRUE),
         sd = sd(x[[col]], na.rm=TRUE))
     }
-    data_sum<-ddply(data, groupnames, .fun=summary_func,
+    data_sum <- plyr::ddply(data, groupnames, .fun = summary_func,
     varname)
-    data_sum <- rename(data_sum, c("mean" = varname))
+    data_sum <- plyr::rename(data_sum, c("mean" = varname))
     return(data_sum)
 }
 
