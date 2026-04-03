@@ -39,11 +39,15 @@ Go_OR_plot <- function(fit,
     x
   }
 
-  attach_plot_size_info <- function(p, feature_labels, min_width = 6.6) {
+  attach_plot_size_info <- function(p, feature_labels, panel_width = 2.5, panel_height = 0.8) {
     n_feat <- length(feature_labels)
     max_lbl_chars <- max(nchar(as.character(feature_labels)), na.rm = TRUE)
-    pdf_w <- max(min_width, 5.8 + max_lbl_chars * 0.04)
-    pdf_h <- max(4.5, min(10.5, 2.2 + n_feat * 0.28))
+    label_width <- 1.8 + max(0, max_lbl_chars - 12) * 0.05
+    outer_width <- 1.6
+    extra_height <- if (n_feat <= 3) 0 else (n_feat - 3) * 0.28
+    outer_height <- 1.4
+    pdf_w <- max(5.8, min(11, panel_width + label_width + outer_width))
+    pdf_h <- max(4.2, min(11, panel_height + extra_height + outer_height))
     attr(p, "recommended_width") <- pdf_w
     attr(p, "recommended_height") <- pdf_h
     p

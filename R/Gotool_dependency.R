@@ -8,11 +8,19 @@
 #'
 #' @param ask If `TRUE` (default in interactive sessions), prompt before
 #'   installing. Set `FALSE` to install without prompting.
+#' @param attach If `TRUE` (default), attach a curated set of essential
+#'   analysis packages after dependency checks finish successfully.
 #'
 #' @details
-#' This is a dependency installer and health check, not a package attach helper.
+#' This function is designed to support interactive `Gotools` analyses.
+#' It checks whether required packages are installed and loadable, installs or
+#' repairs missing packages when needed, and can also attach a curated set of
+#' essential analysis libraries commonly used together with the `Gotools`
+#' family.
+#'
 #' It uses `requireNamespace()` to test whether each package is loadable.
-#' Packages that pass the check are not reinstalled or attached.
+#' Packages that pass the check are not reinstalled. When `attach = TRUE`,
+#' core analysis packages are attached quietly at the end of the check.
 #'
 #' `BiocManager` is installed automatically when Bioconductor packages need
 #' action.
@@ -26,7 +34,7 @@
 #' }
 #'
 #' @export
-Gotool_dependency <- function(ask = interactive()) {
+Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
   .gotools_signature()
 
   deps <- list(
@@ -55,6 +63,30 @@ Gotool_dependency <- function(ask = interactive()) {
     )
   )
 
+  attach_pkgs <- c(
+    "ape", "dplyr", "ggplot2", "grid", "patchwork", "phyloseq", "tidyr",
+    "vegan", "circlize", "broom", "glue"
+  )
+
+  attach_quietly <- function(pkgs) {
+    attached_now <- character(0)
+
+    for (pkg in pkgs) {
+      if (!requireNamespace(pkg, quietly = TRUE)) next
+      pkg_search_name <- paste0("package:", pkg)
+      if (pkg_search_name %in% search()) {
+        attached_now <- c(attached_now, pkg)
+        next
+      }
+      suppressPackageStartupMessages(
+        library(pkg, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)
+      )
+      attached_now <- c(attached_now, pkg)
+    }
+
+    attached_now
+  }
+
   installed_names <- rownames(utils::installed.packages())
 
   not_loadable_cran <- deps$cran[!vapply(deps$cran, requireNamespace, logical(1), quietly = TRUE)]
@@ -69,6 +101,12 @@ Gotool_dependency <- function(ask = interactive()) {
 
   if (length(all_needing_action) == 0) {
     message("[Gotools] All dependencies are installed and loadable.")
+    if (attach) {
+      attached_now <- attach_quietly(attach_pkgs)
+      if (length(attached_now) > 0) {
+        message("[Gotools] Attached essential libraries: ", paste(attached_now, collapse = ", "))
+      }
+    }
     return(invisible(TRUE))
   }
 
@@ -186,6 +224,13 @@ Gotool_dependency <- function(ask = interactive()) {
   } else {
     cat("All required Gotools dependencies are available.\n")
     cat("#--------------------------------------------------------------# \n")
+  }
+
+  if (attach) {
+    attached_now <- attach_quietly(attach_pkgs)
+    if (length(attached_now) > 0) {
+      message("[Gotools] Attached essential libraries: ", paste(attached_now, collapse = ", "))
+    }
   }
 
   invisible(TRUE)

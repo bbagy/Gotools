@@ -108,8 +108,6 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
   .can_use_marginal <- function() {
     isTRUE(marginal) &&
       is.null(facet) &&
-      is.null(combination) &&
-      length(distance_metrics) == 1 &&
       length(plot) == 1 &&
       length(cate.vars) == 1
   }
@@ -121,12 +119,33 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
     }
     ggExtra::ggMarginal(
       p,
-      type = marginal_type,
-      size = marginal_size,
-      alpha = marginal_alpha,
+      type        = marginal_type,
+      size        = marginal_size,
+      alpha       = marginal_alpha,
       groupColour = TRUE,
-      groupFill = TRUE
+      groupFill   = TRUE
     )
+  }
+
+  .render_plotlist <- function(plotlist, cols, rows) {
+    has_extra <- any(vapply(plotlist, inherits, logical(1), "ggExtraPlot"))
+    if (has_extra) {
+      if (!requireNamespace("gridExtra", quietly = TRUE)) {
+        warning("gridExtra is required for marginal multiplot. Falling back to multiplot.")
+        multiplot(plotlist = plotlist, cols = cols, rows = rows)
+      } else {
+        grob_list <- lapply(plotlist, function(p) {
+          if (inherits(p, "ggExtraPlot")) {
+            grid::grid.grabExpr(print(p, newpage = FALSE), wrap.grobs = TRUE)
+          } else {
+            ggplot2::ggplotGrob(p)
+          }
+        })
+        do.call(gridExtra::grid.arrange, c(grob_list, list(ncol = cols, nrow = rows)))
+      }
+    } else {
+      multiplot(plotlist = plotlist, cols = cols, rows = rows)
+    }
   }
   .axis_percent <- function(ordi_obj) {
     rel <- try(ordi_obj$values$Relative_eig, silent = TRUE)
@@ -535,7 +554,7 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
           plotlist[[length(plotlist) + 1]] <- p
         }
       }
-      multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
+      .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
       dev.off()
 
     # ────────────────────────────────────────────────────────────────────────
@@ -704,7 +723,7 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
         p <- .apply_marginal(p)
         plotlist[[length(plotlist) + 1]] <- p
       }
-      multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
+      .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
       dev.off()
     }
   }
