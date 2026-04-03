@@ -38,7 +38,7 @@ are used. Default \code{"StudyID"}.}
 \item{taxrank}{Either \code{"ASV"} to keep features as is, or a taxonomic rank
 present in \code{tax_table(psIN)} (e.g., \code{"Genus"}). Default \code{"ASV"}.}
 
-\item{prev_min}{Numeric in \(\link{0,1}\); minimum prevalence threshold (presence on
+\item{prev_min}{Numeric between 0 and 1; minimum prevalence threshold (presence on
 relative abundance). Default \code{0.01}.}
 
 \item{relab_min}{Numeric; minimum mean relative abundance threshold.

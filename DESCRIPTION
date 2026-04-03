@@ -55,6 +55,8 @@ Imports:
 Suggests:
     ape,
     alluvial,
+    Biostrings,
+    BiocManager,
     Boruta,
     caret,
     CLME,
@@ -85,7 +87,9 @@ Suggests:
     magrittr,
     Matrix,
     MASS,
+    Maaslin2,
     MLmetrics,
+    MiRKAT,
     missForest,
     nlme,
     nnet,
@@ -101,6 +105,7 @@ Suggests:
     ROCR,
     rmarkdown,
     tibble,
+    speedyseq,
     stringi,
     survival,
     tidyverse,
@@ -109,10 +114,10 @@ Suggests:
     vctrs,
     withr,
     xgboost,
+    XML,
     lightgbm,
     yamllint,
     zoo,
-    BiocManager,
     testthat (>= 3.0.0)
 Remotes:
     davidsjoberg/ggsankey

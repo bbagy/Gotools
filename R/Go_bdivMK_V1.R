@@ -23,7 +23,7 @@
 #' @param height,width  PDF dimensions.
 #' @param plotCols,plotRows  Multiplot grid dimensions.
 #' @param strata_var    Subject/block ID column for MiRKAT-LMM (repeated measures).
-#'   - NULL or confounded design  → MiRKAT() [subtitle shows fallback notice]
+#'   - NULL or confounded design  → MiRKAT() (subtitle includes fallback notice)
 #'   - Valid repeated-measures ID → MiRKAT_LMM()
 #'   Same logic as strata_var in Go_bdivPM().
 #' @param marginal Logical; add marginal distributions with `ggMarginal()` when
@@ -277,7 +277,6 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
 
   # ── multiplot (identical to Go_bdivPM) ────────────────────────────────────
   multiplot <- function(..., plotlist = NULL, file, cols = 1, rows = 1) {
-    require(grid)
     plots    <- c(list(...), plotlist)
     numPlots <- length(plots)
     i <- 1
@@ -287,11 +286,11 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
       if (numToPlot == 1) {
         print(plots[[i]])
       } else {
-        grid.newpage()
-        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+        grid::grid.newpage()
+        grid::pushViewport(grid::viewport(layout = grid::grid.layout(nrow(layout), ncol(layout))))
         for (j in i:(i + numToPlot - 1)) {
           matchidx <- as.data.frame(which(layout == j, arr.ind = TRUE))
-          print(plots[[j]], vp = viewport(layout.pos.row = matchidx$row,
+          print(plots[[j]], vp = grid::viewport(layout.pos.row = matchidx$row,
                                           layout.pos.col = matchidx$col))
         }
       }

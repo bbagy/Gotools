@@ -74,7 +74,7 @@ Go_bdivMK(
 
 \item{strata_var}{Subject/block ID column for MiRKAT-LMM (repeated measures).
 \itemize{
-\item NULL or confounded design  → MiRKAT() \link{subtitle shows fallback notice}
+\item NULL or confounded design  → MiRKAT() (subtitle includes fallback notice)
 \item Valid repeated-measures ID → MiRKAT_LMM()
 Same logic as strata_var in Go_bdivPM().
 }}

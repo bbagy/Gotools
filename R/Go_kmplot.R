@@ -92,13 +92,12 @@ Go_kmplot <- function(df,
                       height       = 5,
                       width        = 6) {
 
-  # 필요한 패키지 자동 설치 & 로드
+  # 필요한 패키지 자동 설치
   pkgs <- c("dplyr", "survival", "survminer", "ggplot2")
   for (p in pkgs) {
     if (!requireNamespace(p, quietly = TRUE)) {
       install.packages(p, dependencies = TRUE)
     }
-    suppressPackageStartupMessages(library(p, character.only = TRUE))
   }
 
   # 출력 경로 (항상 생성)
@@ -116,12 +115,12 @@ Go_kmplot <- function(df,
     ) #%>%
     #dplyr::filter(is.finite(time), is.finite(feature), time > 0)
 
-  if (is.numeric(df[[time_col]])) {
+  if (is.numeric(df$time)) {
     df <- df %>%
       dplyr::filter(
-        is.finite(.data[[time_col]]),
-        is.finite(.data[[feature_col]]),
-        .data[[time_col]] > 0
+        is.finite(.data$time),
+        is.finite(.data$feature),
+        .data$time > 0
       )
   } else {
     warning(glue::glue("`{time_col}` is not numeric, skipping numeric filtering."))
@@ -154,10 +153,10 @@ Go_kmplot <- function(df,
     droplevels()
 
   # KM 적합
-  fit <- survfit(Surv(time, status) ~ feature_group, data = df)
+  fit <- survival::survfit(survival::Surv(time, status) ~ feature_group, data = df)
 
   # Log-rank p 계산 및 라벨 포맷
-  lr  <- survdiff(Surv(time, status) ~ feature_group, data = df)
+  lr  <- survival::survdiff(survival::Surv(time, status) ~ feature_group, data = df)
   df_chi <- length(lr$n) - 1
   p_raw  <- tryCatch(1 - pchisq(lr$chisq, df = df_chi), error = function(e) NA_real_)
   p_txt  <- if (is.na(p_raw)) {
@@ -173,7 +172,7 @@ Go_kmplot <- function(df,
   pal <- base_pal[seq_len(min(n_group, length(base_pal)))]
 
   # KM 플롯
-  p <- ggsurvplot(
+  p <- survminer::ggsurvplot(
     fit, data = df,
     conf.int      = TRUE,
     pval          = p_txt,                 # <- 여기!

@@ -113,12 +113,6 @@ Go_patternPlot <- function(
     width = 6,              # 저장 폭(inch)
     height = 15             # 저장 높이(inch)
 ){
-  require(dplyr)
-  require(tidyr)
-  require(ggplot2)
-  require(patchwork)
-  require(rlang)
-
   tt <- try(orders, TRUE)
   if (inherits(tt, "try-error")) {
     print("orders is not defined.")

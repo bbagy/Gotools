@@ -40,7 +40,6 @@ Go_mirkat <- function(psIN, project, cate.vars, cate.conf = NULL, orders,
                 "GUniFrac", "lme4", "MASS", "Matrix", "MiRKAT", "permute")
   for (pkg in packages) {
     if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
-    library(pkg, character.only = TRUE)
   }
 
   # --- output directories -------------------------------------------------
@@ -59,11 +58,11 @@ Go_mirkat <- function(psIN, project, cate.vars, cate.conf = NULL, orders,
   }
 
   # --- main loop ----------------------------------------------------------
-  mapping <- data.frame(sample_data(psIN))
+  mapping <- data.frame(phyloseq::sample_data(psIN))
   if (!is.null(cate.conf)) {
     for (cv in cate.conf) mapping[, cv] <- factor(mapping[, cv])
   }
-  sample_data(psIN) <- mapping
+  phyloseq::sample_data(psIN) <- mapping
 
   res <- NULL
 
@@ -88,8 +87,8 @@ Go_mirkat <- function(psIN, project, cate.vars, cate.conf = NULL, orders,
 
       mapping.cbn <- subset(mapping, mapping[, mvar] %in% c(baseline, smvar))
       psIN.cbn    <- psIN
-      sample_data(psIN.cbn) <- mapping.cbn
-      mapping.cbn <- data.frame(sample_data(psIN.cbn))
+      phyloseq::sample_data(psIN.cbn) <- mapping.cbn
+      mapping.cbn <- data.frame(phyloseq::sample_data(psIN.cbn))
 
       # --- NA removal (mvar + strata_var + cate.conf) ---------------------
       keep <- !is.na(mapping.cbn[, mvar])
@@ -100,7 +99,7 @@ Go_mirkat <- function(psIN, project, cate.vars, cate.conf = NULL, orders,
           if (cv %in% names(mapping.cbn)) keep <- keep & !is.na(mapping.cbn[, cv])
       }
       mapping.cbn <- mapping.cbn[keep, , drop = FALSE]
-      psIN.cbn    <- prune_samples(rownames(mapping.cbn), psIN.cbn)
+      psIN.cbn    <- phyloseq::prune_samples(rownames(mapping.cbn), psIN.cbn)
 
       if (nrow(mapping.cbn) < 3 || length(unique(mapping.cbn[, mvar])) < 2) {
         message(sprintf("Skipping %s vs %s: insufficient samples.", baseline, smvar))
@@ -123,20 +122,20 @@ Go_mirkat <- function(psIN, project, cate.vars, cate.conf = NULL, orders,
       }
 
       # --- kernel matrices ------------------------------------------------
-      otu.cbn  <- data.frame(otu_table(psIN.cbn))
-      tree.cbn <- phy_tree(psIN.cbn)
+      otu.cbn  <- data.frame(phyloseq::otu_table(psIN.cbn))
+      tree.cbn <- phyloseq::phy_tree(psIN.cbn)
 
-      unifracs     <- GUniFrac(otu.cbn, tree.cbn, alpha = c(0, 0.5, 1))$unifracs
+      unifracs     <- GUniFrac::GUniFrac(otu.cbn, tree.cbn, alpha = c(0, 0.5, 1))$unifracs
       D.weighted   <- unifracs[,, "d_1"]
       D.unweighted <- unifracs[,, "d_UW"]
       D.generalized <- unifracs[,, "d_0.5"]
-      D.BC         <- as.matrix(vegdist(otu.cbn, method = "bray"))
+      D.BC         <- as.matrix(vegan::vegdist(otu.cbn, method = "bray"))
 
       Ks <- list(
-        K.weighted    = D2K(D.weighted),
-        K.unweighted  = D2K(D.unweighted),
-        K.generalized = D2K(D.generalized),
-        K.BC          = D2K(D.BC)
+        K.weighted    = MiRKAT::D2K(D.weighted),
+        K.unweighted  = MiRKAT::D2K(D.unweighted),
+        K.generalized = MiRKAT::D2K(D.generalized),
+        K.BC          = MiRKAT::D2K(D.BC)
       )
 
       # --- strata check (same as Go_bdivPM) -------------------------------
@@ -218,6 +217,6 @@ Go_mirkat <- function(psIN, project, cate.vars, cate.conf = NULL, orders,
                       out_table, project,
                       ifelse(is.null(name), "", paste0(name, ".")),
                       format(Sys.Date(), "%y%m%d"))
-  write.csv(res, file = out_file, quote = FALSE, row.names = TRUE)
+  utils::write.csv(res, file = out_file, quote = FALSE, row.names = TRUE)
   message("Saved: ", out_file)
 }

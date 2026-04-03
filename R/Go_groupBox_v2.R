@@ -57,7 +57,6 @@ Go_groupBox <- function(psIN, mainGroup, project,
 
   if (!requireNamespace("compositions", quietly = TRUE))
     install.packages("compositions")
-  library(compositions)
 
 
 
@@ -102,7 +101,7 @@ Go_groupBox <- function(psIN, mainGroup, project,
   otu_data[otu_data == 0] <- 1e-5
 
   # Apply the CLR transformation
-  clr_transformed <- clr(otu_data)
+  clr_transformed <- compositions::clr(otu_data)
 
   # Convert back to a matrix if needed (clr returns an array)
   clr_transformed <- matrix(clr_transformed, nrow = nrow(otu_data), ncol = ncol(otu_data), dimnames = dimnames(otu_data))
@@ -294,7 +293,6 @@ Go_groupBox <- function(psIN, mainGroup, project,
   dev.off()
   return(result.table)
 }
-
 
 
 

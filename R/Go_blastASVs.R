@@ -62,9 +62,6 @@ Go_blastASVs <- function(project,
     install.packages("XML")
   }
 
-  library(Biostrings, quietly = TRUE)
-  library(XML, quietly = TRUE)
-
   current_path <- Sys.getenv("PATH")
   new_path <- paste(current_path, "/Users/heekukpark/miniconda3/envs/blast/bin/", sep = ":")
   Sys.setenv(PATH = new_path)
@@ -76,7 +73,7 @@ Go_blastASVs <- function(project,
   }
 
   sequences_df <- read.csv(asvsTable, row.names = 1, check.names = FALSE, stringsAsFactors = FALSE)
-  dna_strings <- DNAStringSet(rownames(sequences_df))
+  dna_strings <- Biostrings::DNAStringSet(rownames(sequences_df))
   names(dna_strings) <- paste("Sequence", seq_along(dna_strings), sep = "_")
 
   output_dir <- "1_out/blast"
@@ -108,13 +105,13 @@ Go_blastASVs <- function(project,
       return(output_file)
     }
 
-    writeXStringSet(dna_strings[seq_name], fasta_file)
+    Biostrings::writeXStringSet(dna_strings[seq_name], fasta_file)
     system2("blastn", args = c("-query", fasta_file, "-db", blastDB, "-out", output_file, "-outfmt", "5"))
     file.remove(fasta_file)
 
     if (!is_valid_blast_xml(output_file)) {
       file.remove(output_file)
-      writeXStringSet(dna_strings[seq_name], fasta_file)
+      Biostrings::writeXStringSet(dna_strings[seq_name], fasta_file)
       system2("blastn", args = c("-query", fasta_file, "-db", blastDB, "-out", output_file, "-outfmt", "5"))
       file.remove(fasta_file)
     }
@@ -125,27 +122,27 @@ Go_blastASVs <- function(project,
   cat(length(blast_results), "BLAST XML files prepared in", output_dir, "\n")
 
   parse_blast_results <- function(file) {
-    doc <- try(xmlParse(file), silent = TRUE)
+    doc <- try(XML::xmlParse(file), silent = TRUE)
     if (inherits(doc, "try-error")) {
       cat("Failed to parse XML file:", file, "\n")
       return(list(Hit_Number = NA_character_, Hit_Definition = NA_character_))
     }
 
-    iterations <- getNodeSet(doc, "//BlastOutput_iterations/Iteration")
+    iterations <- XML::getNodeSet(doc, "//BlastOutput_iterations/Iteration")
     if (length(iterations) == 0) {
       cat("No iterations found in file:", file, "\n")
       return(list(Hit_Number = NA_character_, Hit_Definition = NA_character_))
     }
 
-    hits <- getNodeSet(iterations[[1]], "Iteration_hits/Hit")
+    hits <- XML::getNodeSet(iterations[[1]], "Iteration_hits/Hit")
     if (length(hits) == 0) {
       cat("No hits found in iteration of file:", file, "\n")
       return(list(Hit_Number = NA_character_, Hit_Definition = NA_character_))
     }
 
     first_hit <- hits[[1]]
-    hit_num <- xmlValue(getNodeSet(first_hit, "Hit_num")[[1]])
-    hit_def <- xmlValue(getNodeSet(first_hit, "Hit_def")[[1]])
+    hit_num <- XML::xmlValue(XML::getNodeSet(first_hit, "Hit_num")[[1]])
+    hit_def <- XML::xmlValue(XML::getNodeSet(first_hit, "Hit_def")[[1]])
 
     list(Hit_Number = hit_num, Hit_Definition = hit_def)
   }

@@ -94,7 +94,10 @@
 #' )
 #' }
 #'
-#' @import dplyr tidyr ggplot2
+#' @importFrom dplyr filter mutate select case_when
+#' @importFrom tidyr complete pivot_wider
+#' @importFrom ggplot2 ggplot aes geom_tile geom_text scale_fill_gradient2
+#' @importFrom ggplot2 labs theme_bw theme element_text element_blank
 #' @export
 
 Go_Maaslin2_heatmap <- function(df,
@@ -108,10 +111,6 @@ Go_Maaslin2_heatmap <- function(df,
                                 cluster_rows = TRUE,       # row를 coef 패턴으로 클러스터링
                                 title        = NULL)       # 제목 수동 지정 가능
 {
-  library(dplyr)
-  library(tidyr)
-  library(ggplot2)
-  
   ## --------------------------
   ## 1) Output directory setup
   ## --------------------------
@@ -239,26 +238,26 @@ Go_Maaslin2_heatmap <- function(df,
   ## --------------------------
   ## 8) Heatmap 그리기
   ## --------------------------
-  p <- ggplot(df_expanded,
-              aes(x = value, y = feature, fill = coef)) +
-    geom_tile(color = "grey80") +
-    geom_text(aes(label = Significance),
+  p <- ggplot2::ggplot(df_expanded,
+              ggplot2::aes(x = value, y = feature, fill = coef)) +
+    ggplot2::geom_tile(color = "grey80") +
+    ggplot2::geom_text(ggplot2::aes(label = Significance),
               color = "black",
               size = 5,
               fontface = "bold") +
-    scale_fill_gradient2(
+    ggplot2::scale_fill_gradient2(
       low = "blue", mid = "white", high = "red",
       midpoint = 0, name = "coef"
     ) +
-    labs(
+    ggplot2::labs(
       x = "Timepoint",
       y = "Feature",
       title = title
     ) +
-    theme_bw() +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      panel.grid = element_blank()
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+      panel.grid = ggplot2::element_blank()
     )
   
   ## --------------------------

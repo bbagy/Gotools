@@ -2,82 +2,125 @@
 % Please edit documentation in R/Go_colbarchart_v3.R
 \name{Go_colbarchart}
 \alias{Go_colbarchart}
-\title{Generate Color Bar Charts for Microbiome Data}
+\title{Stacked bar chart of microbial composition with phylum-aware colouring}
 \usage{
 Go_colbarchart(
   psIN,
   cate.vars,
   project,
   taxanames,
-  data_type,
-  orders,
+  orders = NULL,
   simple = FALSE,
-  mycols = NULL,
-  relative = T,
+  relative = TRUE,
+  y_axis = NULL,
   x_label = NULL,
+  show_x_text = FALSE,
   facet = NULL,
   legend = "bottom",
   cutoff = 0.005,
   name = NULL,
   ncol = NULL,
+  stack_from = c("bottom", "top"),
+  order_other = c("none", "auto", "right", "left"),
+  mark = NULL,
   height,
   width
 )
 }
 \arguments{
-\item{psIN}{A phyloseq object containing microbiome data.}
+\item{psIN}{Phyloseq object.}
 
-\item{cate.vars}{A vector of categorical variables to be used for grouping the data in the bar charts.}
+\item{cate.vars}{Character vector of metadata variables used to facet the
+plot (one page per variable).}
 
-\item{project}{A string representing the project name, used for file naming.}
+\item{project}{Project name used for output directory and file naming.}
 
-\item{taxanames}{A vector of taxonomic ranks to be visualized in the charts.}
+\item{taxanames}{Character vector of taxonomic ranks to visualise
+(e.g. \code{c("Phylum", "Genus")}).  Each rank produces a separate PDF.}
 
-\item{data_type}{A string indicating the type of data, affects taxonomy naming.}
+\item{orders}{Optional character vector specifying factor level order for
+group/facet variables and the x-axis label.}
 
-\item{orders}{A vector specifying the order of categories within the plot facets.}
+\item{simple}{Logical.  If \code{TRUE}, produces unfaceted plots.  Default
+\code{FALSE}.}
 
-\item{simple}{A logical value, if TRUE, produces simpler plots without facets.}
+\item{relative}{Logical.  \code{TRUE} (default) plots relative abundance;
+\code{FALSE} plots raw counts.  The cutoff is always evaluated on relative
+abundance regardless of this setting.}
 
-\item{mycols}{Optional, custom color palette for the plot.}
+\item{y_axis}{Optional y-axis label.  When \code{NULL}, defaults to
+\code{"Relative abundance"} or \code{"Absolute abundance"}.}
 
-\item{relative}{A logical value indicating whether to plot relative abundances.}
+\item{x_label}{Metadata column to use as the x-axis.  Defaults to
+\code{"SampleIDfactor"} (samples ordered by dominant-taxon abundance).}
 
-\item{x_label}{A string for the x-axis label, default is "SampleIDfactor".}
+\item{show_x_text}{Logical; if \code{TRUE}, shows x-axis sample labels. Defaults
+to \code{FALSE} because these plots are typically used for global pattern
+inspection rather than per-sample identification.}
 
-\item{facet}{A string or vector of variables to create facets in the plot.}
+\item{facet}{Character vector of additional faceting variables combined
+with each element of \code{cate.vars}.}
 
-\item{legend}{Position of the legend, either "bottom" or "right".}
+\item{legend}{Legend position passed to \code{ggplot2::theme()}.  Default
+\code{"bottom"}.  (Layout is always computed automatically.)}
 
-\item{cutoff}{A numeric value for filtering out low-abundance taxa.}
+\item{cutoff}{Minimum mean relative abundance threshold; taxa below this
+are collapsed into \code{"[1_#Other]"}.  Default \code{0.005}.}
 
-\item{name}{Optional, a string for additional naming in the plot title.}
+\item{name}{Optional string appended to output file names.}
 
-\item{ncol}{Optional, number of columns in the facet layout.}
+\item{ncol}{Optional integer fixing the number of facet columns.  When
+\code{NULL} (default) the layout is determined automatically.}
 
-\item{height}{Plot height.}
+\item{stack_from}{Character scalar controlling stack direction.
+\code{"bottom"} (default) places the most abundant taxon at the bottom of each
+bar so the dominant taxa form a stable baseline across all samples.
+\code{"top"} reverses this so the most abundant taxon is drawn at the top.}
 
-\item{width}{Plot width.}
+\item{order_other}{Character scalar controlling whether samples with larger
+\code{"[1_#Other]"} fractions are nudged toward one side within the existing
+phylum backbone. \code{"none"} (default) keeps the original order,
+\code{"right"} moves higher-Other samples to the right, \code{"left"} moves them to
+the left, and \code{"auto"} uses \code{A}-style ordering for \code{Phylum/Class/Order}
+and \code{B}-style ordering for \code{Family/Genus} and finer ranks.}
+
+\item{mark}{Optional metadata column name.  Samples where this column
+equals \code{"Yes"} receive a \code{" *"} suffix on the x-axis label.}
+
+\item{height}{Nominal chart height in inches (legend height is added
+automatically).}
+
+\item{width}{PDF width in inches.}
 }
 \value{
-Creates and saves bar chart plots in PDF format in the specified output directory.
+Called for its side effects (PDF + CSV files written to disk).
+Returns \code{invisible(NULL)}.
 }
 \description{
-Produces color bar charts representing the relative or absolute abundance of microbial taxa, categorized by specified variables.
+Produces stacked bar charts of taxonomic relative or absolute abundance,
+one bar per sample, coloured by a phylum-aware palette that is built
+automatically from the phyla present in the input data (up to 10 distinct
+hues, with subtle within-phylum shading for multiple taxa).
 }
 \details{
-The function creates bar charts showing the abundance of microbial taxa, grouped by specified variables. It can handle both relative and absolute abundance data, and allows for flexible customization of plot appearance.
+Compared with \code{Go_barchart()}, this function emphasises taxonomic context:
+taxa from the same phylum receive tightly grouped shades of the same base
+colour so that phylogenetic groupings are immediately visible. The legend/panel layout
+system is shared with \code{Go_barchart()}.
 }
 \examples{
-# Example usage:
-Go_colbarchart(psIN = my_phyloseq_object,
-               cate.vars = c("Treatment", "TimePoint"),
-               project = "MyMicrobiomeStudy",
-               taxanames = c("Phylum", "Genus"),
-               data_type = "16S",
-               orders = c("Control", "Treatment"),
-               relative = TRUE,
-               height = 6,
-               width = 8)
+\dontrun{
+Go_colbarchart(
+  psIN      = ps,
+  cate.vars = c("TreatmentGroup", "TimePoint"),
+  project   = "MyProject",
+  taxanames = c("Phylum", "Genus"),
+  orders    = c("Control", "Treatment"),
+  relative  = TRUE,
+  cutoff    = 0.005,
+  height    = 6,
+  width     = 10
+)
+}
 
 }
