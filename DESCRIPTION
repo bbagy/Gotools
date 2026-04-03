@@ -120,7 +120,8 @@ Suggests:
     zoo,
     testthat (>= 3.0.0)
 Remotes:
-    davidsjoberg/ggsankey
+    davidsjoberg/ggsankey,
+    mikemc/speedyseq
 Config/testthat/edition: 3
 URL: https://github.com/bbagy/Gotools
 BugReports: https://github.com/bbagy/Gotools/issues
