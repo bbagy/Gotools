@@ -26,6 +26,8 @@
 #' @param name Optional file tag for saving the fitted object. When both
 #'   \code{project} and \code{name} are provided, the fitted object is saved to
 #'   \code{<project>_YYMMDD/table/OR/}.
+#' @param seed Integer seed stored for reproducibility and applied before model
+#'   fitting. Defaults to \code{1234}.
 #' @param na_action Currently only \code{"complete"} is supported.
 #' @param verbose Logical; print progress messages.
 #'
@@ -43,6 +45,7 @@ Go_OR_fit <- function(psIN,
                       abundance_min = 0,
                       project = NULL,
                       name = NULL,
+                      seed = 1234,
                       na_action = c("complete"),
                       verbose = TRUE) {
 
@@ -57,9 +60,14 @@ Go_OR_fit <- function(psIN,
 
   transform <- match.arg(transform)
   na_action <- match.arg(na_action)
+  if (!is.null(seed)) seed <- as.integer(seed)[1]
 
   if (!inherits(psIN, "phyloseq")) stop("`psIN` must be a phyloseq object.")
   if (!requireNamespace("phyloseq", quietly = TRUE)) stop("Package `phyloseq` is required.")
+  if (!is.null(seed)) {
+    set.seed(seed)
+    log_msg(sprintf("[Go_OR_fit] using seed=%d", seed))
+  }
 
   meta <- data.frame(phyloseq::sample_data(psIN), check.names = FALSE, stringsAsFactors = FALSE)
   if (!is.character(outcome) || length(outcome) != 1 || !outcome %in% names(meta)) {
@@ -251,7 +259,8 @@ Go_OR_fit <- function(psIN,
       taxrank = taxrank,
       transform = transform,
       top_n = top_n,
-      n = nrow(work_df)
+      n = nrow(work_df),
+      seed = seed
     ),
     subtitle = subtitle,
     data_used = work_df

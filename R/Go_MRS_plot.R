@@ -116,13 +116,18 @@ Go_MRS_plot <- function(fit,
     )
   }
 
-  attach_plot_size_info <- function(p, group_labels, panel_width = 3.6, min_width = 4.8, base_height = 4.8) {
+  attach_plot_size_info <- function(p, group_labels, panel_width = 2.5, panel_height = 0.8, min_width = 3.8) {
+    n_grp <- length(group_labels)
     max_lbl_chars <- max(nchar(as.character(group_labels)), na.rm = TRUE)
-    label_width <- max(0.7, max_lbl_chars * 0.055)
-    pdf_w <- max(min_width, panel_width + label_width)
+    label_width <- 0.9 + max(0, max_lbl_chars - 10) * 0.06
+    outer_width <- 0.8
+    extra_height <- if (n_grp <= 3) 0 else (n_grp - 3) * 0.22
+    outer_height <- 0.9
+    pdf_w <- max(min_width, min(9, panel_width + label_width + outer_width))
+    pdf_h <- max(3.2, min(8, panel_height + extra_height + outer_height))
     attr(p, "recommended_width") <- pdf_w
-    attr(p, "recommended_height") <- base_height
-    attr(p, "n_grp") <- length(group_labels)
+    attr(p, "recommended_height") <- pdf_h
+    attr(p, "n_grp") <- n_grp
     attr(p, "max_lbl_chars") <- max_lbl_chars
     p
   }
@@ -261,10 +266,10 @@ Go_MRS_plot <- function(fit,
       ) +
       ggplot2::theme_bw(base_size = 12) +
       ggplot2::theme(
-        plot.title = ggplot2::element_text(face = "bold", hjust = 0.2),
-        plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.2, lineheight = 1.05, margin = ggplot2::margin(b = 8))
+        plot.title = ggplot2::element_text(face = "bold", hjust = 0.5),
+        plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.5, lineheight = 1.05, margin = ggplot2::margin(b = 8))
       )
-    p <- attach_plot_size_info(p, group_labels = c("ROC"), panel_width = 4.2, min_width = 4.2, base_height = 4.2)
+    p <- attach_plot_size_info(p, group_labels = c("ROC"), panel_width = 3, panel_height = 3, min_width = 4.2)
     p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
     return(invisible(p))
   }
@@ -289,10 +294,10 @@ Go_MRS_plot <- function(fit,
       ggplot2::theme_bw(base_size = 12) +
       ggplot2::theme(
         plot.title = ggplot2::element_text(face = "bold", hjust = 0.2),
-        plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.2, lineheight = 1.05, margin = ggplot2::margin(b = 8)),
+        plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 1, lineheight = 1.05, margin = ggplot2::margin(b = 8)),
         axis.text.y = ggplot2::element_text(face = "italic")
       )
-    p <- attach_plot_size_info(p, group_labels = coef_sub$feature, panel_width = 4.8, min_width = 6.0, base_height = 5.2)
+    p <- attach_plot_size_info(p, group_labels = coef_sub$feature, panel_width = 2.5, panel_height = 0.8, min_width = 5.4)
     p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
     return(invisible(p))
   }
@@ -328,8 +333,8 @@ Go_MRS_plot <- function(fit,
         ) +
         ggplot2::theme_classic(base_size = 12) +
         ggplot2::theme(
-          plot.title = ggplot2::element_text(face = "bold", hjust = 0.2),
-          plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.2, lineheight = 1.05, margin = ggplot2::margin(b = 8)),
+          plot.title = ggplot2::element_text(face = "bold", hjust = 0.5),
+          plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.1, lineheight = 1.05, margin = ggplot2::margin(b = 8)),
           axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5)
         )
     } else {
@@ -353,9 +358,9 @@ Go_MRS_plot <- function(fit,
     p <- attach_plot_size_info(
       p,
       group_labels = grp_order,
-      panel_width = 3.3,
-      min_width = 3.0,
-      base_height = 3.8
+      panel_width = 3,
+      panel_height = 3,
+      min_width = 3.0
     )
     p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
     return(invisible(p))
@@ -375,7 +380,7 @@ Go_MRS_plot <- function(fit,
     ) +
     ggplot2::theme_bw(base_size = 12)
 
-  p <- attach_plot_size_info(p, group_labels = c("Observed"), panel_width = 4.8, min_width = 5.0, base_height = 4.8)
+  p <- attach_plot_size_info(p, group_labels = c("Observed"), panel_width = 2.5, panel_height = 0.8, min_width = 4.4)
   p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
   invisible(p)
 }

@@ -125,15 +125,17 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
   .adj_label <- function(method) {
     if (tolower(as.character(method)) == "bh") "FDR(BH)" else sprintf("Adj(%s)", method)
   }
-  .can_use_marginal <- function() {
+  .can_use_marginal <- function(n_dist = length(distance_metrics)) {
     isTRUE(marginal) &&
       is.null(facet) &&
-      is.null(combination) &&
-      length(distance_metrics) == 1 &&
       length(plot) == 1 &&
       length(cate.vars) == 1
   }
-  .apply_marginal <- function(p) {
+
+  # ggMarginal returns ggExtraPlot (not ggplot) — incompatible with multiplot.
+  # When multiple distance metrics exist, save each marginal plot as its own PDF
+  # instead of adding to the shared plotlist.
+  .apply_marginal <- function(p, distance_metric = NULL, mvar = NULL) {
     if (!.can_use_marginal()) return(p)
     if (!requireNamespace("ggExtra", quietly = TRUE)) {
       warning("ggExtra is required for marginal = TRUE. Returning the base ordination plot.")
@@ -141,12 +143,33 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
     }
     ggExtra::ggMarginal(
       p,
-      type = marginal_type,
-      size = marginal_size,
-      alpha = marginal_alpha,
-      groupColour = TRUE,
-      groupFill = TRUE
+      type         = marginal_type,
+      size         = marginal_size,
+      alpha        = marginal_alpha,
+      groupColour  = TRUE,
+      groupFill    = TRUE
     )
+  }
+
+  .render_plotlist <- function(plotlist, cols, rows) {
+    has_extra <- any(vapply(plotlist, inherits, logical(1), "ggExtraPlot"))
+    if (has_extra) {
+      if (!requireNamespace("gridExtra", quietly = TRUE)) {
+        warning("gridExtra is required for marginal multiplot. Falling back to multiplot.")
+        multiplot(plotlist = plotlist, cols = cols, rows = rows)
+      } else {
+        grob_list <- lapply(plotlist, function(p) {
+          if (inherits(p, "ggExtraPlot")) {
+            grid::grid.grabExpr(print(p, newpage = FALSE), wrap.grobs = TRUE)
+          } else {
+            ggplot2::ggplotGrob(p)
+          }
+        })
+        do.call(gridExtra::grid.arrange, c(grob_list, list(ncol = cols, nrow = rows)))
+      }
+    } else {
+      multiplot(plotlist = plotlist, cols = cols, rows = rows)
+    }
   }
   .axis_percent <- function(ordi_obj) {
     # Prefer relative eigenvalues when available.
@@ -568,11 +591,11 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                   plot.title=element_text(size=8,face="bold")) +
             geom_vline(xintercept = 0, linewidth = 0.1) + geom_hline(yintercept = 0, linewidth = 0.1)
 
-          p <- .apply_marginal(p)
+          p <- .apply_marginal(p, distance_metric = distance_metric, mvar = mvar)
           plotlist[[length(plotlist)+1]] <- p
         }
       }
-      multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
+      .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
       dev.off()
 
     } else {
@@ -775,10 +798,10 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                 aspect.ratio = 1) +
           geom_vline(xintercept = 0, linewidth = 0.1) + geom_hline(yintercept = 0, linewidth = 0.1)
 
-        p <- .apply_marginal(p)
+        p <- .apply_marginal(p, distance_metric = distance_metric, mvar = mvar)
         plotlist[[length(plotlist)+1]] <- p
       }
-      multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
+      .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
       dev.off()
     }
   }
