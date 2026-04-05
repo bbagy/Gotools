@@ -36,6 +36,9 @@
 #' @param mycols Optional character vector of colors for levels of \code{fillinfor}.
 #'   If \code{NULL}, a default palette is used. Length must be \eqn{\ge} number of
 #'   unique non-NA levels in \code{fillinfor}.
+#' @param subtitle Optional character scalar shown under the main title.
+#'   If \code{multi.sites} is used, this text is appended after the automatic
+#'   site-order subtitle.
 #' @param width Numeric. PDF width in inches. Default \code{6}.
 #' @param height Numeric. PDF height in inches. Default \code{15}.
 #'
@@ -87,7 +90,7 @@
 #' @importFrom tidyr pivot_wider pivot_longer replace_na
 #' @importFrom ggplot2 ggplot aes geom_line geom_point geom_col geom_text
 #' @importFrom ggplot2 scale_shape_manual scale_fill_manual scale_x_discrete
-#' @importFrom ggplot2 theme_classic theme element_text labs coord_flip
+#' @importFrom ggplot2 theme_classic theme element_text labs coord_flip guide_legend
 #' @importFrom ggplot2 ggsave
 #' @importFrom patchwork plot_layout plot_annotation
 #' @importFrom rlang sym
@@ -109,6 +112,7 @@ Go_patternPlot <- function(
     site.compact.step = 0.14, # multi.sites + pattern=TRUE 네모 간격
     site.dodge.width = 0.6,   # multi.sites + pattern=FALSE dodge 간격
     mycols = NULL,          # 색상 팔레트 (선택)
+    subtitle = NULL,        # 부제목 (선택)
     name = NULL,
     width = 6,              # 저장 폭(inch)
     height = 15             # 저장 높이(inch)
@@ -130,12 +134,7 @@ Go_patternPlot <- function(
   site_levels_for_subtitle <- NULL
 
   # 날짜 폴더 자동 생성
-  name_tag <- if (!is.null(name) && !is.na(name) && name != "") {
-    paste0(" - ", name)
-  } else {
-    ""
-  }
-
+  name_user <- if (!is.null(name) && !is.na(name) && name != "") name else NULL
   name <- ifelse(is.null(name), "", paste(name, ".", sep = ""))
   stamp <- format(Sys.Date(), "%y%m%d")
   base <- sprintf("%s_%s", project, stamp)
@@ -159,12 +158,16 @@ Go_patternPlot <- function(
       fill_vals_in_yorder <- yinfor.order[yinfor.order %in% fill_vals_raw]
       fill_vals <- c(fill_vals_in_yorder, setdiff(fill_vals_raw, fill_vals_in_yorder))
     }
-    if (is.null(mycols)) {
-      mycols <- scales::hue_pal()(length(fill_vals))
-    } else if (length(mycols) < length(fill_vals)) {
-      stop("Length of 'mycols' is smaller than the number of fill categories.")
-    }
-    fill_map   <- setNames(mycols[seq_along(fill_vals)], fill_vals)
+        if (is.null(mycols)) {
+            mycols <- scales::hue_pal()(length(fill_vals))
+        } else if (length(mycols) < length(fill_vals)) {
+            stop("Length of 'mycols' is smaller than the number of fill categories.")
+        }
+        if (!is.null(names(mycols)) && all(fill_vals %in% names(mycols))) {
+            fill_map <- mycols[fill_vals]
+        } else {
+            fill_map <- setNames(mycols[seq_along(fill_vals)], fill_vals)
+        }
 
     # wide 변환
     data_wide <- df %>%
@@ -224,11 +227,16 @@ Go_patternPlot <- function(
                  color = "black", size = 3, stroke = 0.6) +
       scale_shape_manual(values = shape_all, labels = legend_all, breaks = fill_all_levels) +
       scale_fill_manual(values = color_all, labels = legend_all, breaks = fill_all_levels, drop = FALSE) +
+      guides(
+        fill = guide_legend(order = 1, override.aes = list(shape = 21, size = 3)),
+        shape = "none"
+      ) +
       scale_x_discrete(position = "top") +
       labs(y = "Patterns", x = NULL) +
       theme_classic(base_size = 11) +
       theme(axis.text.x  = element_text(hjust = 0.5),
-            legend.title = element_blank())
+            legend.title = element_blank(),
+            legend.position = "right")
     if (!isTRUE(pattern)) {
       p1 <- p1 +
         ggplot2::facet_wrap(ggplot2::vars(panel_col), nrow = 1, scales = "free_y") +
@@ -299,7 +307,11 @@ Go_patternPlot <- function(
     } else if (length(mycols) < length(fill_levels)) {
       stop("Length of 'mycols' is smaller than the number of color categories.")
     }
-    fill_cols <- setNames(mycols[seq_along(fill_levels)], fill_levels)
+    if (!is.null(names(mycols)) && all(fill_levels %in% names(mycols))) {
+      fill_cols <- mycols[fill_levels]
+    } else {
+      fill_cols <- setNames(mycols[seq_along(fill_levels)], fill_levels)
+    }
 
     data_long <- df_ms %>%
       tidyr::complete(.ID,
@@ -399,6 +411,7 @@ Go_patternPlot <- function(
         geom_point(aes(fill = fill_key),
                    shape = 22, color = "black", size = 3.1, stroke = 0.5) +
         scale_fill_manual(values = fill_cols, breaks = fill_levels, drop = FALSE, na.translate = FALSE) +
+        guides(fill = guide_legend(order = 1, override.aes = list(shape = 22, size = 3.2))) +
         scale_x_continuous(breaks = seq_along(yinfor.order),
                            labels = yinfor.order,
                            position = "top",
@@ -406,7 +419,8 @@ Go_patternPlot <- function(
         labs(y = "Patterns", x = NULL) +
         theme_classic(base_size = 11) +
         theme(axis.text.x  = element_text(hjust = 0.5),
-              legend.title = element_blank())
+              legend.title = element_blank(),
+              legend.position = "right")
     } else {
       p1 <- ggplot(data_long, aes(x = .TIME, y = ID)) +
         geom_line(aes(group = ID), color = "grey80", linewidth = 0.5) +
@@ -415,12 +429,14 @@ Go_patternPlot <- function(
                    position = ggplot2::position_dodge(width = site.dodge.width),
                    color = "black", size = 3.8, stroke = 0.5) +
         scale_fill_manual(values = fill_cols, breaks = fill_levels, drop = FALSE, na.translate = FALSE) +
+        guides(fill = guide_legend(order = 1, override.aes = list(shape = 22, size = 3.8))) +
         scale_x_discrete(position = "top") +
         labs(y = "Patterns", x = NULL) +
         theme_classic(base_size = 11) +
         theme(axis.text.x  = element_text(hjust = 0.5),
               axis.text.y  = element_text(size = 5),
-              legend.title = element_blank())
+              legend.title = element_blank(),
+              legend.position = "right")
     }
     if (!isTRUE(pattern)) {
       p1 <- p1 +
@@ -462,16 +478,20 @@ Go_patternPlot <- function(
   } else {
     ""
   }
-  subtitle_txt <- if (!is.null(multi.sites) && !is.null(site_levels_for_subtitle) && length(site_levels_for_subtitle) > 0) {
+  subtitle_auto <- if (!is.null(multi.sites) && !is.null(site_levels_for_subtitle) && length(site_levels_for_subtitle) > 0) {
     paste0("Square order (left-to-right within each visit): ", paste(site_levels_for_subtitle, collapse = ", "))
   } else {
     NULL
   }
+  subtitle_txt <- paste(
+    c(name_user, subtitle_auto, subtitle),
+    collapse = "\n"
+  )
+  if (identical(subtitle_txt, "")) subtitle_txt <- NULL
   title_txt <- sprintf(
-    "%s%s%s (n = %s)",
+    "%s%s (n = %s)",
     plot_label,
     fill_title_tag,
-    name_tag,
     n_for_title
   )
 

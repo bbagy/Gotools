@@ -44,10 +44,10 @@ Go_OR_plot <- function(fit,
     max_lbl_chars <- max(nchar(as.character(feature_labels)), na.rm = TRUE)
     label_width <- 1.8 + max(0, max_lbl_chars - 12) * 0.05
     outer_width <- 1.6
-    extra_height <- if (n_feat <= 3) 0 else (n_feat - 3) * 0.28
-    outer_height <- 1.4
+    extra_height <- if (n_feat <= 2) 0 else (n_feat - 2) * 0.22
+    outer_height <- 1.6
     pdf_w <- max(5.8, min(11, panel_width + label_width + outer_width))
-    pdf_h <- max(4.2, min(11, panel_height + extra_height + outer_height))
+    pdf_h <- min(11, panel_height + extra_height + outer_height)
     attr(p, "recommended_width") <- pdf_w
     attr(p, "recommended_height") <- pdf_h
     p
@@ -117,25 +117,30 @@ Go_OR_plot <- function(fit,
   res$sig_cat <- factor(res$sig_cat,
     levels = c("FDR_up", "Nominal_up", "FDR_down", "Nominal_down", "NS"))
 
-  res$or_label <- ifelse(
-    res$sig_cat %in% c("FDR_up", "FDR_down") & has_padj,
-    sprintf("%.2f\n(p=%.3f, q=%.3f)", res$OR, res$p.value, res$p.adj),
+  res_plot <- res[res$sig_cat != "NS", , drop = FALSE]
+  if (!nrow(res_plot)) {
+    stop("No significant OR results available to plot.")
+  }
+
+  res_plot$or_label <- ifelse(
+    res_plot$sig_cat %in% c("FDR_up", "FDR_down") & has_padj,
+    sprintf("%.2f\n(p=%.3f, q=%.3f)", res_plot$OR, res_plot$p.value, res_plot$p.adj),
     ifelse(
-      res$sig_cat %in% c("Nominal_up", "Nominal_down"),
-      sprintf("%.2f\n(p=%.3f)", res$OR, res$p.value),
+      res_plot$sig_cat %in% c("Nominal_up", "Nominal_down"),
+      sprintf("%.2f\n(p=%.3f)", res_plot$OR, res_plot$p.value),
       ""
     )
   )
 
-  res$effect_size <- abs(log(pmax(res$OR, 1e-6)))
+  res_plot$effect_size <- abs(log(pmax(res_plot$OR, 1e-6)))
 
-  x_lo <- min(res$LCI[is.finite(res$LCI)], na.rm = TRUE)
-  x_hi <- max(res$UCI[is.finite(res$UCI)], na.rm = TRUE)
+  x_lo <- min(res_plot$LCI[is.finite(res_plot$LCI)], na.rm = TRUE)
+  x_hi <- max(res_plot$UCI[is.finite(res_plot$UCI)], na.rm = TRUE)
   x_lo <- max(x_lo * 0.7, 1e-3)
   x_hi <- x_hi * 1.5
 
   p <- ggplot2::ggplot(
-    res,
+    res_plot,
     ggplot2::aes(y = feature_label, x = OR, color = sig_cat)
   ) +
     ggplot2::geom_vline(xintercept = 1, linetype = "dashed", color = "grey60") +
@@ -168,10 +173,10 @@ Go_OR_plot <- function(fit,
         "FDR_up"      = "Increased, q < 0.05",
         "Nominal_up"  = "Increased, p < 0.05",
         "FDR_down"    = "Decreased, q < 0.05",
-        "Nominal_down"= "Decreased, p < 0.05",
-        "NS"          = "NS"
+        "Nominal_down"= "Decreased, p < 0.05"
       ),
-      drop = FALSE,
+      breaks = c("FDR_up", "Nominal_up", "FDR_down", "Nominal_down"),
+      drop = TRUE,
       name = NULL
     ) +
     ggplot2::scale_size_continuous(
@@ -233,7 +238,7 @@ Go_OR_plot <- function(fit,
       )
   }
 
-  p <- attach_plot_size_info(p, feature_labels = res$feature_label)
+  p <- attach_plot_size_info(p, feature_labels = res_plot$feature_label)
   p <- maybe_save_plot(p, project = project, name = name)
   p
 }
