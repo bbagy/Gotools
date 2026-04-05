@@ -17,7 +17,8 @@
 #' @param transform One of \code{"log_rel"}, \code{"relative"}, or
 #'   \code{"count"}.
 #' @param top_n Optional integer; keep the top N taxa by mean transformed
-#'   abundance before fitting models. Defaults to \code{15}.
+#'   abundance before fitting models. Defaults to \code{NULL}, meaning no
+#'   predefined top-N restriction.
 #' @param prevalence_min Optional prevalence filter on relative abundance
 #'   presence rate. Defaults to \code{0}.
 #' @param abundance_min Optional mean relative abundance filter. Defaults to
@@ -40,7 +41,7 @@ Go_OR_fit <- function(psIN,
                       taxrank = "Species",
                       covars = NULL,
                       transform = c("log_rel", "relative", "count"),
-                      top_n = 15,
+                      top_n = NULL,
                       prevalence_min = 0,
                       abundance_min = 0,
                       project = NULL,
@@ -147,12 +148,14 @@ Go_OR_fit <- function(psIN,
     count = otu_mat
   )
 
-  if (!is.null(top_n)) {
+  if (is.null(top_n)) {
+    log_msg(sprintf("[Go_OR_fit] after top_n: n_features=%d (no top_n restriction)", ncol(feat_micro)))
+  } else {
     top_n <- min(as.integer(top_n), ncol(feat_micro))
     keep_top <- order(colMeans(feat_micro), decreasing = TRUE)[seq_len(top_n)]
     feat_micro <- feat_micro[, keep_top, drop = FALSE]
+    log_msg(sprintf("[Go_OR_fit] after top_n=%d: n_features=%d", top_n, ncol(feat_micro)))
   }
-  log_msg(sprintf("[Go_OR_fit] after top_n: n_features=%d", ncol(feat_micro)))
 
   label_map <- make_tax_labels(ps_work, taxrank)
   feature_names_raw <- colnames(feat_micro)
