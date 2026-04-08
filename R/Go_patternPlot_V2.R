@@ -228,7 +228,7 @@ Go_patternPlot <- function(
       scale_shape_manual(values = shape_all, labels = legend_all, breaks = fill_all_levels) +
       scale_fill_manual(values = color_all, labels = legend_all, breaks = fill_all_levels, drop = FALSE) +
       guides(
-        fill = guide_legend(order = 1, override.aes = list(shape = 21, size = 3)),
+        fill = guide_legend(order = 1, override.aes = list(shape = unname(shape_all), size = 3)),
         shape = "none"
       ) +
       scale_x_discrete(position = "top") +
@@ -459,8 +459,8 @@ Go_patternPlot <- function(
     theme(axis.text.y  = element_blank(),
           axis.title.y = element_blank())
 
-  plot_label <- if (is.null(multi.sites)) fillinfor else multi.sites
   fill_label_clean <- if (isTRUE(auto_fill_mode)) yinfor else fillinfor
+  plot_label <- if (is.null(multi.sites)) fill_label_clean else multi.sites
   file_label <- if (is.null(multi.sites)) {
     fill_label_clean
   } else if (!isTRUE(auto_fill_mode) && !is.null(fillinfor) && fillinfor != "") {
@@ -483,11 +483,9 @@ Go_patternPlot <- function(
   } else {
     NULL
   }
-  subtitle_txt <- paste(
-    c(name_user, subtitle_auto, subtitle),
-    collapse = "\n"
-  )
-  if (identical(subtitle_txt, "")) subtitle_txt <- NULL
+  subtitle_parts <- c(name_user, subtitle, subtitle_auto)
+  subtitle_parts <- subtitle_parts[!is.na(subtitle_parts) & nzchar(subtitle_parts)]
+  subtitle_txt <- if (length(subtitle_parts) == 0) NULL else paste(subtitle_parts, collapse = "\n")
   title_txt <- sprintf(
     "%s%s (n = %s)",
     plot_label,
@@ -502,13 +500,13 @@ Go_patternPlot <- function(
       plot_annotation(title = title_txt,
                       subtitle = subtitle_txt,
                       theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"),
-                                    plot.subtitle = element_text(hjust = 0.5)))
+                                    plot.subtitle = element_text(hjust = 0.5, size = 10)))
   } else {
     p_final <- p1 +
       plot_annotation(title = title_txt,
                       subtitle = subtitle_txt,
                       theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"),
-                                    plot.subtitle = element_text(hjust = 0.5)))
+                                    plot.subtitle = element_text(hjust = 0.5, size = 10)))
   }
 
   # 저장 (PDF)
