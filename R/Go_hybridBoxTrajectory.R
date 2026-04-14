@@ -32,6 +32,9 @@
 #'   Mild = "#F58518", Mod = "#B279A2")} or an unnamed palette vector such as
 #'   the output of \code{Go_myCols()}, which will be assigned in order to the
 #'   panel levels after \code{orders} are resolved.
+#' @param covariates Optional covariate column names to include in the trajectory
+#'   LMM as fixed effects. These are added additively after the main
+#'   \code{time.var * traj.var} terms.
 #' @param statistics Logical; if \code{TRUE}, fit an LMM for each outcome in
 #'   the trajectory panel and export ANOVA / emmeans tables.
 #' @param p_adjust Logical; if \code{TRUE}, use BH adjustment for pairwise
@@ -73,6 +76,7 @@
 #' )
 #' }
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 Go_hybridBoxTrajectory <- function(input = NULL,
                                    project = NULL,
@@ -84,6 +88,7 @@ Go_hybridBoxTrajectory <- function(input = NULL,
                                    subject.var,
                                    name = NULL,
                                    mycols = NULL,
+                                   covariates = NULL,
                                    statistics = TRUE,
                                    p_adjust = TRUE,
                                    log_transform = c("auto", "none", "log1p"),
@@ -94,7 +99,8 @@ Go_hybridBoxTrajectory <- function(input = NULL,
                                    width = 8,
                                    height = NULL,
                                    df = NULL,
-                                   psIN = NULL) {
+                                   psIN = NULL,
+                                   patchwork = FALSE) {
 
   log_transform <- match.arg(log_transform)
 
@@ -171,6 +177,23 @@ Go_hybridBoxTrajectory <- function(input = NULL,
       return("<0.001")
     }
     formatC(p, digits = 3, format = "f")
+  }
+
+  format_covariate_label <- function(df, covariates) {
+    if (is.null(covariates) || length(covariates) == 0) {
+      return(NULL)
+    }
+
+    parts <- vapply(covariates, function(covar) {
+      if (!covar %in% names(df)) {
+        return(sprintf("%s (?)", covar))
+      }
+      x <- df[[covar]]
+      cov_type <- if (is.factor(x) || is.character(x)) "fct" else "num"
+      sprintf("%s (%s)", covar, cov_type)
+    }, character(1))
+
+    paste(parts, collapse = ", ")
   }
 
   is_log_metric <- function(metric, mode) {
@@ -317,14 +340,37 @@ Go_hybridBoxTrajectory <- function(input = NULL,
   sanitize_tag <- function(x) gsub("[^A-Za-z0-9._-]+", "-", as.character(x))
 
   fit_lmm_bundle <- function(df, outcome, time.var, group.var, subject.var,
-                             log_transform, p_adjust, emmeans_at) {
-    needed <- c(outcome, time.var, group.var, subject.var)
+                             covariates, log_transform, p_adjust, emmeans_at) {
+    needed <- unique(c(outcome, time.var, group.var, subject.var, covariates))
     use_df <- df[, needed, drop = FALSE]
-    names(use_df) <- c("outcome", "time_value", "group_value", "subject_value")
+    rename_map <- c(
+      outcome = outcome,
+      time_value = time.var,
+      group_value = group.var,
+      subject_value = subject.var
+    )
+    for (nm in names(rename_map)) {
+      names(use_df)[names(use_df) == rename_map[[nm]]] <- nm
+    }
     use_df$outcome <- safe_numeric(use_df$outcome)
     use_df$time_value <- safe_numeric(use_df$time_value)
     use_df$group_value <- factor(as.character(use_df$group_value))
     use_df$subject_value <- as.character(use_df$subject_value)
+    covariate_terms <- character(0)
+    if (!is.null(covariates) && length(covariates) > 0) {
+      for (covar in covariates) {
+        if (!covar %in% names(use_df)) {
+          next
+        }
+        if (is.character(use_df[[covar]]) || is.factor(use_df[[covar]])) {
+          use_df[[covar]] <- factor(as.character(use_df[[covar]]))
+        } else {
+          use_df[[covar]] <- safe_numeric(use_df[[covar]])
+        }
+        covariate_terms <- c(covariate_terms, covar)
+      }
+    }
+    covariate_label <- format_covariate_label(use_df, covariate_terms)
     use_df <- use_df[stats::complete.cases(use_df), , drop = FALSE]
 
     if (nrow(use_df) < 5 ||
@@ -340,11 +386,9 @@ Go_hybridBoxTrajectory <- function(input = NULL,
       ))
     }
 
-    form_txt <- if (is_log_metric(outcome, log_transform)) {
-      "log1p(outcome) ~ time_value * group_value + (1 | subject_value)"
-    } else {
-      "outcome ~ time_value * group_value + (1 | subject_value)"
-    }
+    rhs_terms <- c("time_value * group_value", covariate_terms, "(1 | subject_value)")
+    lhs_term <- if (is_log_metric(outcome, log_transform)) "log1p(outcome)" else "outcome"
+    form_txt <- paste(lhs_term, "~", paste(rhs_terms, collapse = " + "))
 
     fit <- tryCatch(
       lmerTest::lmer(stats::as.formula(form_txt), data = use_df, REML = FALSE),
@@ -395,7 +439,8 @@ Go_hybridBoxTrajectory <- function(input = NULL,
       "lmer p / FDR\n",
       "time ", format_p_value(raw_p["time"]), " / ", format_p_value(fdr_p["time"]), "\n",
       "group ", format_p_value(raw_p["group"]), " / ", format_p_value(fdr_p["group"]), "\n",
-      "time x group ", format_p_value(raw_p["time x group"]), " / ", format_p_value(fdr_p["time x group"])
+      "time x group ", format_p_value(raw_p["time x group"]), " / ", format_p_value(fdr_p["time x group"]),
+      if (!is.null(covariate_label)) paste0("\ncovariates ", covariate_label) else ""
     )
 
     emm_at <- build_emmeans_at(use_df, "time_value", emmeans_at)
@@ -419,6 +464,8 @@ Go_hybridBoxTrajectory <- function(input = NULL,
     anova_out <- dplyr::transmute(
       anova_tbl,
       outcome = outcome,
+      model = "lmm",
+      covariates = if (length(covariate_terms) > 0) paste(covariate_terms, collapse = ";") else NA_character_,
       term = term,
       num_df = if ("NumDF" %in% names(anova_tbl)) NumDF else NA_real_,
       den_df = if ("DenDF" %in% names(anova_tbl)) DenDF else NA_real_,
@@ -429,6 +476,8 @@ Go_hybridBoxTrajectory <- function(input = NULL,
 
     if (!is.null(emm_tbl)) {
       emm_tbl$outcome <- outcome
+      emm_tbl$model <- "lmm"
+      emm_tbl$covariates <- if (length(covariate_terms) > 0) paste(covariate_terms, collapse = ";") else NA_character_
       if (!is.null(emm_at) && length(emm_at) == 1) {
         emm_tbl$time_at <- unname(emm_at[[1]])
       }
@@ -436,6 +485,8 @@ Go_hybridBoxTrajectory <- function(input = NULL,
 
     if (!is.null(pair_tbl)) {
       pair_tbl$outcome <- outcome
+      pair_tbl$model <- "lmm"
+      pair_tbl$covariates <- if (length(covariate_terms) > 0) paste(covariate_terms, collapse = ";") else NA_character_
       if (!is.null(emm_at) && length(emm_at) == 1) {
         pair_tbl$time_at <- unname(emm_at[[1]])
       }
@@ -677,6 +728,9 @@ Go_hybridBoxTrajectory <- function(input = NULL,
   mycols <- normalize_mycols(mycols)
 
   required_cols <- unique(c(outcomes, ref.var, traj.var, time.var, subject.var))
+  if (!is.null(covariates) && length(covariates) > 0) {
+    required_cols <- unique(c(required_cols, covariates))
+  }
   missing_cols <- setdiff(required_cols, names(df))
   if (length(missing_cols) > 0) {
     stop("Missing required columns in `df`: ", paste(missing_cols, collapse = ", "))
@@ -753,6 +807,7 @@ Go_hybridBoxTrajectory <- function(input = NULL,
         time.var = "time_value",
         group.var = "display_group",
         subject.var = "subject_id",
+        covariates = covariates,
         log_transform = log_transform,
         p_adjust = p_adjust,
         emmeans_at = emmeans_at
@@ -806,6 +861,7 @@ Go_hybridBoxTrajectory <- function(input = NULL,
     height <- max(3, 3 * length(plot_store))
   }
 
+  if (isTRUE(patchwork)) return(invisible(plot_store))
   grDevices::pdf(pdf_path, width = width, height = height)
   grid::grid.newpage()
   grid::pushViewport(grid::viewport(layout = grid::grid.layout(

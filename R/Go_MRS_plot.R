@@ -28,6 +28,7 @@
 #'   in \code{attr(plot, "saved_path")}.
 #'   the output path is stored in \code{attr(plot, "saved_path")}.
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 Go_MRS_plot <- function(fit,
                         plot_type = c("all", "score", "roc", "coef"),
@@ -37,7 +38,8 @@ Go_MRS_plot <- function(fit,
                         project = NULL,
                         name = NULL,
                         order = NULL,
-                        mycol = c("#1f77b4", "#d62728")) {
+                        mycol = c("#1f77b4", "#d62728"),
+                        patchwork = FALSE) {
 
   `%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
 
@@ -71,7 +73,7 @@ Go_MRS_plot <- function(fit,
   }
 
   maybe_save_plot <- function(p, plot_type, engine, project, name) {
-    if (is.null(project) || is.null(name)) return(p)
+    if (isTRUE(patchwork) || is.null(project) || is.null(name)) return(p)
     out_path <- resolve_outdir(project = project)
     file_name <- build_filename(plot_type = plot_type, engine = engine, name = name)
     pdf_w <- attr(p, "recommended_width") %||% 5
@@ -227,7 +229,8 @@ Go_MRS_plot <- function(fit,
         project = project,
         name = name,
         order = order,
-        mycol = mycol
+        mycol = mycol,
+        patchwork = patchwork
       )
     })
     names(out_list) <- plot_types

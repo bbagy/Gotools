@@ -4,7 +4,7 @@
 \alias{Go_qq}
 \title{Generate QQ Plots and Histograms for Alpha Diversity Metrics}
 \usage{
-Go_qq(psIN, project, alpha_metrics, name, height, width)
+Go_qq(psIN, project, alpha_metrics, name, height, width, patchwork = FALSE)
 }
 \arguments{
 \item{psIN}{Phyloseq object containing microbiome data.}
@@ -18,6 +18,8 @@ Go_qq(psIN, project, alpha_metrics, name, height, width)
 \item{height}{Height of the output PDF file.}
 
 \item{width}{Width of the output PDF file.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Generates a PDF file containing QQ plots and histograms for each alpha diversity metric. The file is saved in the specified output directory. Additionally, the function prints the Shapiro-Wilk normality test results for each metric to the console.

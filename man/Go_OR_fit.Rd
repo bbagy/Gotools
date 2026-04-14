@@ -11,7 +11,7 @@ Go_OR_fit(
   taxrank = "Species",
   covars = NULL,
   transform = c("log_rel", "relative", "count"),
-  top_n = 15,
+  top_n = NULL,
   prevalence_min = 0,
   abundance_min = 0,
   project = NULL,
@@ -37,7 +37,8 @@ Use \code{"ASV"} to keep the original feature level.}
 \code{"count"}.}
 
 \item{top_n}{Optional integer; keep the top N taxa by mean transformed
-abundance before fitting models. Defaults to \code{15}.}
+abundance before fitting models. Defaults to \code{NULL}, meaning no
+predefined top-N restriction.}
 
 \item{prevalence_min}{Optional prevalence filter on relative abundance
 presence rate. Defaults to \code{0}.}

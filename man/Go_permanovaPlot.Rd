@@ -26,7 +26,8 @@ Go_permanovaPlot(
   show_strip_text = FALSE,
   base_size = 10,
   height = NULL,
-  width = NULL
+  width = NULL,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -88,6 +89,8 @@ determined automatically from the number of variables.}
 
 \item{width}{Width of the saved PDF in inches. If \code{NULL}, width is
 determined automatically from the longest variable name.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Invisibly returns a named list:

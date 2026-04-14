@@ -42,6 +42,7 @@
 #'                    height = 8,
 #'                    width = 11)
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_extendedBarplot <- function(psIN,
@@ -56,7 +57,8 @@ Go_extendedBarplot <- function(psIN,
                                p_adjust_method = "BH",
                                use_adjusted_p = TRUE,
                                height,
-                               width){
+                               width,
+                               patchwork = FALSE){
 
   if(!is.null(dev.list())) dev.off()
   # out dir
@@ -341,6 +343,7 @@ Go_extendedBarplot <- function(psIN,
 
 
 
+  if (isTRUE(patchwork)) return(invisible(p4))
   pdf(sprintf("%s/extended_error_barplot.(%s.vs.%s%s).%s.%s.pdf", out_path,
               group1,
               group2,

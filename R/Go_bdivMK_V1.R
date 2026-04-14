@@ -34,6 +34,7 @@
 #' @param marginal_alpha Transparency applied to marginal densities or fills.
 #'
 #' @return PDF(s) + CSV tables written to {project}_{date}/pdf/ and table/mirkat/.
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
@@ -55,10 +56,12 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
                       marginal = FALSE,
                       marginal_type = c("density", "boxplot", "histogram"),
                       marginal_size = 5,
-                      marginal_alpha = 0.35) {
+                      marginal_alpha = 0.35,
+                      patchwork = FALSE) {
 
   if (!is.null(dev.list())) dev.off()
   marginal_type <- match.arg(marginal_type)
+  plotlist_pw <- list()
 
   # ── out dirs ──────────────────────────────────────────────────────────────
   out        <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
@@ -382,7 +385,7 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
       group.cbn         <- combn(x = levels(mapping[, mvar]), m = combination)
       group_comparisons <- lapply(seq_len(ncol(group.cbn)), function(i) group.cbn[, i])
 
-      pdf(sprintf("%s/ordi.%s.MK.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
+      if (!isTRUE(patchwork)) pdf(sprintf("%s/ordi.%s.MK.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
                   plot, paste(distance_metrics, collapse = "+"), project, mvar,
                   ifelse(is.null(facet),       "", paste0(facet, ".")),
                   paste0("(cbn=", combination, ")."),
@@ -553,14 +556,17 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
           plotlist[[length(plotlist) + 1]] <- p
         }
       }
-      .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
-      dev.off()
+      plotlist_pw <- c(plotlist_pw, plotlist)
+      if (!isTRUE(patchwork)) {
+        .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
+        dev.off()
+      }
 
     # ────────────────────────────────────────────────────────────────────────
     # NO-COMBINATION path
     # ────────────────────────────────────────────────────────────────────────
     } else {
-      pdf(sprintf("%s/ordi.%s.MK.%s.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
+      if (!isTRUE(patchwork)) pdf(sprintf("%s/ordi.%s.MK.%s.%s.%s%s%s%s%s%s%s%s.pdf", out_path,
                   plot, paste(distance_metrics, collapse = "+"), project, mvar,
                   ifelse(is.null(facet),       "", paste0(facet, ".")),
                   ifelse(is.null(cate.conf),   "", "with_confounder."),
@@ -722,8 +728,12 @@ Go_bdivMK <- function(psIN, cate.vars, project, orders, distance_metrics,
         p <- .apply_marginal(p)
         plotlist[[length(plotlist) + 1]] <- p
       }
-      .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
-      dev.off()
+      plotlist_pw <- c(plotlist_pw, plotlist)
+      if (!isTRUE(patchwork)) {
+        .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
+        dev.off()
+      }
     }
   }
+  if (isTRUE(patchwork)) return(invisible(plotlist_pw))
 }

@@ -18,7 +18,8 @@ Go_groupBox(
   ylim = NULL,
   flip = T,
   height,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -49,6 +50,8 @@ Go_groupBox(
 \item{height}{Height of the output plot.}
 
 \item{width}{Width of the output plot.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Generates grouped boxplot as a PDF file and saves it in a specified directory.

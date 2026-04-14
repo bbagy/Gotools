@@ -6,49 +6,65 @@
 \usage{
 Go_biplot(
   psIN,
-  metaData,
   project,
-  orders,
-  distance_metrics,
-  data_type,
-  biplot,
-  shapes,
-  TaxaLevel,
-  ID,
-  facet,
-  name,
-  height,
-  width
+  cate.vars = NULL,
+  orders = NULL,
+  distance_metrics = c("bray"),
+  data_type = NULL,
+  biplot = NULL,
+  shapes = 16,
+  TaxaLevel = "Genus",
+  ID = NULL,
+  facet = NULL,
+  name = NULL,
+  height = 6,
+  width = 8,
+  con.vars = NULL,
+  taxa_allow = TRUE,
+  patchwork = FALSE
 )
 }
 \arguments{
 \item{psIN}{Phyloseq object containing microbiome data.}
 
-\item{metaData}{Path to the metadata CSV file.}
-
 \item{project}{Name of the project for labeling.}
 
-\item{orders}{Ordering of factors in the plot.}
+\item{cate.vars}{Optional categorical sample-data variables to plot. If
+\code{NULL}, the function auto-detects categorical columns from
+\code{sample_data(psIN)}.}
+
+\item{orders}{Optional ordering of factor levels applied to \code{cate.vars}
+and \code{facet} via \code{intersect()}.}
 
 \item{distance_metrics}{Vector of distance metrics to be used for NMDS.}
 
-\item{data_type}{Type of data (e.g., 'dada2', 'Nephele', 'Other').}
+\item{data_type}{Deprecated compatibility argument. Ignored.}
 
-\item{biplot}{Logical indicating whether to include biplot vectors.}
+\item{biplot}{Optional taxa selector for arrow variables. Accepts numeric
+indices or taxa names at the aggregated \code{TaxaLevel}. If \code{NULL},
+all aggregated taxa are eligible.}
 
-\item{shapes}{Shape of points in the plot.}
+\item{shapes}{Point shape value. Scalar shapes are drawn directly.}
 
-\item{TaxaLevel}{Taxonomic level for aggregation.}
+\item{TaxaLevel}{Taxonomic rank used for abundance aggregation and taxa arrows.}
 
-\item{ID}{Identifier for labeling points.}
+\item{ID}{Optional sample ID column for point labels.}
 
-\item{facet}{Faceting variable for the plot.}
+\item{facet}{Optional faceting variable from \code{sample_data(psIN)}.}
 
 \item{name}{Optional name for the output plot.}
 
 \item{height}{Height of the plot.}
 
 \item{width}{Width of the plot.}
+
+\item{con.vars}{Optional numeric sample-data columns to include as
+supplementary envfit arrows.}
+
+\item{taxa_allow}{Logical. If \code{TRUE}, include taxa arrows from the
+aggregated \code{TaxaLevel}; if \code{FALSE}, hide taxa arrows.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 A PDF file containing the NMDS biplot.
@@ -57,22 +73,27 @@ A PDF file containing the NMDS biplot.
 Generate NMDS Biplot for Microbiome Data
 }
 \details{
-This function creates NMDS (Non-metric Multidimensional Scaling) biplots for visualizing microbiome data, allowing for comparisons across various conditions or factors. The function supports different distance metrics, taxonomic levels, and customization options for the plot.
+This function creates NMDS biplots from a \code{phyloseq} object using
+\code{sample_data(psIN)} directly. Sample distances are determined only by
+the aggregated microbiome abundance matrix at \code{TaxaLevel}. Optional
+continuous variables in \code{con.vars} are added as supplementary envfit
+arrows and do not affect the NMDS coordinates themselves.
 }
 \examples{
-Go_biplot(psIN = ps_object,
-          metaData = "metadata.csv",
-          project = "MyMicrobiomeStudy",
-          orders = c("Condition1", "Condition2"),
-          distance_metrics = c("bray", "unifrac"),
-          data_type = "dada2",
-          biplot = TRUE,
-          shapes = 16,
-          TaxaLevel = "Genus",
-          ID = "SampleID",
-          facet = "Group",
-          name = "NMDSPlot",
-          height = 6,
-          width = 8)
+\dontrun{
+Go_biplot(
+  psIN = ps_object,
+  project = "MyMicrobiomeStudy",
+  cate.vars = c("Treatment"),
+  orders = c("Control", "Case"),
+  distance_metrics = c("bray"),
+  TaxaLevel = "Genus",
+  facet = "Site",
+  con.vars = c("Acetate", "Propionate", "Butyrate"),
+  taxa_allow = TRUE,
+  height = 6,
+  width = 8
+)
+}
 
 }

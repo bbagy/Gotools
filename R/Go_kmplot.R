@@ -78,6 +78,7 @@
 #' @importFrom survminer ggsurvplot
 #' @importFrom ggplot2 cut_number
 #' @importFrom grDevices pdf dev.off
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_kmplot <- function(df,
@@ -90,7 +91,8 @@ Go_kmplot <- function(df,
                       n_group      = 3,
                       group_labels = NULL,
                       height       = 5,
-                      width        = 6) {
+                      width        = 6,
+                      patchwork    = FALSE) {
 
   # 필요한 패키지 자동 설치
   pkgs <- c("dplyr", "survival", "survminer", "ggplot2")
@@ -197,6 +199,7 @@ Go_kmplot <- function(df,
   )
 
   # 항상 PDF 저장
+  if (isTRUE(patchwork)) return(invisible(p$plot))
   grDevices::pdf(pdf_file, height = height, width = width)
   print(p$plot)
   grDevices::dev.off()

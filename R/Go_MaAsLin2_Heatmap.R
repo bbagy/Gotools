@@ -98,6 +98,7 @@
 #' @importFrom tidyr complete pivot_wider
 #' @importFrom ggplot2 ggplot aes geom_tile geom_text scale_fill_gradient2
 #' @importFrom ggplot2 labs theme_bw theme element_text element_blank
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_Maaslin2_heatmap <- function(df,
@@ -109,7 +110,8 @@ Go_Maaslin2_heatmap <- function(df,
                                 height       = 3,
                                 width        = 4,
                                 cluster_rows = TRUE,       # row를 coef 패턴으로 클러스터링
-                                title        = NULL)       # 제목 수동 지정 가능
+                                title        = NULL,       # 제목 수동 지정 가능
+                                patchwork    = FALSE)
 {
   ## --------------------------
   ## 1) Output directory setup
@@ -263,6 +265,7 @@ Go_Maaslin2_heatmap <- function(df,
   ## --------------------------
   ## 9) PDF 저장 (ggplot2::ggsave로 강제)
   ## --------------------------
+  if (isTRUE(patchwork)) return(invisible(p))
   ggplot2::ggsave(filename = pdf_file, plot = p,
                   height = height, width = width)
   

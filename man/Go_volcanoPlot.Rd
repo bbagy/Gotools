@@ -15,7 +15,8 @@ Go_volcanoPlot(
   overlaps = 10,
   font,
   height,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -38,6 +39,8 @@ Go_volcanoPlot(
 \item{height}{The height of the output PDF file for the plot.}
 
 \item{width}{The width of the output PDF file for the plot.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 The function generates and saves volcano plot PDF files but does not return a value.

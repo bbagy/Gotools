@@ -28,7 +28,8 @@ Go_sankey(
   plotRows = 1,
   size_by = c("abundance", "count"),
   alpha = 0.72,
-  mycol = NULL
+  mycol = NULL,
+  patchwork = FALSE
 )
 
 Go_sankey(
@@ -55,7 +56,8 @@ Go_sankey(
   plotRows = 1,
   size_by = c("abundance", "count"),
   alpha = 0.72,
-  mycol = NULL
+  mycol = NULL,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -121,6 +123,8 @@ sample count per path in \code{mode = "feature"}. One of
 \item{mycol}{Optional color vector. In \code{mode = "feature"} it is
 mapped to features. In \code{mode = "transition"} it is mapped to
 fill groups.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Invisibly returns a list of ggplot objects. A PDF is written to

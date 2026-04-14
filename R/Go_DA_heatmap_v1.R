@@ -36,11 +36,13 @@
 #'            height = 10,
 #'            width = 15)
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_DA_heat <- function(df, project, data_type, font,
                        addnumber=TRUE, facet=NULL, mycols = NULL,
-                       pval,fc, orders, name, height, width){
+                       pval,fc, orders, name, height, width,
+                       patchwork = FALSE){
 
   if(!is.null(dev.list())) dev.off()
 
@@ -108,7 +110,7 @@ colnames(df)
 
 
 
-  pdf(sprintf("%s/DA.heatmap.%s.%s%s(%s.%s).%s.%s.pdf", out_path,
+  if (!isTRUE(patchwork)) pdf(sprintf("%s/DA.heatmap.%s.%s%s(%s.%s).%s.%s.pdf", out_path,
               project,
               ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
               ifelse(is.null(name), "", paste(name, ".", sep = "")),
@@ -267,6 +269,7 @@ colnames(df)
 
   p4$layout[id, c("l","r")] <- c(1, ncol(p4))
 
+  if (isTRUE(patchwork)) return(invisible(p))
   #grid.newpage()
   grid.draw(p4)
   dev.off()

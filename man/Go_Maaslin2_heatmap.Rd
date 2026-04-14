@@ -14,7 +14,8 @@ Go_Maaslin2_heatmap(
   height = 3,
   width = 4,
   cluster_rows = TRUE,
-  title = NULL
+  title = NULL,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -51,6 +52,8 @@ clustered using their longitudinal coefficient profiles.}
 
 \item{title}{Optional title for the heatmap.
 If NULL, title is auto-generated based on p/q thresholds.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Invisibly returns the ggplot object used for the heatmap.

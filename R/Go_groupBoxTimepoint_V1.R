@@ -104,6 +104,7 @@
 #' )
 #' }
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_groupBoxTimepoint <- function(df = NULL,
@@ -122,7 +123,8 @@ Go_groupBoxTimepoint <- function(df = NULL,
                                  plotCols = NULL,
                                  plotRows = NULL,
                                  baseline = NULL,   # 추가
-                                 paired = NULL) {   # 추가
+                                 paired = NULL,     # 추가
+                                 patchwork = FALSE) {
 
   if (is.null(df)) stop("Input dataframe (df) is required.")
   if (is.null(project)) stop("Project name is required.")
@@ -247,6 +249,7 @@ Go_groupBoxTimepoint <- function(df = NULL,
     plotlist[[length(plotlist) + 1]] <- p
   }
 
+  if (isTRUE(patchwork)) return(invisible(plotlist))
   dir <- Go_path(project, pdf = "yes", table = "no", path = NULL)
   pdf(sprintf("%s/box.bygroup.%s.%s.%s%s.pdf", dir$pdf,
               project,

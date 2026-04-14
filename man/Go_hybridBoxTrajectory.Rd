@@ -15,6 +15,7 @@ Go_hybridBoxTrajectory(
   subject.var,
   name = NULL,
   mycols = NULL,
+  covariates = NULL,
   statistics = TRUE,
   p_adjust = TRUE,
   log_transform = c("auto", "none", "log1p"),
@@ -25,7 +26,8 @@ Go_hybridBoxTrajectory(
   width = 8,
   height = NULL,
   df = NULL,
-  psIN = NULL
+  psIN = NULL,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -62,6 +64,10 @@ such as \code{c(NC = "#4C78A8", CD = "#E45756", Neg = "#72B7B2",
 the output of \code{Go_myCols()}, which will be assigned in order to the
 panel levels after \code{orders} are resolved.}
 
+\item{covariates}{Optional covariate column names to include in the trajectory
+LMM as fixed effects. These are added additively after the main
+\code{time.var * traj.var} terms.}
+
 \item{statistics}{Logical; if \code{TRUE}, fit an LMM for each outcome in
 the trajectory panel and export ANOVA / emmeans tables.}
 
@@ -92,6 +98,8 @@ it will be merged into \code{input} internally.}
 
 \item{psIN}{Deprecated compatibility input for a phyloseq object. If
 supplied, it will be merged into \code{input} internally.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Invisibly returns a list containing plots, fitted model summaries,

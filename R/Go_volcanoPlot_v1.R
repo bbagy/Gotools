@@ -23,6 +23,7 @@
 #'                fc = 2, mycols = c("#00BFC4", "#F8766D"), name = "ExampleVolcanoPlot",
 #'                overlaps = 10, font = 12, height = 7, width = 7)
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 #' @importFrom ggplot2 ggplot aes_string xlab ylab geom_vline scale_color_manual theme element_text ggtitle geom_point scale_shape_manual
 #' @importFrom ggrepel geom_text_repel
@@ -37,7 +38,8 @@ Go_volcanoPlot <- function(project,
                        name = NULL,
                        overlaps=10,
                        font,
-                       height, width){
+                       height, width,
+                       patchwork = FALSE){
 
   build_taxonomy_plot_label <- function(df) {
     if (nrow(df) == 0) {
@@ -75,6 +77,35 @@ Go_volcanoPlot <- function(project,
     }, character(1))
 
     labels
+  }
+
+  build_optional_metric_note <- function(df) {
+    first_metric <- function(candidates) {
+      hits <- candidates[candidates %in% colnames(df)]
+      if (length(hits) == 0) {
+        return(NA_real_)
+      }
+      for (col in hits) {
+        vals <- suppressWarnings(as.numeric(df[[col]]))
+        vals <- vals[is.finite(vals) & !is.na(vals)]
+        if (length(vals) > 0) {
+          return(vals[1])
+        }
+      }
+      NA_real_
+    }
+
+    auroc <- first_metric(c("auroc", "AUROC", "mean_auroc", "roc", "ROC"))
+    auprc <- first_metric(c("auprc", "AUPRC", "mean_auprc", "prc", "PRC"))
+
+    parts <- c(
+      if (is.finite(auroc)) sprintf("ROC=%.3f", auroc) else NULL,
+      if (is.finite(auprc)) sprintf("PRC=%.3f", auprc) else NULL
+    )
+    if (length(parts) == 0) {
+      return(NULL)
+    }
+    paste(parts, collapse = " | ")
   }
 
   if(!is.null(dev.list())) dev.off()
@@ -126,6 +157,7 @@ Go_volcanoPlot <- function(project,
     mycols <- NULL
   }
 
+  plotlist_pw <- list()
   for (fn in seq_len(nrow(file_list))) {
     filename1 <- file.path(file_list$path[fn], file_list$file[fn])
     df <- read.csv(filename1, row.names=NULL ,check.names=FALSE)
@@ -348,6 +380,7 @@ Go_volcanoPlot <- function(project,
     subtitle_parts <- c(
       wilcoxon_fallback_note,
       if (!is.null(confounder)) "confounder-adjusted DA" else NULL,
+      build_optional_metric_note(df),
       small_n_warn
     )
     subtitle_text <- if (length(subtitle_parts) > 0) paste(subtitle_parts, collapse = " | ") else NULL
@@ -618,18 +651,22 @@ Go_volcanoPlot <- function(project,
 
 
 
-      pdf(sprintf("%s/%s.%s%s.(%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
-                  tool,
-                  ifelse(is.null(plot), "", paste(plot, ".", sep = "")),
-                  mvar,
-                  comparison_token,
-                  project,
-                  ifelse(is.null(model1), "", paste(model1, ".", sep = "")),
-                  ifelse(is.null(confounder), "", paste(confounder, ".", sep = "")),
-                  fc,
-                  format(Sys.Date(), "%y%m%d")), height = height, width = width)
-      print(p2)
-      dev.off()
+      plotlist_pw[[length(plotlist_pw) + 1]] <- p2
+      if (!isTRUE(patchwork)) {
+        pdf(sprintf("%s/%s.%s%s.(%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
+                    tool,
+                    ifelse(is.null(plot), "", paste(plot, ".", sep = "")),
+                    mvar,
+                    comparison_token,
+                    project,
+                    ifelse(is.null(model1), "", paste(model1, ".", sep = "")),
+                    ifelse(is.null(confounder), "", paste(confounder, ".", sep = "")),
+                    fc,
+                    format(Sys.Date(), "%y%m%d")), height = height, width = width)
+        print(p2)
+        dev.off()
+      }
     }
   }
+  if (isTRUE(patchwork)) return(invisible(plotlist_pw))
 }

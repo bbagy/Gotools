@@ -14,7 +14,8 @@ Go_prediction_plot(
   roc_height = 4,
   pr_width = 4,
   pr_height = 4.5,
-  imp_width = 7
+  imp_width = 7,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -43,6 +44,8 @@ Defaults to \code{c(Positive = "#d62728", Negative = "#1f77b4",
 \item{pr_height}{Numeric PDF height for PR.}
 
 \item{imp_width}{Numeric PDF width for importance.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Saves PDF files and returns \code{NULL} invisibly.

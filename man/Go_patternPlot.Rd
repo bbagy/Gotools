@@ -17,9 +17,11 @@ Go_patternPlot(
   site.compact.step = 0.14,
   site.dodge.width = 0.6,
   mycols = NULL,
+  subtitle = NULL,
   name = NULL,
   width = 6,
-  height = 15
+  height = 15,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -57,9 +59,15 @@ If \code{FALSE}, plot each \code{StudyID} row directly (no pattern collapsing).}
 If \code{NULL}, a default palette is used. Length must be \eqn{\ge} number of
 unique non-NA levels in \code{fillinfor}.}
 
+\item{subtitle}{Optional character scalar shown under the main title.
+If \code{multi.sites} is used, this text is appended after the automatic
+site-order subtitle.}
+
 \item{width}{Numeric. PDF width in inches. Default \code{6}.}
 
 \item{height}{Numeric. PDF height in inches. Default \code{15}.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 (Invisibly) a list with:

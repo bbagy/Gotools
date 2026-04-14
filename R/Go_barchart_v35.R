@@ -51,6 +51,7 @@
 #'             height = 7,
 #'             width = 10)
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
@@ -65,7 +66,8 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
                         name=NULL,
                         ncol=NULL,
                         mark=NULL,
-                        height, width){
+                        height, width,
+                        patchwork = FALSE){
 
   if(!is.null(dev.list())) dev.off()
 
@@ -229,6 +231,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
 
   mapping.sel <- data.frame(sample_data(psIN))
 
+  plotlist_pw <- list()
   for(i in seq_along(taxanames)){
 
     otu.filt <- as.data.frame(otu_table(psIN))
@@ -347,7 +350,8 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
 
     pdf_width <- width
     pdf_height <- max(vapply(layout_plan, function(x) height + x$legend_height, numeric(1)))
-    pdf(build_barchart_pdf_path(taxanames[i]), height = pdf_height, width = pdf_width)
+    plotlist_pw_taxa <- list()
+    if (!isTRUE(patchwork)) pdf(build_barchart_pdf_path(taxanames[i]), height = pdf_height, width = pdf_width)
 
     for (mvar in cate.vars) {
       current_layout <- layout_plan[[mvar]]
@@ -415,8 +419,11 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
         chart_height = height,
         legend_height = current_layout$legend_height
       )
-      print(combined_plot)
+      plotlist_pw_taxa[[length(plotlist_pw_taxa) + 1]] <- p
+      if (!isTRUE(patchwork)) print(combined_plot)
     }
-    dev.off()
+    plotlist_pw[[length(plotlist_pw) + 1]] <- plotlist_pw_taxa
+    if (!isTRUE(patchwork)) dev.off()
   }
+  if (isTRUE(patchwork)) return(invisible(plotlist_pw))
 }

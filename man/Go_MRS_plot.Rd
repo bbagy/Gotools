@@ -13,7 +13,8 @@ Go_MRS_plot(
   project = NULL,
   name = NULL,
   order = NULL,
-  mycol = c("#1f77b4", "#d62728")
+  mycol = c("#1f77b4", "#d62728"),
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -39,6 +40,8 @@ score plots. Must have length 2 when provided.}
 \item{mycol}{Optional color vector. The first color is used for the first
 group (or negative direction), and the second for the second group (or
 positive direction).}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 A ggplot object. The returned plot may carry attributes such as

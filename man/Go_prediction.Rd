@@ -56,6 +56,8 @@ Default \code{1000}.}
 
 \item{orders}{Character vector of length 2 giving outcome level order
 (e.g., \code{c("Control","Case")}); positive class is \code{orders[2]}.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 (Invisibly) the output directory path \code{outdir}. All prediction

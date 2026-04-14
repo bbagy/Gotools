@@ -59,6 +59,7 @@
 #' )
 #' }
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 Go_prediction_plot <- function(result,
                                topN = 20,
@@ -71,7 +72,8 @@ Go_prediction_plot <- function(result,
                                roc_height = 4,
                                pr_width = 4,
                                pr_height = 4.5,
-                               imp_width = 7) {
+                               imp_width = 7,
+                               patchwork = FALSE) {
   needed <- c("pROC", "PRROC", "ggplot2")
   missing <- needed[!vapply(needed, requireNamespace, logical(1), quietly = TRUE)]
   if (length(missing) > 0) {
@@ -171,6 +173,10 @@ Go_prediction_plot <- function(result,
     if (grepl("xgb_meta\\.rds$", meta_path)) return("XGBoost")
     if (grepl("lgb_meta\\.rds$", meta_path)) return("LightGBM")
     base_nm
+  }
+
+  if (isTRUE(patchwork)) {
+    message("[Go_prediction_plot] patchwork = TRUE: ROC/PR plots are base-R graphics (skipped). Only the feature importance ggplot is returned.")
   }
 
   outdirs <- resolve_outdirs(result)
@@ -273,42 +279,44 @@ Go_prediction_plot <- function(result,
     title_model <- paste(unique(model_labels), collapse = " / ")
 
     first_name <- comp_labels[1]
-    grDevices::pdf(file.path(roc_dir, sprintf("%s_ROC.pdf", file_tag)),
-                   width = roc_width + 1, height = roc_height + 1)
-    pROC::plot.roc(roc_list[[first_name]],
-                   col = comp_cols[first_name],
-                   lwd = 2,
-                   asp = 1,
-                   main = sprintf("OOF ROC comparison (%s)", title_model))
-    if (length(roc_list) > 1) {
-      for (nm in comp_labels[-1]) {
-        pROC::plot.roc(roc_list[[nm]], col = comp_cols[nm], lwd = 2, add = TRUE)
+    if (!isTRUE(patchwork)) {
+      grDevices::pdf(file.path(roc_dir, sprintf("%s_ROC.pdf", file_tag)),
+                     width = roc_width + 1, height = roc_height + 1)
+      pROC::plot.roc(roc_list[[first_name]],
+                     col = comp_cols[first_name],
+                     lwd = 2,
+                     asp = 1,
+                     main = sprintf("OOF ROC comparison (%s)", title_model))
+      if (length(roc_list) > 1) {
+        for (nm in comp_labels[-1]) {
+          pROC::plot.roc(roc_list[[nm]], col = comp_cols[nm], lwd = 2, add = TRUE)
+        }
       }
-    }
-    graphics::abline(0, 1, lty = 2, col = "grey70")
-    graphics::legend("bottomright",
-                     legend = sprintf("%s (AUC=%s)", comp_labels, format_auc_label(auc_list)),
-                     col = comp_cols[comp_labels], lwd = 2, bty = "n")
-    grDevices::dev.off()
+      graphics::abline(0, 1, lty = 2, col = "grey70")
+      graphics::legend("bottomright",
+                       legend = sprintf("%s (AUC=%s)", comp_labels, format_auc_label(auc_list)),
+                       col = comp_cols[comp_labels], lwd = 2, bty = "n")
+      grDevices::dev.off()
 
-    grDevices::pdf(file.path(pr_dir, sprintf("%s_PRROC.pdf", file_tag)),
-                   width = pr_width + 1, height = pr_height + 0.5)
-    graphics::plot(pr_list[[first_name]]$curve[, 1], pr_list[[first_name]]$curve[, 2],
-                   type = "l", lwd = 2, col = comp_cols[first_name],
-                   xlab = "Recall", ylab = "Precision",
-                   main = sprintf("OOF PR comparison (%s)", title_model))
-    if (length(pr_list) > 1) {
-      for (nm in comp_labels[-1]) {
-        graphics::lines(pr_list[[nm]]$curve[, 1], pr_list[[nm]]$curve[, 2],
-                        lwd = 2, col = comp_cols[nm])
+      grDevices::pdf(file.path(pr_dir, sprintf("%s_PRROC.pdf", file_tag)),
+                     width = pr_width + 1, height = pr_height + 0.5)
+      graphics::plot(pr_list[[first_name]]$curve[, 1], pr_list[[first_name]]$curve[, 2],
+                     type = "l", lwd = 2, col = comp_cols[first_name],
+                     xlab = "Recall", ylab = "Precision",
+                     main = sprintf("OOF PR comparison (%s)", title_model))
+      if (length(pr_list) > 1) {
+        for (nm in comp_labels[-1]) {
+          graphics::lines(pr_list[[nm]]$curve[, 1], pr_list[[nm]]$curve[, 2],
+                          lwd = 2, col = comp_cols[nm])
+        }
       }
+      graphics::legend("bottomleft",
+                       legend = sprintf("%s (AUPRC=%s)", comp_labels, format_auc_label(auprc_list)),
+                       col = comp_cols[comp_labels], lwd = 2, bty = "n")
+      grDevices::dev.off()
     }
-    graphics::legend("bottomleft",
-                     legend = sprintf("%s (AUPRC=%s)", comp_labels, format_auc_label(auprc_list)),
-                     col = comp_cols[comp_labels], lwd = 2, bty = "n")
-    grDevices::dev.off()
 
-    return(invisible(NULL))
+    return(invisible(NULL))  # comparison mode: no ggplot to return
   }
 
   outdir <- outdirs[1]

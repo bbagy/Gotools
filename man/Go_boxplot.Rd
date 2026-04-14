@@ -13,7 +13,8 @@ Go_boxplot(
   orders = NULL,
   mycols = NULL,
   combination = NULL,
-  ylim = NULL,
+  chao1_ylim = 150,
+  shannon_ylim = 7,
   title = NULL,
   facet = NULL,
   paired = NULL,
@@ -27,7 +28,8 @@ Go_boxplot(
   min_height = 2,
   min_width = 2,
   plotCols = 1,
-  plotRows = 1
+  plotRows = 1,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -49,7 +51,11 @@ Go_boxplot(
 
 \item{combination}{Number of group combinations to display in the boxplot.}
 
-\item{ylim}{Y-axis limits for the plot.}
+\item{chao1_ylim}{Maximum y-axis value for \code{Chao1} plots. The lower bound is fixed at 0.
+Only applied when the outcome is \code{"Chao1"}. Default \code{150}.}
+
+\item{shannon_ylim}{Maximum y-axis value for \code{Shannon} plots. The lower bound is fixed at 0.
+Only applied when the outcome is \code{"Shannon"}. Default \code{7}.}
 
 \item{title}{Title of the plot.}
 
@@ -78,6 +84,8 @@ Go_boxplot(
 \item{plotCols}{Number of columns in the multiplot layout. Default 1.}
 
 \item{plotRows}{Number of rows in the multiplot layout. Default 1.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 A PDF file containing the boxplots.

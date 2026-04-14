@@ -49,6 +49,7 @@
 #'             showPhylum = TRUE,
 #'             width = 10)
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_pheatmap <- function(psIN,project, title = NULL,
@@ -60,7 +61,8 @@ Go_pheatmap <- function(psIN,project, title = NULL,
                         cutree_rows = NA, cutree_cols = NA,
                         cluster_rows = T, cluster_cols = T,
                         showPhylum = T,
-                        width){
+                        width,
+                        patchwork = FALSE){
   # BiocManager::install("ComplexHeatmap")
   # install.packages("Cairo")
   if(!is.null(dev.list())) dev.off()
@@ -377,6 +379,7 @@ print("Check the psIN")
                            ifelse(is.null(name), "", paste0(name, ".")),
                            format(Sys.Date(), "%y%m%d"))
 
+  if (isTRUE(patchwork)) return(invisible(p))
   pdf(file = file.path(out_pdf, paste0(file_name_pdf, ".pdf")),
       height = h, width = width)
 

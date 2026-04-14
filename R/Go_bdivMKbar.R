@@ -42,6 +42,7 @@
 #' )
 #' }
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 Go_bdivMKbar <- function(psIN,
                          project,
@@ -57,7 +58,8 @@ Go_bdivMKbar <- function(psIN,
                          include_numeric = TRUE,
                          include_character = TRUE,
                          height = 8,
-                         width = 7) {
+                         width = 7,
+                         patchwork = FALSE) {
 
   if (!inherits(psIN, "phyloseq")) {
     stop("`psIN` must be a phyloseq object.")
@@ -327,6 +329,7 @@ Go_bdivMKbar <- function(psIN,
   pdf_path <- file.path(out_pdf, paste0(file_stub, ".pdf"))
 
   utils::write.csv(results, csv_path, row.names = FALSE)
+  if (isTRUE(patchwork)) return(invisible(p))
   ggplot2::ggsave(pdf_path, p, width = width, height = height)
 
   invisible(list(

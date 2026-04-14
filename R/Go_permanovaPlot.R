@@ -82,6 +82,7 @@
 #' )
 #' }
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 Go_permanovaPlot <- function(psIN,
                              project,
@@ -104,7 +105,8 @@ Go_permanovaPlot <- function(psIN,
                              show_strip_text  = FALSE,
                              base_size        = 10,
                              height           = NULL,
-                             width            = NULL) {
+                             width            = NULL,
+                             patchwork        = FALSE) {
 
   # ── input validation ────────────────────────────────────────────────────────
   if (!inherits(psIN, "phyloseq")) {
@@ -374,6 +376,7 @@ Go_permanovaPlot <- function(psIN,
   pdf_path <- file.path(out_pdf,  paste0(file_stub, ".pdf"))
 
   utils::write.csv(results, csv_path, row.names = FALSE)
+  if (isTRUE(patchwork)) return(invisible(p_combined))
   ggplot2::ggsave(pdf_path, p_combined, width = width, height = height)
 
   invisible(list(

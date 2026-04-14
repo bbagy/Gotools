@@ -17,7 +17,8 @@ Go_extendedBarplot(
   p_adjust_method = "BH",
   use_adjusted_p = TRUE,
   height,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -46,6 +47,8 @@ Go_extendedBarplot(
 \item{height}{Height of the output plot in inches.}
 
 \item{width}{Width of the output plot in inches.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Invisibly returns a list containing plot object, Wilcoxon table, and plotted data.

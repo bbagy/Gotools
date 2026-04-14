@@ -56,6 +56,7 @@
 #' @return Invisibly returns a list of plot objects. A PDF is written to the
 #'   dated project \code{pdf/} directory.
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 Go_alluvialplot <- function(project,
                             SigASVs = NULL,
@@ -80,7 +81,8 @@ Go_alluvialplot <- function(project,
                             plotRows = 1,
                             size_by = c("abundance", "count"),
                             alpha = 0.72,
-                            mycol = NULL) {
+                            mycol = NULL,
+                            patchwork = FALSE) {
 
   mode <- match.arg(mode)
   size_by <- match.arg(size_by)
@@ -424,6 +426,7 @@ Go_alluvialplot <- function(project,
       ifelse(is.null(name), "", paste0(clean_tag(name), ".")),
       format(Sys.Date(), "%y%m%d")
     )
+    if (isTRUE(patchwork)) return(invisible(plots))
     pdf_path <- file.path(out_path, file_stub)
     grDevices::pdf(pdf_path, height = height, width = width)
     on.exit(grDevices::dev.off(), add = TRUE)
@@ -657,6 +660,7 @@ Go_alluvialplot <- function(project,
     p <- p + ggplot2::facet_wrap(stats::as.formula(paste("~", facet_var)))
   }
 
+  if (isTRUE(patchwork)) return(invisible(list(p)))
   render_plots(
     list(p), pdf_path = pdf_path,
     width = width, height = height, plotCols = 1, plotRows = 1

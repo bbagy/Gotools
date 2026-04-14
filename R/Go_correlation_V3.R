@@ -36,6 +36,7 @@
 #'                Table = metabolite_df, top = 30, min_prev = 0.1,
 #'                method = "spearman", padj = TRUE, height = 10, width = 8)
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_correlation <- function(psIN, project,
@@ -51,7 +52,8 @@ Go_correlation <- function(psIN, project,
                            xangle   = 90,
                            ncols    = NULL,
                            name     = NULL,
-                           height, width) {
+                           height, width,
+                           patchwork = FALSE) {
 
   if (!is.null(dev.list())) dev.off()
 
@@ -215,6 +217,7 @@ Go_correlation <- function(psIN, project,
     p <- p + facet_wrap(~ group, ncol = nc, scales = "free_x")
   }
 
+  if (isTRUE(patchwork)) return(invisible(p))
   pdf_name <- sprintf("%s/correlation.%s.%s.%s%s%s.pdf",
                       out_path, rank, method,
                       ifelse(!is.null(group), paste0(group, "."), ""),

@@ -22,9 +22,10 @@
 #'       height = 10,
 #'       width = 8)
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
-Go_qq <- function(psIN, project, alpha_metrics, name, height, width){
+Go_qq <- function(psIN, project, alpha_metrics, name, height, width, patchwork = FALSE){
     if(!is.null(dev.list())) dev.off()
   # out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d"))) 
@@ -34,9 +35,13 @@ Go_qq <- function(psIN, project, alpha_metrics, name, height, width){
   
   
       # logic for out file
-  pdf(sprintf("%s/QQplot.%s%s.%s.pdf", out_path, 
-              project, 
-              ifelse(is.null(name), "", paste(name, ".", sep = "")), 
+  if (isTRUE(patchwork)) {
+    message("[Go_qq] patchwork = TRUE: base-R QQ plots cannot be returned as ggplot objects. Returning invisible(NULL).")
+    return(invisible(NULL))
+  }
+  pdf(sprintf("%s/QQplot.%s%s.%s.pdf", out_path,
+              project,
+              ifelse(is.null(name), "", paste(name, ".", sep = "")),
               format(Sys.Date(), "%y%m%d")), height = height, width = width)
   
   # 1st adiv table

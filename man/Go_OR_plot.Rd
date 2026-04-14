@@ -10,7 +10,8 @@ Go_OR_plot(
   order = NULL,
   style = c("default", "paper"),
   project = NULL,
-  name = NULL
+  name = NULL,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -27,6 +28,8 @@ are used.}
 \item{project}{Optional project name used for automatic PDF output.}
 
 \item{name}{Optional filename tag for the saved PDF.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 A ggplot object with optional saved-path attributes.

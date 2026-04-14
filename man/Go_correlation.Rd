@@ -20,7 +20,8 @@ Go_correlation(
   ncols = NULL,
   name = NULL,
   height,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -55,6 +56,8 @@ Go_correlation(
 \item{height}{Height of the output PDF.}
 
 \item{width}{Width of the output PDF.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Saves a PDF heatmap and a CSV of correlation results. Returns the result data frame invisibly.

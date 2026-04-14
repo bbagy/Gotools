@@ -19,6 +19,7 @@
 #' The function prints the plot to the current graphics device and saves a PDF file to the project directory.
 #'
 #' @return No return value; the function is called for its side effects of creating a plot and saving a PDF.
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 #' @examples
 #' Go_piePlot(df = df, project = "MyProject", pie1 = "Category", pie3 = "Percentage")
@@ -32,7 +33,8 @@ Go_piePlot <- function(df,
                        mycols = NULL,
                        name = NULL,
                        height,
-                       width) {
+                       width,
+                       patchwork = FALSE) {
 
   # Close any open graphic devices to start fresh
   if(!is.null(dev.list())) dev.off()
@@ -142,6 +144,7 @@ Go_piePlot <- function(df,
 
   print(p1)
   # Save the plot as a PDF
+  if (isTRUE(patchwork)) return(invisible(list(p = p, polar = p1)))
   pdf(sprintf("%s/pie.%s.%s%s.pdf", out_path,
               project,
               ifelse(is.null(name), "", paste(name, ".", sep = "")),

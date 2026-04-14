@@ -14,7 +14,8 @@ Go_piePlot(
   mycols = NULL,
   name = NULL,
   height,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -35,6 +36,8 @@ Go_piePlot(
 \item{height}{The height of the plot in inches, used for the saved PDF file.}
 
 \item{width}{The width of the plot in inches, used for the saved PDF file.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 No return value; the function is called for its side effects of creating a plot and saving a PDF.

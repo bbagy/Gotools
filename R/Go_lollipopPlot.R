@@ -22,6 +22,7 @@
 #'
 #' @return The function saves PDF files and returns `NULL` invisibly.
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 Go_lollipopPlot <- function(project,
                             file_path = NULL,
@@ -32,7 +33,8 @@ Go_lollipopPlot <- function(project,
                             name = NULL,
                             font = 10,
                             height = NULL,
-                            width = 2.2) {
+                            width = 2.2,
+                            patchwork = FALSE) {
 
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("ggplot2 is required.")
@@ -46,6 +48,35 @@ Go_lollipopPlot <- function(project,
       return(NA_character_)
     }
     x[[1]]
+  }
+
+  build_optional_metric_note <- function(df) {
+    first_metric <- function(candidates) {
+      hits <- candidates[candidates %in% colnames(df)]
+      if (length(hits) == 0) {
+        return(NA_real_)
+      }
+      for (col in hits) {
+        vals <- suppressWarnings(as.numeric(df[[col]]))
+        vals <- vals[is.finite(vals) & !is.na(vals)]
+        if (length(vals) > 0) {
+          return(vals[1])
+        }
+      }
+      NA_real_
+    }
+
+    auroc <- first_metric(c("auroc", "AUROC", "mean_auroc", "roc", "ROC"))
+    auprc <- first_metric(c("auprc", "AUPRC", "mean_auprc", "prc", "PRC"))
+
+    parts <- c(
+      if (is.finite(auroc)) sprintf("ROC=%.3f", auroc) else NULL,
+      if (is.finite(auprc)) sprintf("PRC=%.3f", auprc) else NULL
+    )
+    if (length(parts) == 0) {
+      return("")
+    }
+    paste(parts, collapse = " | ")
   }
 
   calc_label_width_in <- function(labels, font_size_pt) {
@@ -308,7 +339,7 @@ Go_lollipopPlot <- function(project,
       } else "Wilcoxon fallback"
     } else ""
     final_subtitle <- paste(
-      c(wilcoxon_fallback_note, conda_subtitle, small_n_warn)[nzchar(c(wilcoxon_fallback_note, conda_subtitle, small_n_warn))],
+      c(wilcoxon_fallback_note, conda_subtitle, build_optional_metric_note(df), small_n_warn)[nzchar(c(wilcoxon_fallback_note, conda_subtitle, build_optional_metric_note(df), small_n_warn))],
       collapse = " | "
     )
 
@@ -384,6 +415,7 @@ Go_lollipopPlot <- function(project,
 
   print(file_list)
 
+  plotlist_pw <- list()
   for (fn in seq_len(nrow(file_list))) {
     filename1 <- file.path(file_list$path[fn], file_list$file[fn])
     df <- utils::read.csv(filename1, row.names = NULL, check.names = FALSE, stringsAsFactors = FALSE)
@@ -518,9 +550,13 @@ Go_lollipopPlot <- function(project,
     message(sprintf("[Go_lollipopPlot] %s: %d features retained, panel width = %.2f, axis width = %.2f, total width = %.2f, auto height = %.2f",
                     plot_df$file_tool[1], nrow(plot_df), width, axis_label_width, grob_width, plot_height))
 
-    ggplot2::ggsave(filename = pdf_file, plot = plot_grob, width = grob_width, height = plot_height, device = "pdf")
-    print(normalizePath(pdf_file, winslash = "/", mustWork = FALSE))
+    plotlist_pw[[length(plotlist_pw) + 1]] <- p
+    if (!isTRUE(patchwork)) {
+      ggplot2::ggsave(filename = pdf_file, plot = plot_grob, width = grob_width, height = plot_height, device = "pdf")
+      print(normalizePath(pdf_file, winslash = "/", mustWork = FALSE))
+    }
   }
 
+  if (isTRUE(patchwork)) return(invisible(plotlist_pw))
   invisible(NULL)
 }

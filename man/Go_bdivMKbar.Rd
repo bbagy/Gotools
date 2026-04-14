@@ -19,7 +19,8 @@ Go_bdivMKbar(
   include_numeric = TRUE,
   include_character = TRUE,
   height = 8,
-  width = 7
+  width = 7,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -56,6 +57,8 @@ auto-detection.}
 \item{height}{Height of the output PDF.}
 
 \item{width}{Width of the output PDF.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Invisibly returns a list with \code{results}, \code{plot}, and output paths.
