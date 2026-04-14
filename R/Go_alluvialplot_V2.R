@@ -621,9 +621,9 @@ Go_alluvialplot <- function(project,
       width = 0.32, fill = "grey96",
       color = "grey55", linewidth = 0.55
     ) +
-    ggplot2::geom_text(
-      stat = "stratum",
+    ggalluvial::stat_stratum(
       ggplot2::aes(label = ggplot2::after_stat(stratum)),
+      geom = "text",
       size = 3.5,
       fontface = "bold",
       color = "grey15"

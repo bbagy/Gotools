@@ -5,11 +5,11 @@
 \title{Assemble Multiple GoTools Plots with patchwork}
 \usage{
 Go_patchwork(
-  plots,
+  ...,
   project,
   name = NULL,
-  ncol = NULL,
-  nrow = NULL,
+  figure_num = NULL,
+  sfigure_num = NULL,
   design = NULL,
   guides = "collect",
   height = 7,
@@ -20,30 +20,34 @@ Go_patchwork(
 )
 }
 \arguments{
-\item{plots}{A ggplot object, or a list of ggplot objects (optionally
-nested, as returned by \code{Go_barchart}).}
+\item{...}{Named ggplot objects, e.g.
+\code{box = p_box[[1]], roc = p_mrs$roc}.
+Or pass \code{plots = list(...)} for backward compatibility.
+Nested lists are flattened automatically.}
 
-\item{project}{Project name used for the output folder and file naming.}
+\item{project}{Project name for output folder and file naming.}
 
-\item{name}{Optional name tag for the output filename.}
+\item{name}{Optional name tag appended to the filename.}
 
-\item{ncol}{Number of columns in the assembled layout. Passed to
-\code{patchwork::wrap_plots()}.}
+\item{figure_num}{Integer. When supplied, file is named
+\code{Figure<N>.<project>.<name>.<date>.pdf}.}
 
-\item{nrow}{Number of rows in the assembled layout.}
+\item{sfigure_num}{Integer. When supplied, file is named
+\code{Supplemental_Figure<N>.<project>.<name>.<date>.pdf}.
+Takes precedence over \code{figure_num}.}
 
-\item{design}{A patchwork layout string (e.g. \code{"AB\nCD"}).  When
-supplied, \code{ncol} and \code{nrow} are ignored.}
+\item{design}{Layout string using \code{"/"} as row separator (see section
+above). When \code{NULL}, patchwork auto-arranges.}
 
-\item{guides}{How to collect guides: \code{"collect"} (default),
-\code{"keep"}, or \code{"auto"}.}
+\item{guides}{Guide collection: \code{"collect"} (default), \code{"keep"},
+\code{"auto"}.}
 
-\item{height}{PDF height in inches.}
+\item{height}{PDF height in inches (default \code{7}).}
 
-\item{width}{PDF width in inches.}
+\item{width}{PDF width  in inches (default \code{10}).}
 
-\item{tag_levels}{Tag panels with letters (\code{"A"}) or numbers
-(\code{"1"}). \code{NULL} disables tagging (default).}
+\item{tag_levels}{Panel tag string, e.g. \code{"A"}, \code{"A)"},
+\code{"(a)"}. \code{NULL} disables tagging (default).}
 
 \item{title}{Optional overall figure title.}
 
@@ -51,23 +55,85 @@ supplied, \code{ncol} and \code{nrow} are ignored.}
 }
 \value{
 Invisibly returns the assembled patchwork object.
+\code{attr(result, "saved_path")} holds the PDF path.
 }
 \description{
 Takes plot objects returned by any GoTools function called with
 \code{patchwork = TRUE} and assembles them into a single figure using the
 \pkg{patchwork} package, then saves to PDF.
 }
+\details{
+Plots can be passed as named arguments directly (preferred) or as a single
+named list via the \code{plots} argument for backward compatibility.
+}
+\section{Layout with \code{design}}{
+
+Use \code{"/"} to separate rows. Each letter refers to the plot in that
+position (assigned A, B, C ... in the order the plots are passed).
+\code{"#"} is an empty cell. Repeat a letter to span cells.
+Short rows are automatically padded by repeating their last character.
+
+\preformatted{
+  "AB"        1 row   : [A][B]
+  "A/B"       2 rows  : [A]
+                        [B]
+  "AB/CD"     2x2     : [A][B]
+                        [C][D]
+  "ABC/DEC"   right panel spans both rows:
+              [A][B][C]
+              [D][E][C]
+  "ABC/DE#"   bottom-right empty:
+              [A][B][C]
+              [D][E][ ]
+  "ABC/DEF/H" last row auto-pads H to full width:
+              [A][B][C]
+              [D][E][F]
+              [H][H][H]
+  "AB/CDE"    top row pads B to fill:
+              [A][B][B]
+              [C][D][E]
+}
+When \code{design} is \code{NULL}, patchwork arranges plots automatically.
+}
+
+\section{Panel tags (\code{tag_levels})}{
+
+Pass a single string encoding the base alphabet plus surrounding punctuation.
+Valid bases: \code{A}, \code{a}, \code{1}, \code{I}, \code{i}.
+\preformatted{
+  "A"    ->  A   B   C  ...
+  "A)"   ->  A)  B)  C) ...
+  "(A)"  ->  (A) (B) (C) ...
+  "(a)"  ->  (a) (b) (c) ...
+  "(1)"  ->  (1) (2) (3) ...
+}
+}
+
 \examples{
 \dontrun{
-p1 <- Go_boxplot(df = dat, cate.vars = "Group", project = "P",
-                 outcomes = "Shannon", patchwork = TRUE)
-p2 <- Go_volcanoPlot(project = "P", result = da_dir,
-                     fc = 1, font = 10, height = 5, width = 5,
-                     patchwork = TRUE)
+p_box <- Go_boxplot(df, cate.vars = "Group", project = "P",
+                    outcomes = "Shannon", patchwork = TRUE)
+p_mrs <- Go_MRS_plot(fit, patchwork = TRUE)  # $score $roc $coef
 
-Go_patchwork(plots = list(p1[[1]], p2[[1]]),
-             project = "P", name = "fig1",
-             ncol = 2, height = 5, width = 10)
+# 3 plots side by side
+Go_patchwork(
+  box   = p_box[[1]],
+  score = p_mrs$score,
+  roc   = p_mrs$roc,
+  project = "P", name = "overview", figure_num = 1,
+  design = "ABC", height = 5, width = 14,
+  tag_levels = "A)"
+)
+
+# score+coef on top, roc spanning full bottom
+Go_patchwork(
+  score = p_mrs$score,
+  coef  = p_mrs$coef,
+  roc   = p_mrs$roc,
+  project = "P", sfigure_num = 1,
+  design = "AB/C",
+  tag_levels = "(A)"
+)
 }
 
 }
