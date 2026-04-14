@@ -40,6 +40,7 @@
 #'             height = 8,
 #'             width = 10)
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_groupBox <- function(psIN, mainGroup, project,
@@ -53,7 +54,8 @@ Go_groupBox <- function(psIN, mainGroup, project,
                         ylim=NULL,
                         flip=T,
                         height,
-                        width){
+                        width,
+                        patchwork = FALSE){
 
   if (!requireNamespace("compositions", quietly = TRUE))
     install.packages("compositions")
@@ -282,6 +284,7 @@ Go_groupBox <- function(psIN, mainGroup, project,
   p  <- p  + theme(panel.background = element_rect(fill = "white", colour = "grey50"),aspect.ratio = num.subgroup/1)
 
   #plotlist[[length(plotlist)+1]] <- p
+  if (isTRUE(patchwork)) return(invisible(p))
   pdf(sprintf("%s/groupBox.%s.%s.%s%s%s.pdf", out_path,
               project,
               mainGroup,

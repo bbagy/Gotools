@@ -12,7 +12,10 @@
 #' @param orders Vector of ordered factor levels for the categorical variables.
 #' @param mycols Custom color palette for the plots.
 #' @param combination Number of group combinations to display in the boxplot.
-#' @param ylim Y-axis limits for the plot.
+#' @param chao1_ylim Maximum y-axis value for \code{Chao1} plots. The lower bound is fixed at 0.
+#'   Only applied when the outcome is \code{"Chao1"}. Default \code{150}.
+#' @param shannon_ylim Maximum y-axis value for \code{Shannon} plots. The lower bound is fixed at 0.
+#'   Only applied when the outcome is \code{"Shannon"}. Default \code{7}.
 #' @param title Title of the plot.
 #' @param facet Optional variable for creating facetted plots.
 #' @param paired Indicates if the data points are paired.
@@ -47,6 +50,7 @@
 #' Go_boxplot(psIN = ps, cate.vars = "Group", project = "MyProject",
 #'            outcomes = c("Shannon", "Chao1"))
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_boxplot <- function(df          = NULL,
@@ -57,7 +61,8 @@ Go_boxplot <- function(df          = NULL,
                        orders      = NULL,
                        mycols      = NULL,
                        combination = NULL,
-                       ylim        = NULL,
+                       chao1_ylim  = 150,
+                       shannon_ylim = 7,
                        title       = NULL,
                        facet       = NULL,
                        paired      = NULL,
@@ -71,7 +76,8 @@ Go_boxplot <- function(df          = NULL,
                        min_height  = 2,
                        min_width   = 2,
                        plotCols    = 1,
-                       plotRows    = 1) {
+                       plotRows    = 1,
+                       patchwork   = FALSE) {
 
   # ── inner helpers ───────────────────────────────────────────────────────────
   has_facet <- function(x) !is.null(x) && length(x) >= 1
@@ -208,8 +214,20 @@ Go_boxplot <- function(df          = NULL,
     out
   }
 
-  build_y_limits <- function(dat, mvar, oc, stat_res, ylim, label_y = NULL) {
-    if (!is.null(ylim)) return(ylim)
+  resolve_fixed_alpha_ylim <- function(outcome, chao1_ylim, shannon_ylim) {
+    if (identical(outcome, "Chao1")) {
+      return(c(0, chao1_ylim))
+    }
+    if (identical(outcome, "Shannon")) {
+      return(c(0, shannon_ylim))
+    }
+    NULL
+  }
+
+  build_y_limits <- function(dat, mvar, oc, stat_res, label_y = NULL,
+                             chao1_ylim = 150, shannon_ylim = 7) {
+    fixed_ylim <- resolve_fixed_alpha_ylim(oc, chao1_ylim, shannon_ylim)
+    if (!is.null(fixed_ylim)) return(fixed_ylim)
 
     y_vals <- suppressWarnings(as.numeric(dat[[oc]]))
     y_vals <- y_vals[is.finite(y_vals)]
@@ -243,9 +261,9 @@ Go_boxplot <- function(df          = NULL,
     c(lower, upper)
   }
 
-  make_base_plot <- function(dat, mvar, oc) {
+  make_base_plot <- function(dat, mvar, oc, y_label = oc) {
     ggplot(dat, aes(x = !!sym(mvar), y = !!sym(oc))) +
-      labs(y = oc, x = NULL) +
+      labs(y = y_label, x = NULL) +
       theme(strip.background = element_blank(),
             text              = element_text(size = 8),
             axis.text.x       = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8),
@@ -457,45 +475,51 @@ Go_boxplot <- function(df          = NULL,
     }
 
     assemble_plot <- function(dat, my_comparisons, oc) {
-      stat_res      <- run_stats(dat, my_comparisons, oc)
+      dat_plot      <- dat
+      oc_plot       <- oc
+      y_label_text  <- oc
+      stat_res      <- run_stats(dat_plot, my_comparisons, oc_plot)
       method_label  <- if (!is.null(stat_res$test.name)) stat_res$test.name else method_label_default
       label_y       <- NULL
       if (statistics &&
           is.null(stat_res$annotation) &&
           !is.null(stat_res$testmethod) &&
           exists("compute_boxplot_label_y", mode = "function")) {
-        label_y <- compute_boxplot_label_y(dat[[oc]], dat[[mvar]], length(my_comparisons))
+        label_y <- compute_boxplot_label_y(dat_plot[[oc_plot]], dat_plot[[mvar]], length(my_comparisons))
       }
       title_text    <- build_plot_title(ifelse(is.null(title), mvar, title),
                                         stat_res$test.name, stat_res$pval)
       subtitle_text <- if (statistics)
         build_plot_subtitle(stat_res, method_label, p_adjust, use_covariates,
                             covariates_label) else NULL
-      if (!is.null(paired) && paired %in% names(dat)) {
-        n_paired_ids <- length(unique(stats::na.omit(dat[[paired]])))
+      if (!is.null(paired) && paired %in% names(dat_plot)) {
+        n_paired_ids <- length(unique(stats::na.omit(dat_plot[[paired]])))
         if (n_paired_ids >= paired_line_threshold) {
           message(sprintf("[Go_boxplot] paired IDs=%d: connection lines suppressed (threshold=%d)",
                           n_paired_ids, paired_line_threshold))
         }
       }
-      if (identical(method_label, "LMM") && max(table(dat[[mvar]])) > dense_point_threshold) {
+      if (identical(method_label, "LMM") && max(table(dat_plot[[mvar]])) > dense_point_threshold) {
         message(sprintf("[Go_boxplot] max group size=%d: points suppressed for LMM (threshold=%d)",
-                        max(table(dat[[mvar]])), dense_point_threshold))
+                        max(table(dat_plot[[mvar]])), dense_point_threshold))
       }
 
-      p1 <- make_base_plot(dat, mvar, oc)
+      p1 <- make_base_plot(dat_plot, mvar, oc_plot, y_label = y_label_text)
       p1 <- p1 + labs(title = title_text, subtitle = subtitle_text)
-      p1 <- add_geom_layers(p1, dat, mvar, paired, mycols, dot.size, box.tickness,
+      p1 <- add_geom_layers(p1, dat_plot, mvar, paired, mycols, dot.size, box.tickness,
                             method_label = method_label)
 
       if (statistics)
         p1 <- Go_boxplot_add_stats_layer(p1 = p1, stat_res = stat_res,
                                          my_comparisons = my_comparisons,
                                          paired = paired, cutoff = cutoff,
-                                         dat = dat, oc = oc, mvar = mvar,
+                                         dat = dat_plot, oc = oc_plot, mvar = mvar,
                                          label_y_override = label_y)
 
-      y_limits <- build_y_limits(dat, mvar, oc, stat_res, ylim, label_y = label_y)
+      y_limits <- build_y_limits(dat_plot, mvar, oc_plot, stat_res,
+                                 label_y = label_y,
+                                 chao1_ylim = chao1_ylim,
+                                 shannon_ylim = shannon_ylim)
       if (!is.null(y_limits)) {
         p1 <- p1 + scale_y_continuous(limits = y_limits,
                                       expand = expansion(mult = c(0.01, 0.02)))
@@ -504,11 +528,12 @@ Go_boxplot <- function(df          = NULL,
       p1 <- add_facet_and_guides(p1, facet, ncol, df)
 
       # metadata for auto-sizing
-      n_grp         <- length(unique(dat[[mvar]]))
+      n_grp         <- length(unique(dat_plot[[mvar]]))
       n_comp        <- if (!is.null(stat_res$annotation)) nrow(stat_res$annotation) else 0
-      max_lbl_chars <- max(nchar(as.character(levels(dat[[mvar]]))), na.rm = TRUE)
-
-      finalize_plot(p1, n_grp, n_comp, max_lbl_chars)
+      max_lbl_chars <- max(nchar(as.character(levels(dat_plot[[mvar]]))), na.rm = TRUE)
+      p1 <- finalize_plot(p1, n_grp, n_comp, max_lbl_chars)
+      attr(p1, "y_limits") <- y_limits
+      p1
     }
 
     # ── combination branch ───────────────────────────────────────────────────
@@ -583,6 +608,7 @@ Go_boxplot <- function(df          = NULL,
                   pdf_w, pdf_h, panel_h, label_h, max_n_grp * 0.4))
 
   # ── render ───────────────────────────────────────────────────────────────────
+  if (isTRUE(patchwork)) return(invisible(plotlist))
   pdf(file.path(out_path, file_name), height = pdf_h, width = pdf_w)
   multiplot(plotlist = plotlist, cols = plotCols, rows = plotRows)
   dev.off()

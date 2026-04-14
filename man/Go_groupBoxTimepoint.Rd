@@ -21,7 +21,8 @@ Go_groupBoxTimepoint(
   plotCols = NULL,
   plotRows = NULL,
   baseline = NULL,
-  paired = NULL
+  paired = NULL,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -71,6 +72,8 @@ values in the same paired subject.}
 \item{paired}{An optional character string specifying the subject ID column
 used to match baseline values (e.g., "SubjectID"). Required for
 baseline subtraction.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Saves box plots for each outcome variable as PDF files in the directory

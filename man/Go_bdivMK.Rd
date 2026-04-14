@@ -30,7 +30,8 @@ Go_bdivMK(
   marginal = FALSE,
   marginal_type = c("density", "boxplot", "histogram"),
   marginal_size = 5,
-  marginal_alpha = 0.35
+  marginal_alpha = 0.35,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -88,6 +89,8 @@ for example \code{"density"}, \code{"boxplot"}, or \code{"histogram"}.}
 \item{marginal_size}{Relative size of the marginal panels.}
 
 \item{marginal_alpha}{Transparency applied to marginal densities or fills.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 PDF(s) + CSV tables written to {project}_{date}/pdf/ and table/mirkat/.

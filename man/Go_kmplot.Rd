@@ -15,7 +15,8 @@ Go_kmplot(
   n_group = 3,
   group_labels = NULL,
   height = 5,
-  width = 6
+  width = 6,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -51,6 +52,8 @@ as group labels. If \code{NULL}, labels \code{"G1"}, \code{"G2"}, … are used.}
 \item{height}{Numeric; PDF height (inches). Default \code{5}.}
 
 \item{width}{Numeric; PDF width (inches). Default \code{6}.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 (Invisibly) a list with:

@@ -14,7 +14,8 @@ Go_lollipopPlot(
   name = NULL,
   font = 10,
   height = NULL,
-  width = 2.2
+  width = 2.2,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -41,6 +42,8 @@ number of displayed features.}
 
 \item{width}{Fixed panel-oriented base PDF width. Extra width for long
 feature labels is added automatically.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 The function saves PDF files and returns \code{NULL} invisibly.

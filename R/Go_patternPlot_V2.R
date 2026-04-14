@@ -96,6 +96,7 @@
 #' @importFrom rlang sym
 #' @importFrom scales hue_pal
 #' @importFrom grDevices cairo_pdf
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 
@@ -115,7 +116,8 @@ Go_patternPlot <- function(
     subtitle = NULL,        # 부제목 (선택)
     name = NULL,
     width = 6,              # 저장 폭(inch)
-    height = 15             # 저장 높이(inch)
+    height = 15,            # 저장 높이(inch)
+    patchwork = FALSE
 ){
   tt <- try(orders, TRUE)
   if (inherits(tt, "try-error")) {
@@ -511,6 +513,7 @@ Go_patternPlot <- function(
 
   # 저장 (PDF)
   outfile <- file.path(pdf_dir, sprintf("pattern_plot.%s.%s.%s%s.pdf", file_label, project, name, stamp))
+  if (isTRUE(patchwork)) return(invisible(p_final))
   ggsave(outfile, plot = p_final, device = cairo_pdf, width = width, height = height, units = "in", limitsize = FALSE)
 
   write.csv(unique_patterns, sprintf("%s/pattern_table.%s.%s.%s%s.csv", pattern_dir, file_label, project, name, stamp))

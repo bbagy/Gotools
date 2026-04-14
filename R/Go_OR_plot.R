@@ -13,13 +13,15 @@
 #'
 #' @return A ggplot object with optional saved-path attributes.
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 Go_OR_plot <- function(fit,
                        title = NULL,
                        order = NULL,
                        style = c("default", "paper"),
                        project = NULL,
-                       name = NULL) {
+                       name = NULL,
+                       patchwork = FALSE) {
 
   `%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
 
@@ -54,7 +56,7 @@ Go_OR_plot <- function(fit,
   }
 
   maybe_save_plot <- function(p, project, name) {
-    if (is.null(project) || is.null(name)) return(p)
+    if (isTRUE(patchwork) || is.null(project) || is.null(name)) return(p)
     out_dirs <- Go_path(project = project, pdf = "yes", table = "no", path = NULL)
     file_name <- paste0("OR_forest_", clean_tag(name), ".pdf")
     pdf_w <- attr(p, "recommended_width") %||% 7

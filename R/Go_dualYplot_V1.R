@@ -37,6 +37,7 @@
 #'              Box = "Bacteroides", Line1 = "IL6",
 #'              height = 6, width = 5)
 #'
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 Go_dualYplot <- function(df, TaxTab = NULL, cate.vars, project,
@@ -47,7 +48,8 @@ Go_dualYplot <- function(df, TaxTab = NULL, cate.vars, project,
                          orders   = NULL,
                          xangle   = 90,
                          addnumber = TRUE,
-                         height, width) {
+                         height, width,
+                         patchwork = FALSE) {
 
   if (!is.null(dev.list())) dev.off()
 
@@ -87,12 +89,15 @@ Go_dualYplot <- function(df, TaxTab = NULL, cate.vars, project,
   dot.size     <- if (height * width <= 6) 0.7 else if (height * width < 10) 1.0 else 1.5
   box.tickness <- if (height * width <= 6) 0.3 else if (height * width < 10) 0.4 else 0.5
 
-  pdf(sprintf("%s/dualYplot.%s.%s%s%s.pdf",
-              out_path, project,
-              ifelse(is.null(Line1), "", paste0(Line1, ".")),
-              ifelse(is.null(name),  "", paste0(name,  ".")),
-              format(Sys.Date(), "%y%m%d")),
-      height = height, width = width)
+  plotlist_pw <- list()
+  if (!isTRUE(patchwork)) {
+    pdf(sprintf("%s/dualYplot.%s.%s%s%s.pdf",
+                out_path, project,
+                ifelse(is.null(Line1), "", paste0(Line1, ".")),
+                ifelse(is.null(name),  "", paste0(name,  ".")),
+                format(Sys.Date(), "%y%m%d")),
+        height = height, width = width)
+  }
 
   for (mvar in cate.vars) {
 
@@ -218,9 +223,11 @@ Go_dualYplot <- function(df, TaxTab = NULL, cate.vars, project,
     }
 
     p <- p + ggtitle(if (!is.null(title)) title else mvar)
-    print(p)
+    plotlist_pw[[length(plotlist_pw) + 1]] <- p
+    if (!isTRUE(patchwork)) print(p)
   }
 
+  if (isTRUE(patchwork)) return(invisible(plotlist_pw))
   dev.off()
   invisible(p)
 }

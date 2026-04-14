@@ -31,7 +31,8 @@ Go_forestplot <- function(df,
                           tool,
                           name=NULL,
                           height,
-                          width){
+                          width,
+                          patchwork = FALSE){
 
   #===== out dir
   out <- file.path(sprintf("%s_%s",project, format(Sys.Date(), "%y%m%d")))
@@ -39,6 +40,7 @@ Go_forestplot <- function(df,
   out_path <- file.path(sprintf("%s_%s/pdf",project, format(Sys.Date(), "%y%m%d")))
   if(!dir.exists(out_path)) dir.create(out_path)
 
+  plotlist_pw <- list()
   for (outcome in outcomes){
     form <-  as.formula(sprintf(formular, outcome))
 
@@ -139,13 +141,15 @@ Go_forestplot <- function(df,
       #theme_minimal()
       theme_classic()
 
-    # Plot 출력
-    print(forest_plot)
-
-    ggsave(sprintf("%s/forest.%s.%s.%s%s.pdf", out_path, project,
-                   outcome,
-                   ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                   format(Sys.Date(), "%y%m%d")), plot = forest_plot, device = "pdf", width = width, height = height)
+    plotlist_pw[[length(plotlist_pw) + 1]] <- forest_plot
+    if (!isTRUE(patchwork)) {
+      print(forest_plot)
+      ggsave(sprintf("%s/forest.%s.%s.%s%s.pdf", out_path, project,
+                     outcome,
+                     ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                     format(Sys.Date(), "%y%m%d")), plot = forest_plot, device = "pdf", width = width, height = height)
+    }
   }
+  if (isTRUE(patchwork)) return(invisible(plotlist_pw))
 }
 

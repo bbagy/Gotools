@@ -113,6 +113,7 @@
 #' \code{\link{Go_lightgbm}}
 #'
 #' @name Go_prediction
+#' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b
@@ -134,8 +135,13 @@ Go_prediction <- function(
     seed          = 123,
     n_candidates  = 40,
     num.trees     = 1000,
-    orders        = c("Control","Case")
+    orders        = c("Control","Case"),
+    patchwork     = FALSE
 ){
+  if (isTRUE(patchwork)) {
+    message("[Go_prediction] patchwork = TRUE: plots are saved as PNG files during ML training and cannot be returned as ggplot objects. Returning invisible(NULL).")
+    return(invisible(NULL))
+  }
   method <- match.arg(method)
   set.seed(seed)
   stopifnot(inherits(psIN, "phyloseq"))

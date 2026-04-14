@@ -22,7 +22,8 @@ Go_barchart(
   ncol = NULL,
   mark = NULL,
   height,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -61,6 +62,8 @@ Go_barchart(
 \item{height}{Height of the output plot.}
 
 \item{width}{Width of the output plot.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Saves bar chart plots as PDF files in a specified directory and outputs tables

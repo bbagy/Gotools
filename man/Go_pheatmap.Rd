@@ -22,7 +22,8 @@ Go_pheatmap(
   cluster_rows = T,
   cluster_cols = T,
   showPhylum = T,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -61,6 +62,8 @@ Go_pheatmap(
 \item{showPhylum}{Logical value to show or hide phylum-level annotation.}
 
 \item{width}{Width of the output heatmap.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }
 \value{
 Saves heatmap plots as PDF files in a specified directory.

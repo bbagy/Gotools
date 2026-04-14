@@ -12,7 +12,8 @@ Go_forestplot(
   tool,
   name = NULL,
   height,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{

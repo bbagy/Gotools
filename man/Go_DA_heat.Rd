@@ -17,7 +17,8 @@ Go_DA_heat(
   orders,
   name,
   height,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{
@@ -42,6 +43,8 @@ Go_DA_heat(
 \item{height}{Height of the output plot.}
 
 \item{width}{Width of the output plot.}
+
+\item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 
 \item{groupby}{Name of the grouping column in the data frame.}
 
