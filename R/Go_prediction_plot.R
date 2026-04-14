@@ -369,63 +369,66 @@ Go_prediction_plot <- function(result,
     stop("[Error] predictions.csv must contain set='OOF' or set in c('Train','Test').")
   }
 
-  if (is_holdout) {
-    tr <- preds[preds$set == "Train", , drop = FALSE]
-    te <- preds[preds$set == "Test", , drop = FALSE]
+  if (!isTRUE(patchwork)) {
+    if (is_holdout) {
+      tr <- preds[preds$set == "Train", , drop = FALSE]
+      te <- preds[preds$set == "Test", , drop = FALSE]
 
-    roc_tr <- pROC::roc(tr$outcome, tr$pred, levels = levels_out, direction = "<", quiet = TRUE)
-    roc_te <- pROC::roc(te$outcome, te$pred, levels = levels_out, direction = "<", quiet = TRUE)
+      roc_tr <- pROC::roc(tr$outcome, tr$pred, levels = levels_out, direction = "<", quiet = TRUE)
+      roc_te <- pROC::roc(te$outcome, te$pred, levels = levels_out, direction = "<", quiet = TRUE)
 
-    grDevices::pdf(file.path(roc_dir, sprintf("%s_ROC.pdf", file_tag)),
-                   width = roc_width, height = roc_height)
-    pROC::plot.roc(roc_tr, col = "#1f77b4", lwd = 2, asp = 1,
-                   main = sprintf("%s ROC", model_label))
-    pROC::plot.roc(roc_te, col = "#d62728", lwd = 2, add = TRUE, asp = 1)
-    graphics::abline(0, 1, lty = 2, col = "grey70")
-    graphics::legend("bottomright",
-                     legend = c(sprintf("Train (AUC=%s)", format_auc_label(as.numeric(roc_tr$auc))),
-                                sprintf("Test (AUC=%s)", format_auc_label(as.numeric(roc_te$auc)))),
-                     col = c("#1f77b4", "#d62728"), lwd = 2, bty = "n")
-    grDevices::dev.off()
+      grDevices::pdf(file.path(roc_dir, sprintf("%s_ROC.pdf", file_tag)),
+                     width = roc_width, height = roc_height)
+      pROC::plot.roc(roc_tr, col = "#1f77b4", lwd = 2, asp = 1,
+                     main = sprintf("%s ROC", model_label))
+      pROC::plot.roc(roc_te, col = "#d62728", lwd = 2, add = TRUE, asp = 1)
+      graphics::abline(0, 1, lty = 2, col = "grey70")
+      graphics::legend("bottomright",
+                       legend = c(sprintf("Train (AUC=%s)", format_auc_label(as.numeric(roc_tr$auc))),
+                                  sprintf("Test (AUC=%s)", format_auc_label(as.numeric(roc_te$auc)))),
+                       col = c("#1f77b4", "#d62728"), lwd = 2, bty = "n")
+      grDevices::dev.off()
 
-    pr_tr <- compute_pr(tr$pred, tr$outcome, positive_class)
-    pr_te <- compute_pr(te$pred, te$outcome, positive_class)
-    grDevices::pdf(file.path(pr_dir, sprintf("%s_PRROC.pdf", file_tag)),
-                   width = pr_width, height = pr_height)
-    graphics::plot(pr_tr$curve[, 1], pr_tr$curve[, 2], type = "l", lwd = 2, col = "#1f77b4",
-                   xlab = "Recall", ylab = "Precision",
-                   main = sprintf("%s PR", model_label))
-    graphics::lines(pr_te$curve[, 1], pr_te$curve[, 2], lwd = 2, col = "#d62728")
-    graphics::legend("bottomleft",
-                     legend = c(sprintf("Train (AUPRC=%s)", format_auc_label(pr_tr$auc.integral)),
-                                sprintf("Test (AUPRC=%s)", format_auc_label(pr_te$auc.integral))),
-                     col = c("#1f77b4", "#d62728"), lwd = 2, bty = "n")
-    grDevices::dev.off()
-  } else {
-    oo <- preds[preds$set == "OOF", , drop = FALSE]
-    roc_oo <- pROC::roc(oo$outcome, oo$pred, levels = levels_out, direction = "<", quiet = TRUE)
-    grDevices::pdf(file.path(roc_dir, sprintf("%s_ROC.pdf", file_tag)),
-                   width = roc_width, height = roc_height)
-    pROC::plot.roc(roc_oo, col = "#1f77b4", lwd = 2, asp = 1,
-                   main = sprintf("%s OOF ROC", model_label))
-    graphics::abline(0, 1, lty = 2, col = "grey70")
-    graphics::legend("bottomright",
-                     legend = sprintf("OOF (AUC=%s)", format_auc_label(as.numeric(roc_oo$auc))),
-                     col = "#1f77b4", lwd = 2, bty = "n")
-    grDevices::dev.off()
+      pr_tr <- compute_pr(tr$pred, tr$outcome, positive_class)
+      pr_te <- compute_pr(te$pred, te$outcome, positive_class)
+      grDevices::pdf(file.path(pr_dir, sprintf("%s_PRROC.pdf", file_tag)),
+                     width = pr_width, height = pr_height)
+      graphics::plot(pr_tr$curve[, 1], pr_tr$curve[, 2], type = "l", lwd = 2, col = "#1f77b4",
+                     xlab = "Recall", ylab = "Precision",
+                     main = sprintf("%s PR", model_label))
+      graphics::lines(pr_te$curve[, 1], pr_te$curve[, 2], lwd = 2, col = "#d62728")
+      graphics::legend("bottomleft",
+                       legend = c(sprintf("Train (AUPRC=%s)", format_auc_label(pr_tr$auc.integral)),
+                                  sprintf("Test (AUPRC=%s)", format_auc_label(pr_te$auc.integral))),
+                       col = c("#1f77b4", "#d62728"), lwd = 2, bty = "n")
+      grDevices::dev.off()
+    } else {
+      oo <- preds[preds$set == "OOF", , drop = FALSE]
+      roc_oo <- pROC::roc(oo$outcome, oo$pred, levels = levels_out, direction = "<", quiet = TRUE)
+      grDevices::pdf(file.path(roc_dir, sprintf("%s_ROC.pdf", file_tag)),
+                     width = roc_width, height = roc_height)
+      pROC::plot.roc(roc_oo, col = "#1f77b4", lwd = 2, asp = 1,
+                     main = sprintf("%s OOF ROC", model_label))
+      graphics::abline(0, 1, lty = 2, col = "grey70")
+      graphics::legend("bottomright",
+                       legend = sprintf("OOF (AUC=%s)", format_auc_label(as.numeric(roc_oo$auc))),
+                       col = "#1f77b4", lwd = 2, bty = "n")
+      grDevices::dev.off()
 
-    pr_oo <- compute_pr(oo$pred, oo$outcome, positive_class)
-    grDevices::pdf(file.path(pr_dir, sprintf("%s_PRROC.pdf", file_tag)),
-                   width = pr_width, height = pr_height)
-    graphics::plot(pr_oo$curve[, 1], pr_oo$curve[, 2], type = "l", lwd = 2, col = "#1f77b4",
-                   xlab = "Recall", ylab = "Precision",
-                   main = sprintf("%s OOF PR", model_label))
-    graphics::legend("bottomleft",
-                     legend = sprintf("OOF (AUPRC=%s)", format_auc_label(pr_oo$auc.integral)),
-                     col = "#1f77b4", lwd = 2, bty = "n")
-    grDevices::dev.off()
+      pr_oo <- compute_pr(oo$pred, oo$outcome, positive_class)
+      grDevices::pdf(file.path(pr_dir, sprintf("%s_PRROC.pdf", file_tag)),
+                     width = pr_width, height = pr_height)
+      graphics::plot(pr_oo$curve[, 1], pr_oo$curve[, 2], type = "l", lwd = 2, col = "#1f77b4",
+                     xlab = "Recall", ylab = "Precision",
+                     main = sprintf("%s OOF PR", model_label))
+      graphics::legend("bottomleft",
+                       legend = sprintf("OOF (AUPRC=%s)", format_auc_label(pr_oo$auc.integral)),
+                       col = "#1f77b4", lwd = 2, bty = "n")
+      grDevices::dev.off()
+    }
   }
 
+  p_imp <- NULL
   if (file.exists(imp_path)) {
     imp_feat <- utils::read.csv(imp_path, stringsAsFactors = FALSE)
     score_col <- if ("PermImportance" %in% colnames(imp_feat)) "PermImportance" else {
@@ -463,12 +466,15 @@ Go_prediction_plot <- function(result,
           legend.title = ggplot2::element_blank()
         )
 
+      if (!isTRUE(patchwork)) {
         ggplot2::ggsave(
-        filename = file.path(imp_dir, sprintf("%s_Importance.pdf", file_tag)),
-        plot = p_imp, device = "pdf", width = imp_width, height = imp_height, limitsize = FALSE
-      )
+          filename = file.path(imp_dir, sprintf("%s_Importance.pdf", file_tag)),
+          plot = p_imp, device = "pdf", width = imp_width, height = imp_height, limitsize = FALSE
+        )
+      }
     }
   }
 
+  if (isTRUE(patchwork)) return(invisible(list(importance = p_imp)))
   invisible(NULL)
 }
