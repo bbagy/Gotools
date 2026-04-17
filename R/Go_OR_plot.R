@@ -95,9 +95,26 @@ Go_OR_plot <- function(fit,
     paste(subtitle_fmt, direction_txt, sep = " | ")
   }
 
+  # Deduplicate repeated taxonomic name segments (word-level prefix repetition).
+  #   "Lactobacillus Lactobacillus crispatus"                   → "Lactobacillus crispatus"
+  #   "Rikenellaceae RC9 gut group Rikenellaceae RC9 gut group" → "Rikenellaceae RC9 gut group"
+  .dedup_taxon <- function(x) {
+    x <- trimws(x)
+    w <- strsplit(x, "\\s+")[[1]]
+    n <- length(w)
+    for (k in seq_len(n %/% 2)) {
+      if (identical(w[seq_len(k)], w[seq(k + 1L, 2L * k)])) {
+        rest <- if (n > 2L * k) w[seq(2L * k + 1L, n)] else character(0)
+        return(paste(c(w[seq_len(k)], rest), collapse = " "))
+      }
+    }
+    x
+  }
+
   res <- fit$results
   if (is.null(res) || !nrow(res)) stop("No OR results available to plot.")
   res <- res[order(res$OR, decreasing = TRUE), , drop = FALSE]
+  res$feature_label <- vapply(as.character(res$feature_label), .dedup_taxon, character(1))
   res$feature_label <- factor(res$feature_label, levels = rev(res$feature_label))
 
   has_fdr     <- "sig_fdr"     %in% colnames(res)

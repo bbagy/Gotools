@@ -160,6 +160,7 @@ Go_volcanoPlot <- function(project,
   plotlist_pw <- list()
   for (fn in seq_len(nrow(file_list))) {
     filename1 <- file.path(file_list$path[fn], file_list$file[fn])
+    source_stub <- tools::file_path_sans_ext(basename(filename1))
     df <- read.csv(filename1, row.names=NULL ,check.names=FALSE)
     colnames(df) <- gsub('^"|"$', "", colnames(df))
 
@@ -514,6 +515,33 @@ Go_volcanoPlot <- function(project,
     padj_shape <- c(19, 1)
     names(padj_shape) <- c(TRUE, FALSE)
 
+    if (type == "taxonomy" | type == "taxanomy" | type == "bacmet") {
+      label_name <- "plot_label"
+      label_pcol <- p
+    } else if (type == "function") {
+      label_name <- "KOName"
+      label_pcol <- p
+    } else if (type == "RNAseq") {
+      label_name <- "symbol"
+      label_pcol <- "padj"
+    } else {
+      label_name <- NULL
+      label_pcol <- NULL
+    }
+
+    df.na$label_text <- ""
+    if (!is.null(label_name) &&
+        label_name %in% colnames(df.na) &&
+        !is.null(label_pcol) &&
+        label_pcol %in% colnames(df.na)) {
+      label_vals <- as.character(df.na[[label_name]])
+      keep_lab <- !is.na(label_vals) &
+        label_vals != "NA" &
+        suppressWarnings(as.numeric(df.na[[label_pcol]])) < 0.05 &
+        abs(suppressWarnings(as.numeric(df.na[[x_var]]))) > fc
+      df.na$label_text <- ifelse(keep_lab, label_vals, "")
+    }
+
     #-----------------------------#
     #   Volcano plot     #
     #-----------------------------#
@@ -523,34 +551,7 @@ Go_volcanoPlot <- function(project,
       geom_vline(xintercept = c(-fc, 0, fc), col = dircolors, linetype = "dotted", size = 1)
 
     p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE)
-
-    if (type == "taxonomy" | type == "taxanomy" | type == "bacmet") {
-      label_name <- "plot_label"
-      label_condition <- sprintf(
-        "ifelse(df.na[, '%s'] != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(df.na[, '%s']), '')",
-        label_name, p, x_var, label_name
-      )
-
-    } else if (type == "function") {
-      label_name <- "KOName"
-      label_condition <- sprintf(
-        "ifelse(%s != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(%s), '')",
-        label_name, p, x_var, label_name
-      )
-
-    } else if (type == "RNAseq") {
-      label_name <- "symbol"
-      label_condition <- sprintf(
-        "ifelse(%s != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(%s), '')",
-        label_name, "padj", x_var, label_name
-      )
-
-    }
-
-
-
-    # Use the constructed label_condition in your geom_text_repel function
-    p1 <- p1 + geom_text_repel(aes_string(label=label_condition), size=font, fontface="italic", max.overlaps=overlaps)
+    p1 <- p1 + geom_text_repel(aes(label = label_text), size=font, fontface="italic", max.overlaps=overlaps)
 
     p1 <- p1 + labs(title = sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc), subtitle = subtitle_text)
     p2 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE) +
@@ -586,6 +587,14 @@ Go_volcanoPlot <- function(project,
     print(p2)
     dev.off()
 
+    plot_key <- gsub("[^A-Za-z0-9._-]+", "_",
+                     if (!is.null(comparison_token) && nzchar(comparison_token)) {
+                       paste(tool, comparison_token, sep = "__")
+                     } else {
+                       source_stub
+                     })
+    plotlist_pw[[plot_key]] <- p2
+
     if (model == "t-test" || model == "GLM" || is.null(model)) {
       next
     } else if(model == "corr-kendall"){
@@ -614,21 +623,26 @@ Go_volcanoPlot <- function(project,
       padj_shape <- c(19, 1)
       names(padj_shape) <- c(TRUE, FALSE)
 
+      df.na$label_text <- ""
+      if (!is.null(label_name) &&
+          label_name %in% colnames(df.na) &&
+          sp %in% colnames(df.na) &&
+          a_var %in% colnames(df.na)) {
+        label_vals <- as.character(df.na[[label_name]])
+        keep_lab <- !is.na(label_vals) &
+          label_vals != "NA" &
+          suppressWarnings(as.numeric(df.na[[sp]])) < 0.05 &
+          abs(suppressWarnings(as.numeric(df.na[[a_var]]))) > fc
+        df.na$label_text <- ifelse(keep_lab, label_vals, "")
+      }
+
       p1 <- ggplot(data=df.na, aes_string(x=a_var, y=b_var, colour=spearman)) +
         xlab(vx) +
         ylab(vy) +
         geom_vline(xintercept = c(-fc, 0, fc), col = dircolors, linetype = "dotted", size = 1)
 
       p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE)
-
-      # Construct the label condition as a string using sprintf
-      label_condition <- sprintf(
-        "ifelse(%s != 'NA' & df.na[, '%s'] < 0.05 & abs(df.na[, '%s']) > fc, as.character(%s), '')",
-        label_name, sp, a_var, label_name
-      )
-
-      # Use the constructed label_condition in your geom_text_repel function
-      p1 <- p1 + geom_text_repel(aes_string(label=label_condition), size=font, fontface="italic", max.overlaps=overlaps)
+      p1 <- p1 + geom_text_repel(aes(label = label_text), size=font, fontface="italic", max.overlaps=overlaps)
       p1 <- p1 + labs(title = sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc), subtitle = subtitle_text)
       p2 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE) +
         labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool)) +
@@ -651,7 +665,6 @@ Go_volcanoPlot <- function(project,
 
 
 
-      plotlist_pw[[length(plotlist_pw) + 1]] <- p2
       if (!isTRUE(patchwork)) {
         pdf(sprintf("%s/%s.%s%s.(%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
                     tool,

@@ -30,7 +30,8 @@ Go_network(
   name = NULL,
   seed = 123,
   width = 10,
-  height = 10
+  height = 10,
+  patchwork = FALSE
 )
 }
 \arguments{

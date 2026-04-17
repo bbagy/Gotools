@@ -52,9 +52,11 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
                     marginal = FALSE,
                     marginal_type = c("density", "boxplot", "histogram"),
                     marginal_size = 5,
-                    marginal_alpha = 0.35) {
+                    marginal_alpha = 0.35,
+                    patchwork = FALSE) {
 
   if(!is.null(dev.list())) dev.off()
+  plotlist_pw <- list()
   marginal_type <- match.arg(marginal_type)
 
   # out dir
@@ -386,17 +388,18 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
       group_comparisons <- lapply(seq_len(ncol(group.cbn)), function(i) group.cbn[,i])
 
       ord_meths = plot
-      pdf(sprintf("%s/ordi.%s.PM.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
-                  ord_meths, paste(distance_metrics, collapse = "+"), project, mvar,
-                  ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-                  ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
-                  ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
-                  ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
-                  ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                  ifelse(ellipse == FALSE, "ellipse_FALSE.",
-                         ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
-                  ifelse(is.null(strata_var), "", paste("(strata=", strata_var, ").", sep = "")),
-                  format(Sys.Date(), "%y%m%d")), height = height, width = width)
+      if (!isTRUE(patchwork))
+        pdf(sprintf("%s/ordi.%s.PM.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
+                    ord_meths, paste(distance_metrics, collapse = "+"), project, mvar,
+                    ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+                    ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
+                    ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
+                    ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
+                    ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                    ifelse(ellipse == FALSE, "ellipse_FALSE.",
+                           ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
+                    ifelse(is.null(strata_var), "", paste("(strata=", strata_var, ").", sep = "")),
+                    format(Sys.Date(), "%y%m%d")), height = height, width = width)
       plotlist <- list()
 
       for(i in seq_along(group_comparisons)){
@@ -594,23 +597,27 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
           plotlist[[length(plotlist)+1]] <- p
         }
       }
-      .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
-      dev.off()
+      if (!isTRUE(patchwork)) {
+        .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
+        dev.off()
+      }
+      plotlist_pw <- c(plotlist_pw, plotlist)
 
     } else {
       # no combination
       ord_meths = plot
-      pdf(sprintf("%s/ordi.%s.PM.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
-                  ord_meths, paste(distance_metrics, collapse = "+"), project, mvar,
-                  ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
-                  ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
-                  ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
-                  ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
-                  ifelse(is.null(name), "", paste(name, ".", sep = "")),
-                  ifelse(ellipse == FALSE, "ellipse_FALSE.",
-                         ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
-                  ifelse(is.null(strata_var), "", paste("(strata=", strata_var, ").", sep = "")),
-                  format(Sys.Date(), "%y%m%d")), height = height, width = width)
+      if (!isTRUE(patchwork))
+        pdf(sprintf("%s/ordi.%s.PM.%s.%s.%s%s%s%s%s%s%s%s%s.pdf", out_path,
+                    ord_meths, paste(distance_metrics, collapse = "+"), project, mvar,
+                    ifelse(is.null(facet), "", paste(facet, ".", sep = "")),
+                    ifelse(is.null(combination), "", paste("(cbn=",combination, ").", sep = "")),
+                    ifelse(is.null(cate.conf), "", paste("with_confounder", ".", sep = "")),
+                    ifelse(is.null(paired), "", paste("(paired=",paired, ").", sep = "")),
+                    ifelse(is.null(name), "", paste(name, ".", sep = "")),
+                    ifelse(ellipse == FALSE, "ellipse_FALSE.",
+                           ifelse(ellipse == TRUE, "", paste("ellipse_", ellipse, ".", sep = ""))),
+                    ifelse(is.null(strata_var), "", paste("(strata=", strata_var, ").", sep = "")),
+                    format(Sys.Date(), "%y%m%d")), height = height, width = width)
       plotlist <- list()
       for(distance_metric in distance_metrics){
         mapping.sel <- data.frame(sample_data(psIN))
@@ -800,8 +807,12 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         p <- .apply_marginal(p, distance_metric = distance_metric, mvar = mvar)
         plotlist[[length(plotlist)+1]] <- p
       }
-      .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
-      dev.off()
+      if (!isTRUE(patchwork)) {
+        .render_plotlist(plotlist, cols = plotCols, rows = plotRows)
+        dev.off()
+      }
+      plotlist_pw <- c(plotlist_pw, plotlist)
     }
   }
+  if (isTRUE(patchwork)) return(invisible(plotlist_pw))
 }

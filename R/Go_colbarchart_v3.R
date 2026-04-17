@@ -93,9 +93,11 @@ Go_colbarchart <- function(psIN,
                             order_other      = c("none", "auto", "right", "left"),
                             mark             = NULL,
                             height,
-                            width) {
+                            width,
+                            patchwork        = FALSE) {
 
   if (!is.null(dev.list())) dev.off()
+  plots_pw <- list()
 
   # ── output directories ───────────────────────────────────────────────────────
   out_base <- sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d"))
@@ -522,7 +524,8 @@ Go_colbarchart <- function(psIN,
 
     pdf_h <- max(vapply(layout_plan, function(x) height + x$legend_height, numeric(1))) +
              if (!identical(rank, "Phylum")) 0.25 else 0
-    grDevices::pdf(build_pdf_path(rank), height = pdf_h, width = width)
+    if (!isTRUE(patchwork))
+      grDevices::pdf(build_pdf_path(rank), height = pdf_h, width = width)
 
     # ── plot per cate.var ─────────────────────────────────────────────────────
     for (mvar in cate.vars) {
@@ -682,9 +685,11 @@ Go_colbarchart <- function(psIN,
       }
       combined    <- build_combined(p, legend_grob, height,
                                     cl$legend_height + if (!identical(rank, "Phylum")) 0.10 else 0)
-      print(combined)
+      if (!isTRUE(patchwork)) print(combined)
+      plots_pw[[length(plots_pw) + 1]] <- combined
     }
-    grDevices::dev.off()
+    if (!isTRUE(patchwork)) grDevices::dev.off()
   }
+  if (isTRUE(patchwork)) return(invisible(plots_pw))
   invisible(NULL)
 }

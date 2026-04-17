@@ -24,7 +24,8 @@ Go_colbarchart(
   order_other = c("none", "auto", "right", "left"),
   mark = NULL,
   height,
-  width
+  width,
+  patchwork = FALSE
 )
 }
 \arguments{
