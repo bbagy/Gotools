@@ -43,6 +43,23 @@ Go_MRS_plot <- function(fit,
 
   `%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
 
+  # Deduplicate repeated taxonomic name segments.
+  # Handles both single-word and multi-word repetition:
+  #   "Lactobacillus Lactobacillus crispatus"         → "Lactobacillus crispatus"
+  #   "Rikenellaceae RC9 gut group Rikenellaceae RC9 gut group" → "Rikenellaceae RC9 gut group"
+  .dedup_taxon <- function(x) {
+    x <- trimws(x)
+    w <- strsplit(x, "\\s+")[[1]]
+    n <- length(w)
+    for (k in seq_len(n %/% 2)) {
+      if (identical(w[seq_len(k)], w[seq(k + 1L, 2L * k)])) {
+        rest <- if (n > 2L * k) w[seq(2L * k + 1L, n)] else character(0)
+        return(paste(c(w[seq_len(k)], rest), collapse = " "))
+      }
+    }
+    x
+  }
+
   plot_type <- if (missing(plot_type)) "all" else plot_type
   style <- match.arg(style)
   if (!inherits(fit, "Go_MRS_fit")) stop("`fit` must be a Go_MRS_fit object.")
@@ -141,24 +158,20 @@ Go_MRS_plot <- function(fit,
 
   format_plot_subtitle <- function(subtitle, metrics, info) {
     subtitle <- subtitle %||% ""
-    if (!identical(info$outcome_type, "binary")) return(subtitle)
-
-    auc_txt <- if (!is.null(metrics$auc) && !is.na(metrics$auc)) {
-      ci <- metrics$auc_ci
-      if (!is.null(ci) && length(ci) == 3 && all(is.finite(ci))) {
-        sprintf("AUC = %.3f (95%% CI: %.3f\u2013%.3f)", metrics$auc, ci[1], ci[3])
-      } else {
-        sprintf("AUC = %.3f", metrics$auc)
-      }
-    } else {
-      NULL
-    }
-    if (is.null(auc_txt)) return(subtitle)
-
+    # AUC is shown as in-panel annotation — strip it from the subtitle
     subtitle_clean <- gsub("\\s*\\|\\s*AUC = [^|]+", "", subtitle)
-    subtitle_clean <- trimws(subtitle_clean)
-    if (!nzchar(subtitle_clean)) return(auc_txt)
-    paste0(subtitle_clean, "\n", auc_txt)
+    trimws(subtitle_clean)
+  }
+
+  # Helper: build in-panel AUC label (returns NULL when AUC unavailable)
+  auc_panel_label <- function(metrics) {
+    if (is.null(metrics$auc) || is.na(metrics$auc)) return(NULL)
+    ci <- metrics$auc_ci
+    if (!is.null(ci) && length(ci) == 3 && all(is.finite(ci))) {
+      sprintf("AUC = %.3f\n(95%% CI: %.3f\u2013%.3f)", metrics$auc, ci[1], ci[3])
+    } else {
+      sprintf("AUC = %.3f", metrics$auc)
+    }
   }
 
   wrap_plot_subtitle <- function(x, width = 55) {
@@ -272,6 +285,17 @@ Go_MRS_plot <- function(fit,
         plot.title = ggplot2::element_text(face = "bold", hjust = 0.5),
         plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.5, lineheight = 1.05, margin = ggplot2::margin(b = 8))
       )
+    # AUC annotation inside ROC panel (bottom-right)
+    auc_lbl <- auc_panel_label(fit$metrics)
+    if (!is.null(auc_lbl)) {
+      p <- p + ggplot2::annotate("text",
+        x = 0.60, y = 0.18,
+        label = auc_lbl,
+        size = 3.5, hjust = 0,
+        lineheight = 0.9,
+        fontface = "bold"
+      )
+    }
     p <- attach_plot_size_info(p, group_labels = c("ROC"), panel_width = 3, panel_height = 3, min_width = 4.2)
     p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
     return(invisible(p))
@@ -280,7 +304,8 @@ Go_MRS_plot <- function(fit,
   if (plot_type == "coef") {
     if (!nrow(coef_df)) stop("No coefficients available to plot.")
     coef_sub <- utils::head(coef_df, top_n)
-    coef_sub$feature <- factor(coef_sub$feature, levels = rev(coef_sub$feature))
+    coef_sub$feature <- vapply(as.character(coef_sub$feature), .dedup_taxon, character(1))
+    coef_sub$feature <- factor(coef_sub$feature, levels = rev(unique(coef_sub$feature)))
 
     p <- ggplot2::ggplot(
       coef_sub,
@@ -358,6 +383,18 @@ Go_MRS_plot <- function(fit,
         ggplot2::theme_bw(base_size = 12)
     }
 
+    # AUC annotation inside score panel (top-left corner)
+    auc_lbl <- auc_panel_label(fit$metrics)
+    if (!is.null(auc_lbl)) {
+      p <- p + ggplot2::annotate("text",
+        x = -Inf, y = Inf,
+        label = auc_lbl,
+        hjust = -0.1, vjust = 1.2,
+        size = 3.2,
+        lineheight = 0.9,
+        fontface = "italic"
+      )
+    }
     p <- attach_plot_size_info(
       p,
       group_labels = grp_order,

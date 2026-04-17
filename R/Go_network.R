@@ -110,7 +110,8 @@ Go_network <- function(
     name = NULL,
     seed = 123,
     width = 10,
-    height = 10
+    height = 10,
+    patchwork = FALSE
 ) {
 
   method <- match.arg(method)
@@ -662,6 +663,55 @@ Go_network <- function(
       target_idx   = target_idx
     )
   })
+
+  # ── patchwork: capture each subgroup as ggplot via ggplotify ─────────────
+  if (isTRUE(patchwork)) {
+    if (!requireNamespace("ggplotify", quietly = TRUE)) {
+      warning("[Go_network] patchwork=TRUE requires 'ggplotify'. Falling back to PDF output.")
+    } else {
+      plots_pw <- lapply(seq_along(sg_results), function(k) {
+        res <- sg_results[[k]]
+        vis <- sg_visuals[[k]]
+        net <- res$network
+        ggplotify::as.ggplot(function() {
+          graphics::par(mar = c(0.3, 0.3, 0.3, 0.3))
+          if (igraph::gsize(net) == 0) {
+            graphics::plot.new()
+            graphics::mtext(
+              text = sprintf("%s \u2014 %s\n(no edges)", mainGroup, res$sg),
+              side = 3, line = -2.2, cex = 0.8)
+          } else {
+            x_rng <- range(vis$norm_lay[, 1], na.rm = TRUE)
+            y_rng <- range(vis$norm_lay[, 2], na.rm = TRUE)
+            x_pad <- max(0.06, diff(x_rng) * 0.08)
+            y_pad <- max(0.06, diff(y_rng) * 0.08)
+            plot(net,
+              layout             = vis$norm_lay,
+              rescale            = FALSE,
+              xlim               = c(x_rng[1] - x_pad, x_rng[2] + x_pad),
+              ylim               = c(y_rng[1] - y_pad, y_rng[2] + y_pad),
+              vertex.color       = vis$node_colors,
+              vertex.label       = vis$node_labels,
+              vertex.label.cex   = node_font,
+              vertex.label.font  = vis$label_fonts,
+              vertex.frame.color = vis$frame_colors,
+              vertex.size        = vis$node_sizes,
+              edge.width         = abs(igraph::E(net)$Correlation) * 3,
+              edge.color         = ifelse(igraph::E(net)$Correlation > 0, "#C0392B", "#1A5276"),
+              edge.lty           = vis$edge_styles,
+              edge.curved        = 0.15
+            )
+            graphics::mtext(
+              text = sprintf("%s%s\n(%s; %s)", mainGroup,
+                             if (res$sg == "all") "" else sprintf(" \u2014 %s", res$sg),
+                             analysis_method, res$sigval),
+              side = 3, line = -2.2, cex = 0.8, font = 1)
+          }
+        })
+      })
+      return(invisible(plots_pw))
+    }
+  }
 
   # ── PDF output ─────────────────────────────────────────────────────────────
   any_edges <- any(vapply(sg_results, function(r) igraph::gsize(r$network) > 0, logical(1)))

@@ -11,10 +11,14 @@ Go_patchwork(
   figure_num = NULL,
   sfigure_num = NULL,
   design = NULL,
+  col_widths = NULL,
+  row_heights = NULL,
+  free_panel = FALSE,
   guides = "collect",
   height = 7,
   width = 10,
   tag_levels = NULL,
+  strip_labels = FALSE,
   title = NULL,
   subtitle = NULL
 )
@@ -39,6 +43,17 @@ Takes precedence over \code{figure_num}.}
 \item{design}{Layout string using \code{"/"} as row separator (see section
 above). When \code{NULL}, patchwork auto-arranges.}
 
+\item{col_widths}{Optional numeric vector of relative column widths for the
+parsed \code{design} grid, e.g. \code{c(1, 2, 2)}.}
+
+\item{row_heights}{Optional numeric vector of relative row heights for the
+parsed \code{design} grid, e.g. \code{c(1.3, 0.8)}.}
+
+\item{free_panel}{Logical. If \code{TRUE}, wrap each ggplot with
+\code{patchwork::free(type = "panel")} before assembly so panel sizing is
+less affected by axis/label alignment across neighbors. Default
+\code{FALSE}.}
+
 \item{guides}{Guide collection: \code{"collect"} (default), \code{"keep"},
 \code{"auto"}.}
 
@@ -48,6 +63,11 @@ above). When \code{NULL}, patchwork auto-arranges.}
 
 \item{tag_levels}{Panel tag string, e.g. \code{"A"}, \code{"A)"},
 \code{"(a)"}. \code{NULL} disables tagging (default).}
+
+\item{strip_labels}{Logical. If \code{TRUE}, call
+\code{labs(title = NULL, subtitle = NULL)} on every panel before assembly,
+useful for clean patchwork figures where each panel's title/subtitle is
+redundant. Default \code{FALSE}.}
 
 \item{title}{Optional overall figure title.}
 
@@ -71,27 +91,31 @@ named list via the \code{plots} argument for backward compatibility.
 Use \code{"/"} to separate rows. Each letter refers to the plot in that
 position (assigned A, B, C ... in the order the plots are passed).
 \code{"#"} is an empty cell. Repeat a letter to span cells.
-Short rows are automatically padded by repeating their last character.
+Rows without \code{"#"} are automatically stretched to use the full width.
+Use explicit \code{"#"} only when you want blank space.
 
 \preformatted{
-  "AB"        1 row   : [A][B]
-  "A/B"       2 rows  : [A]
-                        [B]
-  "AB/CD"     2x2     : [A][B]
+  "AB"         1 row  : [A][B]
+  "A/B"        2 rows : [A][ ]
+                        [B][B]    (each row uses full width)
+  "AB/CD"      2x2   : [A][B]
                         [C][D]
-  "ABC/DEC"   right panel spans both rows:
-              [A][B][C]
-              [D][E][C]
-  "ABC/DE#"   bottom-right empty:
-              [A][B][C]
-              [D][E][ ]
-  "ABC/DEF/H" last row auto-pads H to full width:
-              [A][B][C]
-              [D][E][F]
-              [H][H][H]
-  "AB/CDE"    top row pads B to fill:
-              [A][B][B]
-              [C][D][E]
+  "A/BCD"      top A spans full width automatically:
+               [A][A][A]
+               [B][C][D]
+  "AAA/BCD"    top A spans full width:
+               [A][A][A]
+               [B][C][D]
+  "AAB/CCD"    left 2/3 vs right 1/3:
+               [A][A][B]
+               [C][C][D]
+  "ABC/DEC"    right panel spans both rows:
+               [A][B][C]
+               [D][E][C]
+  "ABC/DE#"    bottom-right explicit empty cell:
+               [A][B][C]
+               [D][E][ ]
+  "ABCD/EFG/HIJ" lower rows use wider 3-panel layout automatically
 }
 When \code{design} is \code{NULL}, patchwork arranges plots automatically.
 }
@@ -109,17 +133,26 @@ Valid bases: \code{A}, \code{a}, \code{1}, \code{I}, \code{i}.
 }
 }
 
+\section{Nesting patchwork objects}{
+
+The return value is itself a patchwork object and can be passed as a panel
+to a second \code{Go_patchwork()} call.  Patchwork assigns tag letters to
+the top-level "slots" only — a nested patchwork counts as one slot.  If you
+want to re-tag a composite, pass it as a single letter and let the outer
+call handle tagging.
+}
+
 \examples{
 \dontrun{
 p_box <- Go_boxplot(df, cate.vars = "Group", project = "P",
                     outcomes = "Shannon", patchwork = TRUE)
 p_mrs <- Go_MRS_plot(fit, patchwork = TRUE)  # $score $roc $coef
 
-# 3 plots side by side
+# 3 plots side by side — name args as A, B, C to match design string
 Go_patchwork(
-  box   = p_box[[1]],
-  score = p_mrs$score,
-  roc   = p_mrs$roc,
+  A = p_box[[1]],
+  B = p_mrs$score,
+  C = p_mrs$roc,
   project = "P", name = "overview", figure_num = 1,
   design = "ABC", height = 5, width = 14,
   tag_levels = "A)"
@@ -127,9 +160,9 @@ Go_patchwork(
 
 # score+coef on top, roc spanning full bottom
 Go_patchwork(
-  score = p_mrs$score,
-  coef  = p_mrs$coef,
-  roc   = p_mrs$roc,
+  A = p_mrs$score,
+  B = p_mrs$coef,
+  C = p_mrs$roc,
   project = "P", sfigure_num = 1,
   design = "AB/C",
   tag_levels = "(A)"

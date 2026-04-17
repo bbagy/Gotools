@@ -43,7 +43,7 @@ Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
       "compositions", "cowplot", "crayon", "caret", "colorspace", "digest",
       "data.table", "devtools", "doParallel", "ellipse", "emmeans", "e1071",
       "gplots", "ggplot2", "gridExtra", "ggrepel", "doRNG", "ggalluvial",
-      "ggExtra",
+      "ggExtra", "grImport2",
       "ggforce", "Hmisc", "irlba", "huge", "irr", "lme4", "lmerTest", "nnet",
       "MLmetrics", "Matrix", "magrittr", "MASS", "missForest", "nlme",
       "phangorn", "pheatmap", "pkgconfig", "dplyr", "pscl", "plotly",

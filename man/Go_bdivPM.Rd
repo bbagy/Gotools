@@ -31,7 +31,8 @@ Go_bdivPM(
   marginal = FALSE,
   marginal_type = c("density", "boxplot", "histogram"),
   marginal_size = 5,
-  marginal_alpha = 0.35
+  marginal_alpha = 0.35,
+  patchwork = FALSE
 )
 }
 \arguments{

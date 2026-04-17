@@ -418,6 +418,7 @@ Go_lollipopPlot <- function(project,
   plotlist_pw <- list()
   for (fn in seq_len(nrow(file_list))) {
     filename1 <- file.path(file_list$path[fn], file_list$file[fn])
+    source_stub <- tools::file_path_sans_ext(basename(filename1))
     df <- utils::read.csv(filename1, row.names = NULL, check.names = FALSE, stringsAsFactors = FALSE)
     colnames(df) <- gsub('^"|"$', "", colnames(df))
 
@@ -550,7 +551,13 @@ Go_lollipopPlot <- function(project,
     message(sprintf("[Go_lollipopPlot] %s: %d features retained, panel width = %.2f, axis width = %.2f, total width = %.2f, auto height = %.2f",
                     plot_df$file_tool[1], nrow(plot_df), width, axis_label_width, grob_width, plot_height))
 
-    plotlist_pw[[length(plotlist_pw) + 1]] <- p
+    plot_key <- gsub("[^A-Za-z0-9._-]+", "_",
+                     if (!is.null(comparison_token) && nzchar(comparison_token)) {
+                       paste(plot_df$file_tool[1], comparison_token, sep = "__")
+                     } else {
+                       source_stub
+                     })
+    plotlist_pw[[plot_key]] <- p
     if (!isTRUE(patchwork)) {
       ggplot2::ggsave(filename = pdf_file, plot = plot_grob, width = grob_width, height = plot_height, device = "pdf")
       print(normalizePath(pdf_file, winslash = "/", mustWork = FALSE))
