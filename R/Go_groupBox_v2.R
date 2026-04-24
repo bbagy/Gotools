@@ -209,7 +209,7 @@ Go_groupBox <- function(psIN, mainGroup, project,
 
 
 
-  df.sel.melt <- melt(df.sel, id.vars = mainGroup, measure.vars = funcNames.sig)
+  df.sel.melt <- reshape2::melt(df.sel, id.vars = mainGroup, measure.vars = funcNames.sig)
   df.sel.melt$value <- as.numeric(df.sel.melt$value)
   df.sel.melt.clean <- subset(df.sel.melt, variable != "Group" &  value > 0)
 

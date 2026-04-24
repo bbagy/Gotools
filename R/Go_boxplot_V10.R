@@ -12,10 +12,10 @@
 #' @param orders Vector of ordered factor levels for the categorical variables.
 #' @param mycols Custom color palette for the plots.
 #' @param combination Number of group combinations to display in the boxplot.
-#' @param chao1_ylim Maximum y-axis value for \code{Chao1} plots. The lower bound is fixed at 0.
-#'   Only applied when the outcome is \code{"Chao1"}. Default \code{150}.
-#' @param shannon_ylim Maximum y-axis value for \code{Shannon} plots. The lower bound is fixed at 0.
-#'   Only applied when the outcome is \code{"Shannon"}. Default \code{7}.
+#' @param chao1_ylim Optional maximum y-axis value for \code{Chao1} plots. The lower bound is fixed at 0.
+#'   Only applied when the outcome is \code{"Chao1"}. If \code{NULL}, y-axis limits are determined automatically.
+#' @param shannon_ylim Optional maximum y-axis value for \code{Shannon} plots. The lower bound is fixed at 0.
+#'   Only applied when the outcome is \code{"Shannon"}. If \code{NULL}, y-axis limits are determined automatically.
 #' @param title Title of the plot.
 #' @param facet Optional variable for creating facetted plots.
 #' @param paired Indicates if the data points are paired.
@@ -61,8 +61,8 @@ Go_boxplot <- function(df          = NULL,
                        orders      = NULL,
                        mycols      = NULL,
                        combination = NULL,
-                       chao1_ylim  = 150,
-                       shannon_ylim = 7,
+                       chao1_ylim  = NULL,
+                       shannon_ylim = NULL,
                        title       = NULL,
                        facet       = NULL,
                        paired      = NULL,
@@ -215,17 +215,17 @@ Go_boxplot <- function(df          = NULL,
   }
 
   resolve_fixed_alpha_ylim <- function(outcome, chao1_ylim, shannon_ylim) {
-    if (identical(outcome, "Chao1")) {
+    if (identical(outcome, "Chao1") && !is.null(chao1_ylim)) {
       return(c(0, chao1_ylim))
     }
-    if (identical(outcome, "Shannon")) {
+    if (identical(outcome, "Shannon") && !is.null(shannon_ylim)) {
       return(c(0, shannon_ylim))
     }
     NULL
   }
 
   build_y_limits <- function(dat, mvar, oc, stat_res, label_y = NULL,
-                             chao1_ylim = 150, shannon_ylim = 7) {
+                             chao1_ylim = NULL, shannon_ylim = NULL) {
     fixed_ylim <- resolve_fixed_alpha_ylim(oc, chao1_ylim, shannon_ylim)
     if (!is.null(fixed_ylim)) return(fixed_ylim)
 

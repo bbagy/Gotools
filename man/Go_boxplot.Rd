@@ -13,8 +13,8 @@ Go_boxplot(
   orders = NULL,
   mycols = NULL,
   combination = NULL,
-  chao1_ylim = 150,
-  shannon_ylim = 7,
+  chao1_ylim = NULL,
+  shannon_ylim = NULL,
   title = NULL,
   facet = NULL,
   paired = NULL,
@@ -51,11 +51,11 @@ Go_boxplot(
 
 \item{combination}{Number of group combinations to display in the boxplot.}
 
-\item{chao1_ylim}{Maximum y-axis value for \code{Chao1} plots. The lower bound is fixed at 0.
-Only applied when the outcome is \code{"Chao1"}. Default \code{150}.}
+\item{chao1_ylim}{Optional maximum y-axis value for \code{Chao1} plots. The lower bound is fixed at 0.
+Only applied when the outcome is \code{"Chao1"}. If \code{NULL}, y-axis limits are determined automatically.}
 
-\item{shannon_ylim}{Maximum y-axis value for \code{Shannon} plots. The lower bound is fixed at 0.
-Only applied when the outcome is \code{"Shannon"}. Default \code{7}.}
+\item{shannon_ylim}{Optional maximum y-axis value for \code{Shannon} plots. The lower bound is fixed at 0.
+Only applied when the outcome is \code{"Shannon"}. If \code{NULL}, y-axis limits are determined automatically.}
 
 \item{title}{Title of the plot.}
 

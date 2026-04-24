@@ -75,12 +75,17 @@
 #'   \code{"auto"}.
 #' @param height PDF height in inches (default \code{7}).
 #' @param width  PDF width  in inches (default \code{10}).
+#' @param pdf Logical. If \code{TRUE} (default), save the assembled figure to a
+#'   PDF file. If \code{FALSE}, return the assembled object without saving.
 #' @param tag_levels Panel tag string, e.g. \code{"A"}, \code{"A)"},
 #'   \code{"(a)"}. \code{NULL} disables tagging (default).
 #' @param strip_labels Logical. If \code{TRUE}, call
 #'   \code{labs(title = NULL, subtitle = NULL)} on every panel before assembly,
 #'   useful for clean patchwork figures where each panel's title/subtitle is
 #'   redundant. Default \code{FALSE}.
+#' @param strip_legend Logical. If \code{TRUE}, call
+#'   \code{theme(legend.position = "none")} on each ggplot panel before
+#'   assembly. Default \code{FALSE}.
 #' @param title Optional overall figure title.
 #' @param subtitle Optional overall subtitle.
 #'
@@ -134,8 +139,10 @@ Go_patchwork <- function(...,
                          guides       = "collect",
                          height       = 7,
                          width        = 10,
+                         pdf          = TRUE,
                          tag_levels   = NULL,
                          strip_labels = FALSE,
+                         strip_legend = FALSE,
                          title        = NULL,
                          subtitle     = NULL) {
 
@@ -369,6 +376,16 @@ Go_patchwork <- function(...,
     })
   }
 
+  if (isTRUE(strip_legend)) {
+    plot_list <- lapply(plot_list, function(p) {
+      if (inherits(p, "ggplot") && !inherits(p, "patchwork")) {
+        p + ggplot2::theme(legend.position = "none")
+      } else {
+        p
+      }
+    })
+  }
+
   if (isTRUE(free_panel)) {
     plot_list <- lapply(plot_list, function(p) {
       if (inherits(p, "ggplot") && !inherits(p, "patchwork")) {
@@ -438,28 +455,33 @@ Go_patchwork <- function(...,
     combined <- combined_base
   }
 
-  # ── filename ──────────────────────────────────────────────────────────────
   date_tag  <- format(Sys.Date(), "%y%m%d")
-  name_part <- if (!is.null(name) && nzchar(name)) paste0(name, ".") else ""
+  pdf_path <- NULL
+  save_plot <- function(plot_obj) plot_obj
 
-  if (!is.null(sfigure_num)) {
-    file_name <- sprintf("Supplemental_Figure%s.%s.%s%s.pdf",
-                         sfigure_num, project, name_part, date_tag)
-  } else if (!is.null(figure_num)) {
-    file_name <- sprintf("Figure%s.%s.%s%s.pdf",
-                         figure_num, project, name_part, date_tag)
-  } else {
-    file_name <- sprintf("patchwork.%s.%s%s.pdf",
-                         project, name_part, date_tag)
-  }
+  if (isTRUE(pdf)) {
+    # ── filename ────────────────────────────────────────────────────────────
+    name_part <- if (!is.null(name) && nzchar(name)) paste0(name, ".") else ""
 
-  # ── save ─────────────────────────────────────────────────────────────────
-  out_dir <- file.path(sprintf("%s_%s/pdf", project, date_tag))
-  if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+    if (!is.null(sfigure_num)) {
+      file_name <- sprintf("Supplemental_Figure%s.%s.%s%s.pdf",
+                           sfigure_num, project, name_part, date_tag)
+    } else if (!is.null(figure_num)) {
+      file_name <- sprintf("Figure%s.%s.%s%s.pdf",
+                           figure_num, project, name_part, date_tag)
+    } else {
+      file_name <- sprintf("patchwork.%s.%s%s.pdf",
+                           project, name_part, date_tag)
+    }
 
-  pdf_path <- file.path(out_dir, file_name)
-  save_plot <- function(plot_obj) {
-    ggplot2::ggsave(pdf_path, plot = plot_obj, width = width, height = height)
+    # ── save ───────────────────────────────────────────────────────────────
+    out_dir <- file.path(sprintf("%s_%s/pdf", project, date_tag))
+    if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+
+    pdf_path <- file.path(out_dir, file_name)
+    save_plot <- function(plot_obj) {
+      ggplot2::ggsave(pdf_path, plot = plot_obj, width = width, height = height)
+    }
   }
 
   save_snapshot_fallback <- function() {
@@ -510,61 +532,63 @@ Go_patchwork <- function(...,
     }
   }
 
-  tryCatch(
-    save_plot(combined),
-    error = function(e) {
-      if (!is.null(tag_parsed)) {
-        message("[Go_patchwork] Save with tags failed: ", conditionMessage(e),
-                "\nRetrying without panel tags...")
-        annot_args_fallback <- annot_args
-        annot_args_fallback$tag_levels <- NULL
-        annot_args_fallback$tag_prefix <- NULL
-        annot_args_fallback$tag_suffix <- NULL
+  if (isTRUE(pdf)) {
+    tryCatch(
+      save_plot(combined),
+      error = function(e) {
+        if (!is.null(tag_parsed)) {
+          message("[Go_patchwork] Save with tags failed: ", conditionMessage(e),
+                  "\nRetrying without panel tags...")
+          annot_args_fallback <- annot_args
+          annot_args_fallback$tag_levels <- NULL
+          annot_args_fallback$tag_prefix <- NULL
+          annot_args_fallback$tag_suffix <- NULL
 
-        combined_fallback <- combined_base
-        annot_args_fallback <- Filter(Negate(is.null), annot_args_fallback)
-        if (length(annot_args_fallback) > 0) {
-          combined_fallback <- combined_base +
-            do.call(patchwork::plot_annotation, annot_args_fallback)
+          combined_fallback <- combined_base
+          annot_args_fallback <- Filter(Negate(is.null), annot_args_fallback)
+          if (length(annot_args_fallback) > 0) {
+            combined_fallback <- combined_base +
+              do.call(patchwork::plot_annotation, annot_args_fallback)
+          }
+
+          tryCatch(
+            save_plot(combined_fallback),
+            error = function(e2) {
+              message("[Go_patchwork] Save without tags failed: ", conditionMessage(e2),
+                      "\nRetrying without plot_annotation...")
+              tryCatch(
+                save_plot(combined_base),
+                error = function(e3) {
+                  message("[Go_patchwork] Save without plot_annotation failed: ",
+                          conditionMessage(e3))
+                  save_snapshot_fallback()
+                }
+              )
+            }
+          )
+          return(invisible(NULL))
         }
 
-        tryCatch(
-          save_plot(combined_fallback),
-          error = function(e2) {
-            message("[Go_patchwork] Save without tags failed: ", conditionMessage(e2),
-                    "\nRetrying without plot_annotation...")
-            tryCatch(
-              save_plot(combined_base),
-              error = function(e3) {
-                message("[Go_patchwork] Save without plot_annotation failed: ",
-                        conditionMessage(e3))
-                save_snapshot_fallback()
-              }
-            )
-          }
-        )
-        return(invisible(NULL))
-      }
+        if (length(annot_args) > 0) {
+          message("[Go_patchwork] Save with plot_annotation failed: ", conditionMessage(e),
+                  "\nRetrying without plot_annotation...")
+          tryCatch(
+            save_plot(combined_base),
+            error = function(e2) {
+              message("[Go_patchwork] Save without plot_annotation failed: ",
+                      conditionMessage(e2))
+              save_snapshot_fallback()
+            }
+          )
+          return(invisible(NULL))
+        }
 
-      if (length(annot_args) > 0) {
-        message("[Go_patchwork] Save with plot_annotation failed: ", conditionMessage(e),
-                "\nRetrying without plot_annotation...")
-        tryCatch(
-          save_plot(combined_base),
-          error = function(e2) {
-            message("[Go_patchwork] Save without plot_annotation failed: ",
-                    conditionMessage(e2))
-            save_snapshot_fallback()
-          }
-        )
-        return(invisible(NULL))
+        message("[Go_patchwork] Save failed: ", conditionMessage(e))
+        save_snapshot_fallback()
       }
-
-      message("[Go_patchwork] Save failed: ", conditionMessage(e))
-      save_snapshot_fallback()
-    }
-  )
-  message("[Go_patchwork] Saved: ", pdf_path)
+    )
+    message("[Go_patchwork] Saved: ", pdf_path)
+  }
 
   attr(combined, "saved_path") <- pdf_path
   invisible(combined)
