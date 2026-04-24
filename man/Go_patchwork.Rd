@@ -17,8 +17,10 @@ Go_patchwork(
   guides = "collect",
   height = 7,
   width = 10,
+  pdf = TRUE,
   tag_levels = NULL,
   strip_labels = FALSE,
+  strip_legend = FALSE,
   title = NULL,
   subtitle = NULL
 )
@@ -61,6 +63,9 @@ less affected by axis/label alignment across neighbors. Default
 
 \item{width}{PDF width  in inches (default \code{10}).}
 
+\item{pdf}{Logical. If \code{TRUE} (default), save the assembled figure to a
+PDF file. If \code{FALSE}, return the assembled object without saving.}
+
 \item{tag_levels}{Panel tag string, e.g. \code{"A"}, \code{"A)"},
 \code{"(a)"}. \code{NULL} disables tagging (default).}
 
@@ -68,6 +73,10 @@ less affected by axis/label alignment across neighbors. Default
 \code{labs(title = NULL, subtitle = NULL)} on every panel before assembly,
 useful for clean patchwork figures where each panel's title/subtitle is
 redundant. Default \code{FALSE}.}
+
+\item{strip_legend}{Logical. If \code{TRUE}, call
+\code{theme(legend.position = "none")} on each ggplot panel before
+assembly. Default \code{FALSE}.}
 
 \item{title}{Optional overall figure title.}
 

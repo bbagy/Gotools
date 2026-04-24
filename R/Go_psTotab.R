@@ -23,6 +23,11 @@
 Go_psTotab <- function(psIN, project){
   out <- file.path("1_out")
   if(!dir.exists(out)) dir.create(out)
+  date_tag <- format(Sys.Date(), "%y%m%d")
+  seq_path <- file.path(out, sprintf("%s.%s.psTotab.seqs.fna", project, date_tag))
+  tax_path <- file.path(out, sprintf("%s.%s.psTotab.tax.csv", project, date_tag))
+  otu_path <- file.path(out, sprintf("%s.%s.psTotab.asv.csv", project, date_tag))
+  otu_table_path <- file.path(out, sprintf("%s.%s.psTotab.asvTable.csv", project, date_tag))
 
   #====== step 1 read ps object
   seqtab.nochim <- as.matrix(otu_table(psIN))
@@ -30,18 +35,25 @@ Go_psTotab <- function(psIN, project){
 
 
   #====== step 2 extract fna
-  seqs <- getSequences(t(seqtab.nochim))
-  headers <- paste(">", seqs, sep="")
-  fasta <- c(rbind(headers, seqs))
+  fasta_written <- FALSE
+  taxa_ids <- taxa_names(psIN)
+  looks_like_dna <- length(taxa_ids) > 0 && all(grepl("^[ACGTN]+$", taxa_ids))
 
-
-  if (nchar(headers[1]) < 100){
-    seqs <- getSequences(seqtab.nochim)
+  if (looks_like_dna) {
+    seqs <- dada2::getSequences(t(seqtab.nochim))
     headers <- paste(">", seqs, sep="")
     fasta <- c(rbind(headers, seqs))
-    write(fasta, file=sprintf("%s/%s.%s.psTotab.seqs.fna",out, project, format(Sys.Date(), "%y%m%d"),sep="/"))
-  }else{
-    write(fasta, file=sprintf("%s/%s.%s.psTotab.seqs.fna",out, project, format(Sys.Date(), "%y%m%d"),sep="/"))
+
+    if (length(headers) > 0 && nchar(headers[1]) < 100){
+      seqs <- dada2::getSequences(seqtab.nochim)
+      headers <- paste(">", seqs, sep="")
+      fasta <- c(rbind(headers, seqs))
+    }
+
+    write(fasta, file = seq_path)
+    fasta_written <- TRUE
+  } else {
+    message("Go_psTotab(): taxa names do not look like DNA sequences; skipping FASTA export.")
   }
 
 
@@ -56,26 +68,21 @@ Go_psTotab <- function(psIN, project){
     otu <- as.data.frame(otu_table(psIN));dim(otu)
     tax <- tax_table(psIN);dim(tax)
     otuTable <- cbind(otu,tax)
-
-    seqs <- getSequences(t(seqtab.nochim))
-    headers <- paste(">", seqs, sep="")
-    fasta <- c(rbind(headers, seqs))
-
-    write(fasta, file=sprintf("%s/%s.%s.psTotab.seqs.fna",out, project, format(Sys.Date(), "%y%m%d"),sep="/"))
+    if (looks_like_dna && !fasta_written) {
+      seqs <- dada2::getSequences(t(seqtab.nochim))
+      headers <- paste(">", seqs, sep="")
+      fasta <- c(rbind(headers, seqs))
+      write(fasta, file = seq_path)
+    }
 
   }else{
     otuTable <- cbind(otu,tax)
   }
 
-  write.csv(tax, quote = TRUE,col.names = NA,#row.names = FALSE,
-            file=sprintf("%s/%s.%s.psTotab.tax.csv",out,project,format(Sys.Date(), "%y%m%d"), sep="/"))
+  write.csv(tax, quote = TRUE, file = tax_path)
 
-  write.csv(otu, quote = TRUE,col.names = NA,#row.names = FALSE,
-            file=sprintf("%s/%s.%s.psTotab.asv.csv",out,project,format(Sys.Date(), "%y%m%d"), sep="/"))
+  write.csv(otu, quote = TRUE, file = otu_path)
 
-  write.csv(otuTable, quote = TRUE,col.names = NA,#row.names = FALSE,
-            file=sprintf("%s/%s.%s.psTotab.asvTable.csv",out,project,format(Sys.Date(), "%y%m%d"), sep="/"))
+  write.csv(otuTable, quote = TRUE, file = otu_table_path)
 
 }
-
-

@@ -265,7 +265,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
                                                           project,cutoff,taxanames[i],
                                                           ifelse(is.null(name), "", paste(name, ".", sep = "")),
                                                           format(Sys.Date(),"%y%m%d")))
-      df <- melt(agg, variable="SampleID")
+      df <- reshape2::melt(agg, variable="SampleID")
     }else{
       genera <- agg[,taxanames[i]]
       agg[,taxanames[i]] <- NULL
@@ -278,7 +278,7 @@ Go_barchart <- function(psIN, cate.vars, project, taxanames, orders=NULL,
                                                            project,cutoff,taxanames[i],
                                                            ifelse(is.null(name), "", paste(name, ".", sep = "")),
                                                            format(Sys.Date(),"%y%m%d")))
-      df <- melt(agg, variable="SampleID")
+      df <- reshape2::melt(agg, variable="SampleID")
     }
 
     df2 <- aggregate(as.formula(sprintf("value ~ %s + SampleID" , taxanames[i])), df, sum)

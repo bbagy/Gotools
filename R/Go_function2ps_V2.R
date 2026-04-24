@@ -144,16 +144,55 @@ Go_function2ps <- function(tabPath, project = NULL, func.type, name = NULL, coll
       collapsed
     }
 
+    collapse_humann_ids <- function(df) {
+      sample_cols <- setdiff(colnames(df), c("ID", "Description"))
+
+      if (!anyDuplicated(df$ID)) {
+        return(df)
+      }
+
+      message(sprintf(
+        "Go_function2ps(): detected %d duplicated HUMAnN feature ID(s). Collapsing duplicated rows by sum.",
+        length(unique(df$ID[duplicated(df$ID)]))
+      ))
+
+      summed <- stats::aggregate(
+        df[, sample_cols, drop = FALSE],
+        by = list(ID = df$ID),
+        FUN = function(x) sum(as.numeric(x), na.rm = TRUE)
+      )
+
+      descriptions <- stats::aggregate(
+        Description ~ ID,
+        data = df[, c("ID", "Description"), drop = FALSE],
+        FUN = function(x) {
+          x <- x[!is.na(x) & x != ""]
+          if (length(x) == 0) "Unknown" else x[1]
+        }
+      )
+
+      merged <- merge(descriptions, summed, by = "ID", sort = FALSE)
+      merged <- merged[, c("ID", "Description", sample_cols), drop = FALSE]
+      rownames(merged) <- merged$ID
+      merged
+    }
+
     # 특정 단어 포함된 행 제거
     func.tab <- func.tab[!grepl("ribosomal protein|UNGROUPED|unclassified|UNMAPPED|UNINTEGRATED", rownames(func.tab)), ]
 
     # ID와 Description 분리
-    func.tab1 <- data.frame(do.call(rbind, stringr::str_split(rownames(func.tab), ": ", n = 2)))
-    colnames(func.tab1) <- c("ID", "Description")
-    func.tab1$Description[is.na(func.tab1$Description)] <- "Unknown"
+    # HUMAnN pathway tables use "ID: Description", while KO tables may provide only IDs.
+    split_ids <- stringr::str_split_fixed(rownames(func.tab), ": ", n = 2)
+    func.tab1 <- data.frame(
+      ID = split_ids[, 1],
+      Description = split_ids[, 2],
+      stringsAsFactors = FALSE
+    )
+    func.tab1$Description[func.tab1$Description == "" | is.na(func.tab1$Description)] <- "Unknown"
 
     # 병합 및 재구성
     func.tab <- cbind(func.tab1, func.tab)
+    func.tab <- collapse_humann_ids(func.tab)
     rownames(func.tab) <- func.tab$ID
 
     if (isTRUE(collapse_pairs)) {

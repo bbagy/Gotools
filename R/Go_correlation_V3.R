@@ -188,6 +188,11 @@ Go_correlation <- function(psIN, project,
 
   n_facets <- length(grp_levels)
   nc <- if (!is.null(ncols)) ncols else min(n_facets, 4)
+  subtitle_text <- sprintf(
+    "Significance marks use %s values; display cutoff p < %.3g; stars: *** < 0.001, ** < 0.01, * < 0.05",
+    if (isTRUE(padj)) "BH-FDR adjusted p" else "raw p",
+    pvalue
+  )
 
   p <- ggplot(results, aes(x = variable, y = taxa, fill = r)) +
     geom_tile(color = "white", linewidth = 0.3) +
@@ -200,6 +205,7 @@ Go_correlation <- function(psIN, project,
                          name = method) +
     labs(x = NULL, y = NULL,
          title = sprintf("Correlation: %s vs external variables", rank),
+         subtitle = subtitle_text,
          caption = sprintf("Filter: top %d taxa, prevalence >= %.0f%% | %s | FDR: %s",
                            top_n, min_prev * 100, method,
                            if (isTRUE(padj)) "BH" else "none")) +
@@ -209,6 +215,7 @@ Go_correlation <- function(psIN, project,
           axis.text.x       = element_text(angle = xangle, hjust = 1, vjust = 0.5, size = 7),
           axis.text.y       = element_text(size = 7, face = "italic"),
           plot.title        = element_text(size = 9, face = "bold"),
+          plot.subtitle     = element_text(size = 7),
           plot.caption      = element_text(size = 6, color = "grey50"),
           legend.key.height = unit(0.4, "cm"),
           panel.grid        = element_blank())

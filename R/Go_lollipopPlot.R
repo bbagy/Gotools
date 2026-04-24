@@ -283,7 +283,7 @@ Go_lollipopPlot <- function(project,
       conda_subtitle <- if (length(conda_dist_parts) > 0) paste("dist:", paste(conda_dist_parts, collapse = " \u00b7 ")) else ""
       file_tool <- if (nzchar(conda_sig)) paste0("ConDA-dist.", conda_sig) else "ConDA-dist"
       out_subdir <- "ConDa_plot"
-      score_label <- "Signed priority score"
+      score_label <- "Signed significance  (sign \u00d7 \u2212log\u2081\u2080 fisher q)"
     } else {
       message(sprintf("[Go_lollipopPlot] %s: required effect column not found for tool '%s'.", if (is.null(source_name)) "<unknown>" else source_name, tool))
       return(NULL)
@@ -308,12 +308,17 @@ Go_lollipopPlot <- function(project,
     pval <- if (p_col %in% colnames(df)) suppressWarnings(as.numeric(df[[p_col]])) else rep(NA_real_, nrow(df))
     qval <- if (!is.na(q_col) && q_col %in% colnames(df)) suppressWarnings(as.numeric(df[[q_col]])) else rep(NA_real_, nrow(df))
 
-    base_score <- if (tool == "condadist" && "priority_score" %in% colnames(df)) {
-      suppressWarnings(as.numeric(df$priority_score))
-    } else {
+    base_score <- {
       use_q <- is.finite(qval) & !is.na(qval)
       score_in <- ifelse(use_q, qval, pval)
       -log10(pmax(score_in, 1e-300))
+    }
+
+    # condadist: final_score [0,1] used for point size; other tools: NA
+    final_score_vals <- if (tool == "condadist" && "final_score" %in% colnames(df)) {
+      suppressWarnings(as.numeric(df[["final_score"]]))
+    } else {
+      rep(NA_real_, nrow(df))
     }
 
     signed_score <- sign(effect) * base_score
@@ -351,6 +356,7 @@ Go_lollipopPlot <- function(project,
       qval = qval,
       base_score = base_score,
       signed_score = signed_score,
+      final_score = final_score_vals,
       direction = dir_label,
       mvar = mvar,
       basline = basline,
@@ -485,6 +491,8 @@ Go_lollipopPlot <- function(project,
       comparison_token <- paste(comparison_token, call_name_token, sep = ".")
     }
 
+    use_fscore_size <- any(!is.na(plot_df$final_score) & is.finite(plot_df$final_score))
+
     p <- ggplot2::ggplot(
       plot_df,
       ggplot2::aes(x = signed_score, y = feature_id, color = direction)
@@ -494,10 +502,17 @@ Go_lollipopPlot <- function(project,
         linewidth = 0.7,
         alpha = 0.8
       ) +
-      ggplot2::geom_point(ggplot2::aes(shape = dirPadj), size = 3) +
+      if (use_fscore_size) {
+        ggplot2::geom_point(ggplot2::aes(shape = dirPadj, size = final_score))
+      } else {
+        ggplot2::geom_point(ggplot2::aes(shape = dirPadj), size = 3)
+      } +
       ggplot2::geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.7, color = "grey40") +
       ggplot2::scale_color_manual(values = dircolors, labels = legend.labs, drop = FALSE) +
       ggplot2::scale_shape_manual(values = padj_shape, drop = FALSE) +
+      if (use_fscore_size) {
+        ggplot2::scale_size_continuous(name = "final_score", range = c(1.5, 6), limits = c(0, 1))
+      } else NULL +
       ggplot2::scale_y_discrete(labels = stats::setNames(as.character(plot_df$feature_label), as.character(plot_df$feature_id))) +
       ggplot2::labs(
         title = sprintf("%s, %s (%s)", plot_df$mvar[1], plot_df$title_tool[1], sig_shape_label),
@@ -526,7 +541,8 @@ Go_lollipopPlot <- function(project,
       ) +
       ggplot2::guides(
         color = ggplot2::guide_legend(nrow = 1, byrow = TRUE, title.position = "top"),
-        shape = ggplot2::guide_legend(nrow = 1, byrow = TRUE, title.position = "left")
+        shape = ggplot2::guide_legend(nrow = 1, byrow = TRUE, title.position = "left"),
+        size  = if (use_fscore_size) ggplot2::guide_legend(nrow = 1, byrow = TRUE, title.position = "left") else NULL
       )
 
     pdf_file <- sprintf(

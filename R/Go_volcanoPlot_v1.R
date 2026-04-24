@@ -551,7 +551,7 @@ Go_volcanoPlot <- function(project,
       geom_vline(xintercept = c(-fc, 0, fc), col = dircolors, linetype = "dotted", size = 1)
 
     p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE)
-    p1 <- p1 + geom_text_repel(aes(label = label_text), size=font, fontface="italic", max.overlaps=overlaps)
+    p1 <- p1 + geom_text_repel(aes(label = label_text), size=font, fontface="italic", max.overlaps=overlaps, show.legend = FALSE)
 
     p1 <- p1 + labs(title = sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc), subtitle = subtitle_text)
     p2 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE) +
@@ -642,7 +642,7 @@ Go_volcanoPlot <- function(project,
         geom_vline(xintercept = c(-fc, 0, fc), col = dircolors, linetype = "dotted", size = 1)
 
       p1 <- p1 + scale_color_manual(values=dircolors,  labels=legend.labs, drop = FALSE)
-      p1 <- p1 + geom_text_repel(aes(label = label_text), size=font, fontface="italic", max.overlaps=overlaps)
+      p1 <- p1 + geom_text_repel(aes(label = label_text), size=font, fontface="italic", max.overlaps=overlaps, show.legend = FALSE)
       p1 <- p1 + labs(title = sprintf("%s, %s%s (p < 0.05, cutoff=%s) ", mvar,  tool, ifelse(is.null(model), "", paste("-",model, sep = "")), fc), subtitle = subtitle_text)
       p2 <- p1 + geom_point(aes(shape=dirPadj), size=font-1.5)+  scale_shape_manual(values = padj_shape, drop = FALSE) +
         labs(shape = "FDR < 0.05", color = sprintf("%s p < 0.05",tool)) +
