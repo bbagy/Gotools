@@ -332,8 +332,8 @@ Go_boxplot_stats_engine <- function(df, mvar, oc, comparisons,
 
     ctr_df <- as.data.frame(summary(ctr))
     parts <- strsplit(as.character(ctr_df$contrast), " - ", fixed = TRUE)
-    ctr_df$group1_raw <- vapply(parts, `[`, character(1), 1)
-    ctr_df$group2_raw <- vapply(parts, `[`, character(1), 2)
+    ctr_df$group1_raw <- trimws(gsub("[()]", "", vapply(parts, `[`, character(1), 1)))
+    ctr_df$group2_raw <- trimws(gsub("[()]", "", vapply(parts, `[`, character(1), 2)))
     ctr_df$key <- mapply(make_pair_key, ctr_df$group1_raw, ctr_df$group2_raw)
 
     display_keys <- vapply(comparisons_raw_use, function(comp) make_pair_key(comp[1], comp[2]), character(1))

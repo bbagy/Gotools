@@ -118,13 +118,17 @@ Go_volcanoPlot <- function(project,
   # build file list
   plot = "volcano"
   if (!is.null(result)) {
-    # result is a directory path returned by Go_Deseq2 / Go_Aldex2 / Go_Ancom2
+    # result is a directory path returned by Go_ConDaDist (or legacy Go_Deseq2 / Go_Aldex2)
     if (!is.character(result) || !dir.exists(result)) {
-      stop("result must be a directory path returned by Go_Deseq2 / Go_Aldex2 / Go_Ancom2.")
+      stop("result must be a directory path returned by Go_ConDaDist.")
     }
-    tool_files <- list.files(result, pattern = "\\.csv$", full.names = FALSE)
-    if (length(tool_files) == 0) stop(sprintf("No CSV files found in: %s", result))
-    file_list <- data.frame(path = result, file = tool_files, stringsAsFactors = FALSE)
+    all_csvs <- list.files(result, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE)
+    if (length(all_csvs) == 0) stop(sprintf("No CSV files found in: %s", result))
+    file_list <- data.frame(
+      path = dirname(all_csvs),
+      file = basename(all_csvs),
+      stringsAsFactors = FALSE
+    )
 
   } else if (!is.null(file_path) && !is.null(files)) {
     filenames <- list.files(file_path, pattern = files)
