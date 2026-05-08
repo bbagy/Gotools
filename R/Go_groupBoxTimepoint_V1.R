@@ -201,6 +201,18 @@ Go_groupBoxTimepoint <- function(df = NULL,
     return(invisible(NULL))
   }
 
+  if (!is.null(orders)) {
+    time_levels <- intersect(orders, unique(as.character(df.sel[[timepoint]])))
+    group_levels <- intersect(orders, unique(as.character(df.sel[[maingroup]])))
+
+    if (length(time_levels) > 0) {
+      df.sel[[timepoint]] <- factor(as.character(df.sel[[timepoint]]), levels = time_levels)
+    }
+    if (length(group_levels) > 0) {
+      df.sel[[maingroup]] <- factor(as.character(df.sel[[maingroup]]), levels = group_levels)
+    }
+  }
+
   if (is.null(plotCols)) plotCols <- length(outcomes)
   if (is.null(plotRows)) plotRows <- 1
 
@@ -218,17 +230,12 @@ Go_groupBoxTimepoint <- function(df = NULL,
       ) %>%
       dplyr::ungroup()
 
-    if (!is.null(orders)) {
-      df.sel[, timepoint] <- factor(df.sel[, timepoint], levels = intersect(orders, df.sel[, timepoint]))
-      df.sel[, maingroup] <- factor(df.sel[, maingroup], levels = intersect(orders, df.sel[, maingroup]))
-    }
-
     max_label_y <- if (all(is.na(df.sel[[variable]]))) 1 else max(df.sel[[variable]], na.rm = TRUE) + 0.2
 
     p <- ggplot(df.sel, aes_string(x = timepoint, y = variable, fill = maingroup)) +
       geom_boxplot(outlier.shape = NA, lwd = 0.3) +
-      geom_line(data = average_data, aes_string(x = timepoint, y = sprintf("mean_%s", variable), group = maingroup, colour = maingroup), size = 1, alpha = 0.4) +
-      geom_point(aes_string(colour = maingroup), position = position_dodge(width = 0.75), size = 1.5, alpha = 0.8) +
+      geom_line(data = average_data, aes_string(x = timepoint, y = sprintf("mean_%s", variable), group = maingroup, colour = maingroup), size = 1, alpha = 0.4, show.legend = FALSE) +
+      geom_point(aes_string(colour = maingroup), position = position_dodge(width = 0.75), size = 1.5, alpha = 0.8, show.legend = FALSE) +
       theme_bw() +
       theme(legend.position = "bottom", legend.title = element_blank()) +
       labs(y = variable, x = NULL) +
@@ -237,8 +244,13 @@ Go_groupBoxTimepoint <- function(df = NULL,
                          label.y = max_label_y)
 
     if (!is.null(mycols)) {
-      p <- p + scale_fill_manual(values = mycols, labels = fill_labels) +
-        scale_colour_manual(values = mycols, labels = fill_labels)
+      if (is.null(fill_labels)) {
+        p <- p + scale_fill_manual(values = mycols, drop = FALSE) +
+          scale_colour_manual(values = mycols, drop = FALSE)
+      } else {
+        p <- p + scale_fill_manual(values = mycols, labels = fill_labels, drop = FALSE) +
+          scale_colour_manual(values = mycols, labels = fill_labels, drop = FALSE)
+      }
     }
 
     if (!is.null(title)) {
