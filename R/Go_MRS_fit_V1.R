@@ -30,21 +30,16 @@
 #' @param outcome_type One of \code{"auto"}, \code{"continuous"},
 #'   \code{"binary"}, or \code{"count"}.
 #' @param family One of \code{"auto"}, \code{"gaussian"}, \code{"binomial"},
-#'   or \code{"poisson"}.
-#' @param transform Feature transform applied before model fitting. One of
-#'   \code{"clr"} (default; centered log-ratio, compositionally correct),
-#'   \code{"log_rel"} (\code{log(relab * 100 + 1)}), \code{"relative"}
-#'   (raw relative abundance), or \code{"count"} (raw OTU counts).
+#'   or \code{"poisson"}. Microbial features are transformed internally using
+#'   \code{"clr"}.
 #' @param top_n Optional integer; retain at most the top N taxa by variance
-#'   (\code{"clr"}) or mean abundance (other transforms) before model fitting.
-#'   \code{NULL} (default) passes all prevalence/abundance-filtered taxa to
-#'   glmnet, which then applies L1 sparsity internally.
+#'   after CLR transformation before model fitting. \code{NULL} (default)
+#'   passes all prevalence/abundance-filtered taxa to glmnet, which then
+#'   applies L1 sparsity internally.
 #' @param prevalence_min Optional prevalence filter (proportion of samples with
 #'   non-zero relative abundance). Defaults to \code{0}.
 #' @param abundance_min Optional mean relative abundance filter. Defaults to
 #'   \code{0}.
-#' @param alpha Elastic-net mixing parameter passed to \code{cv.glmnet()}.
-#'   \code{0.5} (default) balances L1 sparsity and L2 ridge shrinkage.
 #' @param nfolds Number of CV folds for \code{cv.glmnet()}. Defaults to
 #'   \code{5}.
 #' @param seed Integer seed for reproducible fold assignment when
@@ -53,17 +48,10 @@
 #'   fold membership. Length must match the analysis sample count after
 #'   filtering/NA removal.
 #' @param standardize Logical; passed to \code{cv.glmnet()}. Defaults to
-#'   \code{TRUE}.
-#' @param validation One of \code{"oof"} (default; out-of-fold cross-validation
-#'   for unbiased score estimation) or \code{"apparent"} (train-set scoring,
-#'   inflates AUC).
-#' @param score_scale One of \code{"response"} or \code{"link"} for returned
-#'   scores from glmnet predict (used only when
-#'   \code{score_method = "predict"}).
-#' @param score_method One of \code{"deep_mrs"} (default; elastic net
-#'   coefficients as weights, weighted-sum MRS), \code{"weighted_sum"} or
-#'   \code{"legacy_mrs"} (backward-compatible aliases for \code{"deep_mrs"}),
-#'   or \code{"predict"} (uses \code{stats::predict.cv.glmnet()} directly).
+#'   \code{TRUE}. Internally, this legacy implementation uses
+#'   \code{alpha = 0.5}, \code{validation = "oof"},
+#'   \code{score_scale = "response"}, and
+#'   \code{score_method = "deep_mrs"}.
 #' @param project Optional project name used to save the fitted object.
 #' @param name Optional file tag for saving the fitted object. When both
 #'   \code{project} and \code{name} are provided, the fitted object is saved to
@@ -80,18 +68,13 @@ Go_MRS_fit <- function(psIN,
                        random_effect = NULL,
                        outcome_type  = c("auto", "continuous", "binary", "count"),
                        family        = c("auto", "gaussian", "binomial", "poisson"),
-                       transform     = c("clr", "log_rel", "relative", "count"),
                        top_n         = NULL,
                        prevalence_min = 0,
                        abundance_min  = 0,
-                       alpha         = 0.5,
                        nfolds        = 5,
                        seed          = 1234,
                        foldid        = NULL,
                        standardize   = TRUE,
-                       validation    = c("oof", "apparent"),
-                       score_scale   = c("response", "link"),
-                       score_method  = "deep_mrs",
                        project       = NULL,
                        name          = NULL,
                        na_action     = c("complete"),
@@ -108,13 +91,13 @@ Go_MRS_fit <- function(psIN,
 
   outcome_type <- match.arg(outcome_type)
   family <- match.arg(family)
-  transform <- match.arg(transform)
-  validation <- match.arg(validation)
-  score_scale <- match.arg(score_scale)
-  score_method <- match.arg(score_method, c("deep_mrs", "weighted_sum", "predict", "legacy_mrs"))
-  if (score_method %in% c("weighted_sum", "legacy_mrs")) score_method <- "deep_mrs"
   na_action <- match.arg(na_action)
   if (!is.null(seed)) seed <- as.integer(seed)[1]
+  transform <- "clr"
+  validation <- "oof"
+  score_scale <- "response"
+  score_method <- "deep_mrs"
+  alpha <- 0.5
 
   if (!inherits(psIN, "phyloseq")) stop("`psIN` must be a phyloseq object.")
   if (!requireNamespace("phyloseq", quietly = TRUE)) stop("Package `phyloseq` is required.")
@@ -187,8 +170,10 @@ Go_MRS_fit <- function(psIN,
     out <- list()
     if (outcome_type_detected == "binary") {
       y_bin <- as.integer(y)
+      score_raw <- as.numeric(score)
+      score_prob <- pmin(pmax(score_raw, 1e-6), 1 - 1e-6)
       if (requireNamespace("pROC", quietly = TRUE)) {
-        roc_obj <- pROC::roc(response = y_bin, predictor = score,
+        roc_obj <- pROC::roc(response = y_bin, predictor = score_raw,
                              direction = "<", quiet = TRUE)
         out$roc <- roc_obj
         out$auc <- as.numeric(pROC::auc(roc_obj))
@@ -203,8 +188,9 @@ Go_MRS_fit <- function(psIN,
         out$threshold <- 0.5
       }
       thresh <- if (!is.null(out$threshold) && is.finite(out$threshold)) out$threshold else 0.5
-      pred_class <- as.integer(score >= thresh)
+      pred_class <- as.integer(score_raw >= thresh)
       out$accuracy <- mean(pred_class == y_bin, na.rm = TRUE)
+      out$brier <- mean((score_prob - y_bin)^2, na.rm = TRUE)
     } else {
       y_num <- as.numeric(y)
       out$rmse <- sqrt(mean((y_num - score)^2, na.rm = TRUE))
@@ -325,7 +311,8 @@ Go_MRS_fit <- function(psIN,
     relative = relab,
     count    = otu_mat,
     clr      = {
-      p_clr <- relab + 1e-6
+      p_clr <- otu_mat + 0.5
+      p_clr <- sweep(p_clr, 1, rowSums(p_clr), "/")
       log(p_clr) - rowMeans(log(p_clr))
     }
   )

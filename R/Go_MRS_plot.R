@@ -74,10 +74,15 @@ Go_MRS_plot <- function(fit,
     x
   }
 
-  resolve_outdir <- function(project) {
+  resolve_outdir <- function(project, weights_mode = NULL) {
     project_use <- project %||% "MRS"
     today <- format(Sys.Date(), "%y%m%d")
-    root <- file.path(sprintf("%s_%s", clean_tag(project_use), today), "pdf", "MRS_plot")
+    weights_tag <- clean_tag(weights_mode %||% "none")
+    root <- file.path(
+      sprintf("%s_%s", clean_tag(project_use), today),
+      "pdf",
+      sprintf("MRS_plot_%s", weights_tag)
+    )
     dir.create(root, recursive = TRUE, showWarnings = FALSE)
     root
   }
@@ -89,9 +94,9 @@ Go_MRS_plot <- function(fit,
     paste0(tag, ".pdf")
   }
 
-  maybe_save_plot <- function(p, plot_type, engine, project, name) {
+  maybe_save_plot <- function(p, plot_type, engine, project, name, weights_mode = NULL) {
     if (isTRUE(patchwork) || is.null(project) || is.null(name)) return(p)
-    out_path <- resolve_outdir(project = project)
+    out_path <- resolve_outdir(project = project, weights_mode = weights_mode)
     file_name <- build_filename(plot_type = plot_type, engine = engine, name = name)
     pdf_w <- attr(p, "recommended_width") %||% 5
     pdf_h <- attr(p, "recommended_height") %||% 5
@@ -153,13 +158,16 @@ Go_MRS_plot <- function(fit,
 
   subtitle <- fit$subtitle
   info <- fit$model_info
-  pred <- fit$predictions
-  coef_df <- fit$coefficients
+  pred <- fit$performance$predictions %||% fit$predictions
+  coef_df <- fit$final_model$coefficients %||% fit$coefficients
+  metrics <- fit$performance$metrics %||% fit$metrics
+  weights_mode <- info$weights_mode %||% "none"
 
   format_plot_subtitle <- function(subtitle, metrics, info) {
     subtitle <- subtitle %||% ""
-    # AUC is shown as in-panel annotation — strip it from the subtitle
+    # AUC/Brier are shown in-panel for binary plots.
     subtitle_clean <- gsub("\\s*\\|\\s*AUC = [^|]+", "", subtitle)
+    subtitle_clean <- gsub("\\s*\\|\\s*Brier = [^|]+", "", subtitle_clean)
     trimws(subtitle_clean)
   }
 
@@ -167,10 +175,15 @@ Go_MRS_plot <- function(fit,
   auc_panel_label <- function(metrics) {
     if (is.null(metrics$auc) || is.na(metrics$auc)) return(NULL)
     ci <- metrics$auc_ci
-    if (!is.null(ci) && length(ci) == 3 && all(is.finite(ci))) {
-      sprintf("AUC = %.3f\n(95%% CI: %.3f\u2013%.3f)", metrics$auc, ci[1], ci[3])
+    brier_txt <- if (!is.null(metrics$brier) && is.finite(metrics$brier)) {
+      sprintf("\nBrier = %.3f", metrics$brier)
     } else {
-      sprintf("AUC = %.3f", metrics$auc)
+      ""
+    }
+    if (!is.null(ci) && length(ci) == 3 && all(is.finite(ci))) {
+      sprintf("AUC = %.3f\n(95%% CI: %.3f\u2013%.3f)%s", metrics$auc, ci[1], ci[3], brier_txt)
+    } else {
+      sprintf("AUC = %.3f%s", metrics$auc, brier_txt)
     }
   }
 
@@ -227,11 +240,13 @@ Go_MRS_plot <- function(fit,
     trimws(out)
   }
 
-  subtitle <- format_plot_subtitle(subtitle, fit$metrics, info)
+  subtitle <- format_plot_subtitle(subtitle, metrics, info)
   subtitle <- wrap_plot_subtitle(subtitle, width = 52)
 
   if (length(plot_type) > 1 || identical(plot_type, "all")) {
-    plot_types <- unique(if (identical(plot_type, "all")) c("score", "roc", "coef") else plot_type)
+    plot_types <- unique(if (identical(plot_type, "all")) {
+      if (identical(info$outcome_type, "binary")) c("score", "roc", "coef") else c("score", "coef")
+    } else plot_type)
     out_list <- lapply(plot_types, function(pt) {
       Go_MRS_plot(
         fit = fit,
@@ -260,11 +275,11 @@ Go_MRS_plot <- function(fit,
     if (info$outcome_type != "binary") {
       stop("ROC plot is available only for binary outcomes.")
     }
-    if (is.null(fit$metrics$roc)) {
+    if (is.null(metrics$roc)) {
       stop("ROC object not available. Install `pROC` and refit if needed.")
     }
 
-    roc_obj <- fit$metrics$roc
+    roc_obj <- metrics$roc
     roc_df <- data.frame(
       specificity = roc_obj$specificities,
       sensitivity = roc_obj$sensitivities
@@ -286,7 +301,7 @@ Go_MRS_plot <- function(fit,
         plot.subtitle = ggplot2::element_text(size = 9.5, hjust = 0.5, lineheight = 1.05, margin = ggplot2::margin(b = 8))
       )
     # AUC annotation inside ROC panel (bottom-right)
-    auc_lbl <- auc_panel_label(fit$metrics)
+    auc_lbl <- auc_panel_label(metrics)
     if (!is.null(auc_lbl)) {
       p <- p + ggplot2::annotate("text",
         x = 0.60, y = 0.18,
@@ -297,7 +312,7 @@ Go_MRS_plot <- function(fit,
       )
     }
     p <- attach_plot_size_info(p, group_labels = c("ROC"), panel_width = 3, panel_height = 3, min_width = 4.2)
-    p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
+    p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name, weights_mode = weights_mode)
     return(invisible(p))
   }
 
@@ -326,7 +341,7 @@ Go_MRS_plot <- function(fit,
         axis.text.y = ggplot2::element_text(face = "italic")
       )
     p <- attach_plot_size_info(p, group_labels = coef_sub$feature, panel_width = 2.5, panel_height = 0.8, min_width = 5.4)
-    p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
+    p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name, weights_mode = weights_mode)
     return(invisible(p))
   }
 
@@ -335,6 +350,8 @@ Go_MRS_plot <- function(fit,
     pos_lab <- info$positive_class %||% "1"
     grp_order <- order %||% c(neg_lab, pos_lab)
     if (length(grp_order) != 2) stop("`order` must have length 2 for binary score plots.")
+    score_col <- if ("score_response" %in% names(pred)) "score_response" else "score"
+    pred$score_plot <- pred[[score_col]]
     pred$group <- factor(
       pred$observed,
       levels = c(0, 1),
@@ -348,7 +365,7 @@ Go_MRS_plot <- function(fit,
     if (identical(style, "paper")) {
       p <- ggplot2::ggplot(
         pred,
-        ggplot2::aes(x = group, y = score, fill = group)
+        ggplot2::aes(x = group, y = score_plot, fill = group)
       ) +
         ggplot2::geom_boxplot(alpha = 0.7, outlier.shape = NA, width = 0.55) +
         ggplot2::geom_jitter(width = 0.15, size = 1.5, alpha = 0.5) +
@@ -357,7 +374,7 @@ Go_MRS_plot <- function(fit,
           title = format_plot_title(title, "Score Distribution"),
           subtitle = subtitle,
           x = "Trajectory",
-          y = "Microbial Risk Score (MRS)"
+          y = "Predicted probability"
         ) +
         ggplot2::theme_classic(base_size = 12) +
         ggplot2::theme(
@@ -368,7 +385,7 @@ Go_MRS_plot <- function(fit,
     } else {
       p <- ggplot2::ggplot(
         pred,
-        ggplot2::aes(x = group, y = score, fill = group)
+        ggplot2::aes(x = group, y = score_plot, fill = group)
       ) +
         ggplot2::geom_violin(alpha = 0.7, colour = NA) +
         ggplot2::geom_boxplot(width = 0.15, outlier.shape = NA, fill = "white") +
@@ -378,13 +395,13 @@ Go_MRS_plot <- function(fit,
           title = format_plot_title(title, "Score Distribution"),
           subtitle = subtitle,
           x = "Trajectory",
-          y = "Model score"
+          y = "Predicted probability"
         ) +
         ggplot2::theme_bw(base_size = 12)
     }
 
     # AUC annotation inside score panel (top-left corner)
-    auc_lbl <- auc_panel_label(fit$metrics)
+    auc_lbl <- auc_panel_label(metrics)
     if (!is.null(auc_lbl)) {
       p <- p + ggplot2::annotate("text",
         x = -Inf, y = Inf,
@@ -402,7 +419,7 @@ Go_MRS_plot <- function(fit,
       panel_height = 3,
       min_width = 3.0
     )
-    p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
+    p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name, weights_mode = weights_mode)
     return(invisible(p))
   }
 
@@ -421,6 +438,6 @@ Go_MRS_plot <- function(fit,
     ggplot2::theme_bw(base_size = 12)
 
   p <- attach_plot_size_info(p, group_labels = c("Observed"), panel_width = 2.5, panel_height = 0.8, min_width = 4.4)
-  p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name)
+  p <- maybe_save_plot(p, plot_type = plot_type, engine = info$engine, project = project, name = name, weights_mode = weights_mode)
   invisible(p)
 }
