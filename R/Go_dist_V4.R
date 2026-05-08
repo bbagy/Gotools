@@ -64,7 +64,7 @@ Go_dist <- function(psIN, project, cate.vars, name=NULL, distance_metrics){
       for (group in unique(groups_all)) { 
         row_group <- which(groups_all == group)
         sample_group <- sample_names(psIN)[row_group]
-        sub_dist[[group]] <- dm1.mat[sample_group, sample_group]
+        sub_dist[[group]] <- dm1.mat[sample_group, sample_group, drop = FALSE]
         sub_dist[[group]][!lower.tri(sub_dist[[group]])] <- NA
       }
       
@@ -95,7 +95,7 @@ Go_dist <- function(psIN, project, cate.vars, name=NULL, distance_metrics){
           sample_group2 <- sample_names(psIN)[row_group2]
           
           # Get the pairwise distances between groups
-          group_dist <- dm1.mat[sample_group1, sample_group2]
+          group_dist <- dm1.mat[sample_group1, sample_group2, drop = FALSE]
           
           # Add the distances to the list, with a name indicating the pair of groups
           group_dists[[paste(unique_groups[i], unique_groups[j], sep=".VS.")]] <- group_dist
