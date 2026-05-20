@@ -60,6 +60,7 @@ Go_pheatmap <- function(psIN,project, title = NULL,
                         show_rownames = T,show_colnames = F,
                         cutree_rows = NA, cutree_cols = NA,
                         cluster_rows = T, cluster_cols = T,
+                        row_gap = NULL, column_gap = NULL,
                         showPhylum = T,
                         width,
                         patchwork = FALSE){
@@ -78,24 +79,38 @@ Go_pheatmap <- function(psIN,project, title = NULL,
   if(!dir.exists(out_pheatmapTab)) dir.create(out_pheatmapTab)
 
 
+  otu_raw <- as.matrix(otu_table(psIN))
+  otu_has_negative <- any(otu_raw < 0, na.rm = TRUE)
+
   #----- normalization relative abundant ---#
-   if(max(data.frame(otu_table(psIN))) < 1){
+   if(otu_has_negative){
+     ps.rel <- psIN
+     print("Signed table data detected. Skip log normalization.")
+   }else if(max(otu_raw, na.rm = TRUE) < 1){
      ps.rel <- psIN
      print("Percentage abundant table data.")
    }else{
-     print("Counts or cpm table data. Data normalized by perentage.")
-     psIN.prune = prune_samples(sample_sums(psIN) > 1, psIN);psIN.prune
-     ps.rel <- transform_sample_counts(psIN.prune, function(x) log(1+x) );ps.rel# x/sum(x)*100
+     print("Counts or cpm table data. Data normalized by log1p.")
+     psIN.prune <- prune_samples(sample_sums(psIN) > 1, psIN);psIN.prune
+     ps.rel <- transform_sample_counts(psIN.prune, function(x) log1p(x) );ps.rel
    }
 
 print("Check the psIN")
 
+  otu_rank <- as.matrix(otu_table(ps.rel))
+  if (!phyloseq::taxa_are_rows(ps.rel)) otu_rank <- t(otu_rank)
+  taxa_score <- if (otu_has_negative) {
+    rowSums(abs(otu_rank), na.rm = TRUE)
+  } else {
+    rowSums(otu_rank, na.rm = TRUE)
+  }
+
   if(is.null(Ntax)){
-    Ntax <- dim(tax_table(ps.rel))[1]
+    Ntax <- nrow(otu_rank)
     print(sprintf("number of taxa is %s",Ntax))
-    ps.rel.sel <- prune_taxa(names(sort(taxa_sums(ps.rel),TRUE)[1:Ntax]), ps.rel);ps.rel.sel
+    ps.rel.sel <- prune_taxa(names(sort(taxa_score, TRUE)[1:Ntax]), ps.rel);ps.rel.sel
   }else{
-    ps.rel.sel <- prune_taxa(names(sort(taxa_sums(ps.rel),TRUE)[1:Ntax]), ps.rel);ps.rel.sel
+    ps.rel.sel <- prune_taxa(names(sort(taxa_score, TRUE)[1:Ntax]), ps.rel);ps.rel.sel
   }
 
 
@@ -116,9 +131,9 @@ print("Check the psIN")
    }
 
 
-  matrix <- data.frame(t(otu_table(ps.rel.sel)));head(matrix)
-
-  matrix <- data.frame(otu_table(ps.rel.sel));head(matrix)
+  matrix <- as.matrix(otu_table(ps.rel.sel))
+  if (!phyloseq::taxa_are_rows(ps.rel.sel)) matrix <- t(matrix)
+  matrix <- data.frame(matrix);head(matrix)
   # normalization for log2
   is.na(matrix)<-sapply(matrix, is.infinite)
   matrix[is.na(matrix)]<-0
@@ -131,39 +146,53 @@ print("Check the psIN")
 
  # get data tyep
   print("Check the data type")
-  taxtab.col <- colnames(data.frame((tax_table(ps.rel.sel))))
+  taxa_tab_df <- data.frame(tax_table(ps.rel.sel), stringsAsFactors = FALSE, check.names = FALSE)
+  taxtab.col <- colnames(taxa_tab_df)
+  taxonomy_levels <- c("Species", "Genus", "Family", "Order", "Class", "Phylum", "Kingdom")
+  taxonomy_label_col <- taxonomy_levels[taxonomy_levels %in% taxtab.col][1]
 
-  if (any(grepl("Species", taxtab.col))){
-    taxaTab <- data.frame(tax_table(ps.rel.sel)[,"Species"])
+  if (!is.na(taxonomy_label_col) && !is.null(taxonomy_label_col)){
+    taxaTab <- data.frame(Rank = taxa_tab_df[, taxonomy_label_col], stringsAsFactors = FALSE)
     type <- "taxonomy"
-    print(type)
-  }else if(any(grepl("KO", taxtab.col))){
-    taxaTab <- data.frame(tax_table(ps.rel.sel)[,"KO"])
+    print(sprintf("%s (%s)", type, taxonomy_label_col))
+  }else if("KO" %in% taxtab.col){
+    taxaTab <- data.frame(Rank = taxa_tab_df[, "KO"], stringsAsFactors = FALSE)
     type <- "kegg"
     print(type)
-  }else if(any(grepl("pathway", taxtab.col))){
-    taxaTab <- data.frame(tax_table(ps.rel.sel)[,"pathway"])
+  }else if("pathway" %in% taxtab.col){
+    taxaTab <- data.frame(Rank = taxa_tab_df[, "pathway"], stringsAsFactors = FALSE)
     type <- "pathway"
     print(type)
-  }else if(any(grepl("BileAcid", taxtab.col))){
-    taxaTab <- data.frame(tax_table(ps.rel.sel)[,"BileAcid"])
+  }else if("BileAcid" %in% taxtab.col){
+    taxaTab <- data.frame(Rank = taxa_tab_df[, "BileAcid"], stringsAsFactors = FALSE)
     type <- "BileAcid"
     print(type)
-  }else if(any(grepl("SCFA", taxtab.col))){
-    taxaTab <- data.frame(tax_table(ps.rel.sel)[,"SCFA"])
+  }else if("SCFA" %in% taxtab.col){
+    taxaTab <- data.frame(Rank = taxa_tab_df[, "SCFA"], stringsAsFactors = FALSE)
     type <- "SCFA"
     print(type)
-  }else if(any(grepl("symbol", taxtab.col))){
-    taxaTab <- data.frame(tax_table(ps.rel.sel)[,"symbol"])
+  }else if("symbol" %in% taxtab.col){
+    taxaTab <- data.frame(Rank = taxa_tab_df[, "symbol"], stringsAsFactors = FALSE)
     type <- "RNAseq"
     print(type)
+  }else if("Gene" %in% taxtab.col){
+    taxaTab <- data.frame(Rank = taxa_tab_df[, "Gene"], stringsAsFactors = FALSE)
+    type <- "Gene"
+    print(type)
+  } else {
+    use_col <- if (length(taxtab.col) >= 1) taxtab.col[1] else NA
+    taxaTab <- if (!is.na(use_col)) {
+      data.frame(Rank = taxa_tab_df[, use_col], stringsAsFactors = FALSE)
+    } else {
+      data.frame(Rank = taxa_names(ps.rel.sel), stringsAsFactors = FALSE)
+    }
+    type <- "other"
+    message(sprintf("[Go_pheatmap] Using '%s' as row labels.",
+                    if (!is.na(use_col)) use_col else "rownames"))
   }
 
-
-
-
-  colnames(taxaTab) <- "Rank"
-  taxaTab.print <- data.frame(tax_table(ps.rel.sel))
+  taxaTab$Rank[is.na(taxaTab$Rank) | taxaTab$Rank == ""] <- taxa_names(ps.rel.sel)[is.na(taxaTab$Rank) | taxaTab$Rank == ""]
+  taxaTab.print <- taxa_tab_df
 
   # 파일 이름만 생성
   file_name_csv <- sprintf("pheatmap.%s.tap(%s).%s%s%s.csv",
@@ -218,38 +247,41 @@ print("Check the psIN")
   }
 
   # Based on the type, generate annotation row and assign colors
-  if(type %in% c("taxonomy", "taxanomy")) {
-    annotation_row <- data.frame(Phylum = as.factor(tax_table(ps.rel.sel)[, "Phylum"]))
+  annotation_row <- NULL
+  Path_col <- NULL
+  phylum_col <- NULL
+
+  if(type %in% c("taxonomy", "taxanomy") && "Phylum" %in% taxtab.col) {
+    annotation_row <- data.frame(Phylum = as.factor(taxa_tab_df[, "Phylum"]))
+    rownames(annotation_row) <- taxa_names(ps.rel.sel)
     phylum_col <- assign_colors(annotation_row$Phylum, phylumcolor)
   } else if(type %in% c("kegg", "pathway")) {
-    if("KO" %in% colnames(tax_table(ps.rel.sel))){
-      annotation_row <- data.frame(Path = as.factor(tax_table(ps.rel.sel)[, "KO"]))
-    } else if("pathway" %in% colnames(tax_table(ps.rel.sel))){
-      annotation_row <- data.frame(Path = as.factor(tax_table(ps.rel.sel)[, "pathway"]))
+    if("KO" %in% taxtab.col){
+      annotation_row <- data.frame(Path = as.factor(taxa_tab_df[, "KO"]))
+    } else if("pathway" %in% taxtab.col){
+      annotation_row <- data.frame(Path = as.factor(taxa_tab_df[, "pathway"]))
     } else {
       stop("Neither 'KO' nor 'pathway' columns are present in the taxonomy table.")
     }
-
-    Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
+    rownames(annotation_row) <- taxa_names(ps.rel.sel)
+    Path_col <- assign_colors(annotation_row$Path, phylumcolor)
   }else if(type %in% c("RNAseq")) {
-    annotation_row <- data.frame(Path = as.factor(tax_table(ps.rel.sel)[, "symbol"]))
-    Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
+    annotation_row <- data.frame(Path = as.factor(taxa_tab_df[, "symbol"]))
+    rownames(annotation_row) <- taxa_names(ps.rel.sel)
+    Path_col <- assign_colors(annotation_row$Path, phylumcolor)
   }else if(type %in% c("BileAcid")) {
-    annotation_row <- data.frame(Path = as.factor(tax_table(ps.rel.sel)[, "BileAcid"]))
-    Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
+    annotation_row <- data.frame(Path = as.factor(taxa_tab_df[, "BileAcid"]))
+    rownames(annotation_row) <- taxa_names(ps.rel.sel)
+    Path_col <- assign_colors(annotation_row$Path, phylumcolor)
   }else if(type %in% c("SCFA")) {
-    annotation_row <- data.frame(Path = as.factor(tax_table(ps.rel.sel)[, "SCFA"]))
-    Path_col <- assign_colors(annotation_row$Path, phylumcolor)  # Ensure Pathcolor is defined somewhere above
+    annotation_row <- data.frame(Path = as.factor(taxa_tab_df[, "SCFA"]))
+    rownames(annotation_row) <- taxa_names(ps.rel.sel)
+    Path_col <- assign_colors(annotation_row$Path, phylumcolor)
   }
 
   print("test3")
-
-  tt <- try(rownames(annotation_row) <- rownames(matrix), T)
-
-  if (inherits(tt, "try-error")){
-    rownames(annotation_row) <- colnames(matrix)
-  }else{
-    rownames(annotation_row) <- rownames(matrix)
+  if (!is.null(annotation_row)) {
+    annotation_row <- annotation_row[rownames(matrix), , drop = FALSE]
   }
 
 
@@ -289,61 +321,65 @@ print("Check the psIN")
   print("test4")
 
   # Define groups based on the inputs
-  groups <- c(group1, group2, group3, group4)  # Ensure these are the correct variable names for your groups
-  groups <- groups[!is.null(groups)]
+  groups <- c(group1, group2, group3, group4)
+  groups <- groups[!sapply(list(group1, group2, group3, group4), is.null)]
 
-  # Define hardcoded_colors for the current groups
-  hardcoded_colors <- all_hardcoded_colors[1:length(groups)]
-  names(hardcoded_colors) <- groups
+  row_ann_colors <- if (type %in% c("taxonomy", "taxanomy") && !is.null(phylum_col)) {
+    list(Phylum = phylum_col)
+  } else if (type %in% c("kegg", "pathway", "RNAseq", "BileAcid", "SCFA") && !is.null(Path_col)) {
+    list(Path = Path_col)
+  } else {
+    list()
+  }
 
-  # Generate group colors
-  group_colors <- lapply(groups, function(x) generate_colors(x, hardcoded_colors[[x]]))
-
-  # Generate annotation_col
-  annotation_col = generate_annotation_col(groups)
-
-  # Generate annotation_colors
-  ann_colors <- c(group_colors, if(type %in% c("taxonomy", "taxanomy")) list(Phylum = phylum_col) else list(Path = Path_col))
-  names(ann_colors) <- c(groups, if(type %in% c("taxonomy", "taxanomy")) "Phylum" else "Path")
+  if (length(groups) == 0) {
+    annotation_col <- NULL
+    ann_colors <- row_ann_colors
+  } else {
+    hardcoded_colors <- all_hardcoded_colors[1:length(groups)]
+    names(hardcoded_colors) <- groups
+    group_colors <- lapply(groups, function(x) generate_colors(x, hardcoded_colors[[x]]))
+    annotation_col <- generate_annotation_col(groups)
+    ann_colors <- c(group_colors, row_ann_colors)
+    if (length(ann_colors) > 0) {
+      names(ann_colors) <- c(groups, names(row_ann_colors))
+    }
+  }
 
 
 
   #===== data process
-
-  if(type == "taxonomy" | type == "taxanomy" ){
-    matrix = as.matrix(matrix)
-  }else if(type == "function"){
-    matrix <- t(matrix)
-  }
+  matrix <- as.matrix(matrix)
 
   colSums(matrix)
 
   bk <- c(0,0.5,1)
   print("p0")
 
-  tt<-try(pheatmap(matrix, annotation_col = annotation_col),T)
-  if (inherits(tt, "try-error")){
-    matrix <- t(matrix)
-  }else{
-    matrix <- matrix
-  }
+  cutree_rows_use <- if (!is.na(cutree_rows) && cutree_rows < 2) NA else cutree_rows
+  cutree_cols_use <- if (!is.na(cutree_cols) && cutree_cols < 2) NA else cutree_cols
 
-  if (showPhylum ==TRUE){
+  common_args <- list(
+    mat = matrix,
+    fontsize = 8,
+    main = title,
+    show_rownames = show_rownames,
+    show_colnames = show_colnames,
+    cluster_rows = cluster_rows,
+    cluster_cols = cluster_cols,
+    labels_row = taxaTab$Rank,
+    cutree_rows = cutree_rows_use,
+    cutree_cols = cutree_cols_use
+  )
+  if (!is.null(row_gap))    common_args$row_gap    <- grid::unit(row_gap, "mm")
+  if (!is.null(column_gap)) common_args$column_gap <- grid::unit(column_gap, "mm")
+  if (!is.null(annotation_col)) common_args$annotation_col <- annotation_col
+  if (length(ann_colors) > 0) common_args$annotation_colors <- ann_colors
+
+  if (showPhylum ==TRUE && !is.null(annotation_row)){
     print("with annotation_row")
-    p <- ComplexHeatmap::pheatmap(matrix,  fontsize =8,main = title,
-                                  #scale= "row",
-                                  annotation_col = annotation_col,
-                                  annotation_row = annotation_row,
-                                  show_rownames = show_rownames,
-                                  show_colnames = show_colnames,
-                                  cluster_rows = cluster_rows,
-                                  cluster_cols = cluster_cols,
-                                  labels_row=taxaTab$Rank,
-                                  cutree_rows = cutree_rows, cutree_cols = cutree_cols,
-                                  #color=c("seashell1", "seashell2", "seashell3"),
-                                  #breaks= bk,
-                                  #legend_breaks= bk,
-                                  annotation_colors = ann_colors)
+    common_args$annotation_row <- annotation_row
+    p <- do.call(ComplexHeatmap::pheatmap, common_args)
 
   } else{
     print("without annotation_row")
@@ -355,15 +391,8 @@ print("Check the psIN")
       matrix.orderd <- matrix
     }
 
-    p <- ComplexHeatmap::pheatmap(matrix.orderd,  fontsize =8, main = title,
-                                  annotation_col = annotation_col,
-                                  show_rownames = show_rownames,
-                                  show_colnames = show_colnames,
-                                  cluster_rows = cluster_rows,
-                                  cluster_cols = cluster_cols,
-                                  labels_row=taxaTab$Rank,
-                                  cutree_rows = cutree_rows, cutree_cols = cutree_cols,
-                                  annotation_colors = ann_colors)
+    common_args$mat <- matrix.orderd
+    p <- do.call(ComplexHeatmap::pheatmap, common_args)
 
 
 
