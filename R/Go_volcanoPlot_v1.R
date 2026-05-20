@@ -390,23 +390,23 @@ Go_volcanoPlot <- function(project,
     )
     subtitle_text <- if (length(subtitle_parts) > 0) paste(subtitle_parts, collapse = " | ") else NULL
 
-    # get data tyep
+    # get data type
     print("Check the data type")
     taxtab.col <- colnames(df)
 
-    if (any(grepl("Species", taxtab.col))){
+    if (any(grepl("Species", taxtab.col))) {
       type <- "taxonomy"
-      print(type)
-    }else if(any(grepl("KO", taxtab.col))){
+    } else if (any(grepl("KO|kegg|ortholog", taxtab.col, ignore.case = TRUE))) {
       type <- "function"
-      print(type)
-    }else if(any(grepl("pathway", taxtab.col))){
+    } else if (any(grepl("pathway|PWY|MetaCyc|UNIPATHWAY", taxtab.col, ignore.case = TRUE))) {
       type <- "function"
-      print(type)
-    }else if(any(grepl("symbol", taxtab.col))){
+    } else if (any(grepl("symbol", taxtab.col, ignore.case = TRUE))) {
       type <- "RNAseq"
-      print(type)
+    } else {
+      # HUMAnN3 KO/pathway features or any unrecognized functional table
+      type <- "function"
     }
+    print(type)
 
     # Clean the dataframe
     df[df == ""] <- "NA"
@@ -523,7 +523,10 @@ Go_volcanoPlot <- function(project,
       label_name <- "plot_label"
       label_pcol <- p
     } else if (type == "function") {
-      label_name <- "KOName"
+      # Priority: KOName (KEGG KO) → pathway (HUMAnN3 pathway) → taxa_id → OTU → first column
+      func_label_candidates <- c("KOName", "pathway", "Pathway", "taxa_id", "OTU", "feature", "Feature")
+      func_label_found <- intersect(func_label_candidates, colnames(df.na))
+      label_name <- if (length(func_label_found) > 0) func_label_found[1] else colnames(df.na)[1]
       label_pcol <- p
     } else if (type == "RNAseq") {
       label_name <- "symbol"
