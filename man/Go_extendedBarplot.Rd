@@ -16,8 +16,9 @@ Go_extendedBarplot(
   transform = c("clr", "relative", "tss"),
   p_adjust_method = "BH",
   use_adjusted_p = TRUE,
-  height,
-  width,
+  height = NULL,
+  width = NULL,
+  panel_width = 1.5,
   patchwork = FALSE
 )
 }
@@ -44,9 +45,15 @@ Go_extendedBarplot(
 
 \item{use_adjusted_p}{Logical; if TRUE, filter/significance uses adjusted p-values (q-values).}
 
-\item{height}{Height of the output plot in inches.}
+\item{height}{Height of the output plot in inches. If \code{NULL} (default),
+auto-calculated as \code{max(2, n_sig * 0.5 + 1)}.}
 
-\item{width}{Width of the output plot in inches.}
+\item{width}{Width of the output plot in inches. If \code{NULL} (default),
+auto-calculated as \code{label_width + 3 * panel_width}, where
+\code{label_width} scales with the longest feature name.}
+
+\item{panel_width}{Width in inches of each of the three plot panels.
+Default \code{2.5}. Only used when \code{width = NULL}.}
 
 \item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }

@@ -238,6 +238,7 @@ Go_cluster <- function(
     coord_df <- as.data.frame(pca_res$x[, 1:2, drop = FALSE])
     colnames(coord_df) <- c("Axis_1", "Axis_2")
     imp  <- summary(pca_res)$importance
+    pct  <- imp[2, 1:2] * 100
     xlab <- sprintf("PC1 (%.1f%%)", imp[2, 1] * 100)
     ylab <- sprintf("PC2 (%.1f%%)", imp[2, 2] * 100)
 

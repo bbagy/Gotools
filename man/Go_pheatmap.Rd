@@ -21,6 +21,8 @@ Go_pheatmap(
   cutree_cols = NA,
   cluster_rows = T,
   cluster_cols = T,
+  row_gap = NULL,
+  column_gap = NULL,
   showPhylum = T,
   width,
   patchwork = FALSE

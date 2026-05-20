@@ -16,8 +16,13 @@
 #' @param transform Normalization/transformation method. One of "clr", "relative", "tss".
 #' @param p_adjust_method Multiple-testing correction method passed to \code{stats::p.adjust}.
 #' @param use_adjusted_p Logical; if TRUE, filter/significance uses adjusted p-values (q-values).
-#' @param height Height of the output plot in inches.
-#' @param width Width of the output plot in inches.
+#' @param height Height of the output plot in inches. If \code{NULL} (default),
+#'   auto-calculated as \code{max(2, n_sig * 0.5 + 1)}.
+#' @param width Width of the output plot in inches. If \code{NULL} (default),
+#'   auto-calculated as \code{label_width + 3 * panel_width}, where
+#'   \code{label_width} scales with the longest feature name.
+#' @param panel_width Width in inches of each of the three plot panels.
+#'   Default \code{2.5}. Only used when \code{width = NULL}.
 #'
 #' @return Invisibly returns a list containing plot object, Wilcoxon table, and plotted data.
 #'
@@ -56,8 +61,9 @@ Go_extendedBarplot <- function(psIN,
                                transform = c("clr", "relative", "tss"),
                                p_adjust_method = "BH",
                                use_adjusted_p = TRUE,
-                               height,
-                               width,
+                               height = NULL,
+                               width = NULL,
+                               panel_width = 1.5,    # width per panel (3 panels total)
                                patchwork = FALSE){
 
   if(!is.null(dev.list())) dev.off()
@@ -81,8 +87,11 @@ Go_extendedBarplot <- function(psIN,
   if (!is.numeric(wilcox.p) || length(wilcox.p) != 1 || wilcox.p <= 0 || wilcox.p >= 1) {
     stop("wilcox.p must be a single numeric value between 0 and 1.")
   }
-  if (!is.numeric(height) || !is.numeric(width) || height <= 0 || width <= 0) {
-    stop("height and width must be positive numeric values.")
+  if (!is.null(height) && (!is.numeric(height) || height <= 0)) {
+    stop("height must be a positive numeric value.")
+  }
+  if (!is.null(width) && (!is.numeric(width) || width <= 0)) {
+    stop("width must be a positive numeric value.")
   }
 
   p_adjust_method <- match.arg(
@@ -293,6 +302,38 @@ Go_extendedBarplot <- function(psIN,
     message(sprintf("No feature passed %s < %.3f.", filter_col, wilcox.p))
   }
 
+  calc_label_width_in <- function(labels, font_size_pt) {
+    labels <- as.character(labels)
+    labels <- labels[!is.na(labels)]
+    if (length(labels) == 0) return(1)
+    longest <- labels[which.max(nchar(labels))]
+    width_in <- tryCatch(
+      grid::convertWidth(
+        grid::grobWidth(grid::textGrob(longest, gp = grid::gpar(fontsize = font_size_pt))),
+        "in", valueOnly = TRUE
+      ),
+      error = function(e) NA_real_
+    )
+    if (!is.finite(width_in)) width_in <- max(1, nchar(longest) * 0.08)
+    width_in
+  }
+
+  fix_panel_width_grob <- function(plot_obj, panel_width_in) {
+    gt <- ggplot2::ggplotGrob(plot_obj)
+    panel_rows <- gt$layout[gt$layout$name == "panel", , drop = FALSE]
+    if (nrow(panel_rows) > 0) {
+      panel_cols <- unique(unlist(Map(seq.int, panel_rows$l, panel_rows$r)))
+      gt$widths[panel_cols] <- grid::unit(panel_width_in, "in")
+    }
+    gt
+  }
+
+  n_sig <- length(unique(merged_data.sig[[func]]))
+  if (is.null(height)) {
+    max_lbl <- max(nchar(as.character(unique(merged_data.sig[[func]]))), na.rm = TRUE)
+    height <- max(2, n_sig * 0.5 + 1)
+  }
+
   merged_data.sig[[mvar]] <- factor(merged_data.sig[[mvar]] , levels = c(group1, group2))
 
 
@@ -344,16 +385,33 @@ Go_extendedBarplot <- function(psIN,
 
 
   if (isTRUE(patchwork)) return(invisible(p4))
-  pdf(sprintf("%s/extended_error_barplot.(%s.vs.%s%s).%s.%s.pdf", out_path,
-              group1,
-              group2,
-              ifelse(is.null(name), "", paste0(".", gsub("^\\(|\\)$", "", name))),
-              project,
-              format(Sys.Date(), "%y%m%d")), height = height, width = width)
 
-  print(p4)
+  pdf_file <- sprintf("%s/extended_error_barplot.(%s.vs.%s%s).%s.%s.pdf", out_path,
+                      group1, group2,
+                      ifelse(is.null(name), "", paste0(".", gsub("^\\(|\\)$", "", name))),
+                      project, format(Sys.Date(), "%y%m%d"))
 
-  dev.off()
+  plot_grob <- fix_panel_width_grob(p4, panel_width)
+  label_w <- max(1.1, min(5.5,
+    calc_label_width_in(unique(merged_data.sig[[func]]), 8) + 0.25))
+  expected_min <- 3 * panel_width + label_w + 1.0
+  if (!is.null(width)) {
+    grob_width <- width
+  } else {
+    grob_width <- tryCatch(
+      grid::convertWidth(sum(plot_grob$widths), "in", valueOnly = TRUE),
+      error = function(e) NA_real_
+    )
+    grob_width <- max(expected_min, grob_width, na.rm = TRUE)
+    if (!is.finite(grob_width)) grob_width <- expected_min
+  }
+  message(sprintf(
+    "[Go_extendedBarplot] %d sig features | panel_width = %.2f | total_width = %.2f | height = %.2f",
+    n_sig, panel_width, grob_width, height
+  ))
+
+  ggplot2::ggsave(filename = pdf_file, plot = plot_grob,
+                  width = grob_width, height = height, device = "pdf")
   message("Recommendation: Use dedicated DA methods (e.g., ALDEx2, ANCOM-BC2, MaAsLin2) for primary statistical inference.")
   invisible(list(
     plot = p4,

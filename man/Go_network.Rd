@@ -31,6 +31,8 @@ Go_network(
   seed = 123,
   width = 10,
   height = 10,
+  edge_scale = 1.5,
+  subtitle_cex = 0.6,
   patchwork = FALSE
 )
 }
