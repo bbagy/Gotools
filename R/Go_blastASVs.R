@@ -248,6 +248,23 @@ Go_blastASVs <- function(project,
     final_df$Species_Source <- species_source
   }
 
+  # Add ASV_ID after Species column if not already present
+  if (!"ASV_ID" %in% colnames(final_df)) {
+    num_cols   <- sapply(final_df, is.numeric)
+    asv_abund  <- rowSums(final_df[, num_cols, drop = FALSE], na.rm = TRUE)
+    asv_ids    <- sprintf("ASV%06d", rank(-asv_abund, ties.method = "first"))
+    species_idx <- which(colnames(final_df) == "Species")
+    if (length(species_idx) > 0) {
+      final_df <- cbind(
+        final_df[, seq_len(species_idx),                    drop = FALSE],
+        ASV_ID = asv_ids,
+        final_df[, seq(species_idx + 1, ncol(final_df)),    drop = FALSE]
+      )
+    } else {
+      final_df$ASV_ID <- asv_ids
+    }
+  }
+
   original_output <- sprintf("1_out/%s.updated_sequences_with_blast_results.%s.csv", project, format(Sys.Date(), "%y%m%d"))
   final_output <- sprintf("1_out/%s.final_asvTable.%s.csv", project, format(Sys.Date(), "%y%m%d"))
 

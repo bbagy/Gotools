@@ -54,6 +54,8 @@ Imports:
     PRROC
 Suggests:
     ape,
+    bkmr,
+    qgcomp,
     alluvial,
     Biostrings,
     BiocManager,
