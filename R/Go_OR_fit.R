@@ -94,6 +94,15 @@ Go_OR_fit <- function(psIN,
       return(stats::setNames(taxa_ids, taxa_ids))
     }
     tt <- as.data.frame(tt, stringsAsFactors = FALSE)
+    asv_id_vals <- if ("ASV_ID" %in% colnames(tt)) tt$ASV_ID else NULL
+
+    append_asv <- function(lab_vec) {
+      if (is.null(asv_id_vals)) return(lab_vec)
+      has <- !is.na(asv_id_vals) & nzchar(asv_id_vals)
+      lab_vec[has] <- paste0(lab_vec[has], " (", asv_id_vals[has], ")")
+      lab_vec
+    }
+
     if (identical(taxrank_used, "ASV")) {
       genus_vals <- if ("Genus" %in% colnames(tt)) tt$Genus else rep(NA_character_, nrow(tt))
       species_vals <- if ("Species" %in% colnames(tt)) tt$Species else rep(NA_character_, nrow(tt))
@@ -108,6 +117,7 @@ Go_OR_fit <- function(psIN,
                       taxa_ids))
       )
       lab[is.na(lab) | lab == ""] <- taxa_ids[is.na(lab) | lab == ""]
+      lab <- append_asv(lab)
       lab <- make.unique(as.character(lab))
       return(stats::setNames(lab, taxa_ids))
     }
@@ -118,11 +128,13 @@ Go_OR_fit <- function(psIN,
                     paste(genus_vals, species_vals),
                     paste(genus_vals, "sp."))
       lab[is.na(lab) | lab == ""] <- taxa_ids[is.na(lab) | lab == ""]
+      lab <- append_asv(lab)
       lab <- make.unique(lab)
       return(stats::setNames(lab, taxa_ids))
     }
     vals <- tt[[taxrank_used]]
     vals[is.na(vals) | vals == ""] <- taxa_ids[is.na(vals) | vals == ""]
+    vals <- append_asv(vals)
     vals <- make.unique(as.character(vals))
     stats::setNames(vals, taxa_ids)
   }

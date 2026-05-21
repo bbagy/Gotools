@@ -63,6 +63,10 @@ Go_volcanoPlot <- function(project,
     } else {
       NULL
     }
+    asv_id_col <- if ("ASV_ID" %in% colnames(df)) "ASV_ID" else NULL
+
+    # compact ASV_ID for volcano: "ASV000001" -> "#1"
+    fmt_asv_short <- function(x) paste0("#", sub("^ASV0*", "", x))
 
     labels <- vapply(seq_len(nrow(df)), function(i) {
       vals <- vapply(taxonomy_priority, function(col) df[i, col], character(1))
@@ -72,6 +76,12 @@ Go_volcanoPlot <- function(project,
       }
       if (is.na(lbl) || !nzchar(trimws(lbl))) {
         lbl <- paste0("Feature_", i)
+      }
+      # Append compact ASV_ID if available: "Species (#1)"
+      if (!is.null(asv_id_col)) {
+        aid <- as.character(df[i, asv_id_col])
+        if (!is.na(aid) && nzchar(aid))
+          lbl <- paste0(lbl, " (", fmt_asv_short(aid), ")")
       }
       lbl
     }, character(1))
