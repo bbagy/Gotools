@@ -357,16 +357,29 @@ Go_prediction <- function(
     tt   <- as.data.frame(tax_table(ps), stringsAsFactors=FALSE)
     prio <- intersect(c("Species","Genus","Family","Order","Class","Phylum","Kingdom"),
                       colnames(tt))
+    has_asv_id <- "ASV_ID" %in% colnames(tt)
     make_tax_label <- function(row) {
       g <- row[["Genus"]]; s <- row[["Species"]]
-      if (!is.null(g) && nzchar(g) && !is.na(g) && !is.null(s) && nzchar(s) && !is.na(s)) return(paste(g, s))
-      if (!is.null(g) && nzchar(g) && !is.na(g)) return(g)
-      if (!is.null(s) && nzchar(s) && !is.na(s)) return(s)
-      for (nm in prio) {
-        v <- row[[nm]]
-        if (!is.null(v) && nzchar(v) && !is.na(v)) return(paste0(v, " sp."))
+      if (!is.null(g) && nzchar(g) && !is.na(g) && !is.null(s) && nzchar(s) && !is.na(s)) {
+        lbl <- paste(g, s)
+      } else if (!is.null(g) && nzchar(g) && !is.na(g)) {
+        lbl <- g
+      } else if (!is.null(s) && nzchar(s) && !is.na(s)) {
+        lbl <- s
+      } else {
+        lbl <- NULL
+        for (nm in prio) {
+          v <- row[[nm]]
+          if (!is.null(v) && nzchar(v) && !is.na(v)) { lbl <- paste0(v, " sp."); break }
+        }
+        if (is.null(lbl)) lbl <- rownames(row)
       }
-      return(rownames(row))
+      if (has_asv_id) {
+        aid <- row[["ASV_ID"]]
+        if (!is.null(aid) && !is.na(aid) && nzchar(aid))
+          lbl <- paste0(lbl, " (", aid, ")")
+      }
+      lbl
     }
     tt$TaxLabel <- apply(tt, 1, make_tax_label)
     tax_map <- setNames(tt$TaxLabel, rownames(tt))

@@ -132,6 +132,7 @@ Go_lollipopPlot <- function(project,
     } else {
       NULL
     }
+    asv_id_col <- if ("ASV_ID" %in% colnames(df)) "ASV_ID" else NULL
 
     labels <- vapply(seq_len(nrow(df)), function(i) {
       vals <- vapply(taxonomy_priority, function(col) df[i, col], character(1))
@@ -141,6 +142,12 @@ Go_lollipopPlot <- function(project,
       }
       if (is.na(lbl) || !nzchar(trimws(lbl))) {
         lbl <- paste0("Feature_", i)
+      }
+      # Append full ASV_ID if available: "Species (ASV000001)"
+      if (!is.null(asv_id_col)) {
+        aid <- as.character(df[i, asv_id_col])
+        if (!is.na(aid) && nzchar(aid))
+          lbl <- paste0(lbl, " (", aid, ")")
       }
       lbl
     }, character(1))
