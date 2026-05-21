@@ -37,7 +37,7 @@ Required.}
 
 \item{seed}{Integer. Random seed.}
 
-\item{mycols}{Length-2 color vector: \link{1} negative, \link{2} positive.}
+\item{mycols}{Length-2 color vector: \verb{[1]} negative, \verb{[2]} positive.}
 
 \item{panel_width}{Fixed panel width in inches (y-label area auto-expands;
 see GOTOOLS_PLOT_CONVENTIONS.md).}
@@ -47,7 +47,7 @@ see GOTOOLS_PLOT_CONVENTIONS.md).}
 \item{name}{Optional report token from ensure_report_token().}
 }
 \value{
-Invisible named list: results[\link{outcome}]$bkmr and $qgcomp data frames.
+Invisible named list: \code{results[[outcome]]$bkmr} and \verb{$qgcomp} data frames.
 }
 \description{
 Models how a mixture of variables predicts continuous outcomes using

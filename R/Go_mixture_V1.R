@@ -21,13 +21,13 @@
 #' @param covariates Character vector of covariate names in sample_data, or NULL.
 #' @param bkmr_iter Integer. MCMC iterations for BKMR (default 5000).
 #' @param seed Integer. Random seed.
-#' @param mycols Length-2 color vector: [1] negative, [2] positive.
+#' @param mycols Length-2 color vector: `[1]` negative, `[2]` positive.
 #' @param panel_width Fixed panel width in inches (y-label area auto-expands;
 #'   see GOTOOLS_PLOT_CONVENTIONS.md).
 #' @param font Base font size in points.
 #' @param name Optional report token from ensure_report_token().
 #'
-#' @return Invisible named list: results[[outcome]]$bkmr and $qgcomp data frames.
+#' @return Invisible named list: `results[[outcome]]$bkmr` and `$qgcomp` data frames.
 #'
 #' @export
 
