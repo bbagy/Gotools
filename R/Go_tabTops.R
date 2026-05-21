@@ -55,6 +55,12 @@ Go_tabTops <- function(csv, project, cleanMito = FALSE){
                     n_before - n_after, n_before, n_after))
   }
 
+  # Add ASV_ID if not already present
+  if (!"ASV_ID" %in% colnames(tax_table(ps))) {
+    asv_ids <- sprintf("ASV%06d", rank(-taxa_sums(ps), ties.method = "first"))
+    tax_table(ps) <- cbind(tax_table(ps), ASV_ID = asv_ids)
+  }
+
   # Save the phyloseq object
   saveRDS(ps, sprintf("%s/ps.tabTops.%s.%s.rds", rds, project, format(Sys.Date(), "%y%m%d")))
   return(ps)
