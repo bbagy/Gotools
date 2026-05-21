@@ -254,6 +254,11 @@ Go_MRS_fit <- function(psIN,
                       taxa_ids))
       )
       lab[is.na(lab) | lab == ""] <- taxa_ids[is.na(lab) | lab == ""]
+      asv_id_vals <- if ("ASV_ID" %in% colnames(tt)) tt$ASV_ID else NULL
+      if (!is.null(asv_id_vals)) {
+        has <- !is.na(asv_id_vals) & nzchar(trimws(asv_id_vals))
+        lab[has] <- paste0(lab[has], " (", asv_id_vals[has], ")")
+      }
       lab <- make.unique(as.character(lab))
       return(stats::setNames(lab, taxa_ids))
     }
