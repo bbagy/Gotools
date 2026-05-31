@@ -394,6 +394,12 @@ Go_lollipopPlot <- function(project,
   }
 
   if (!is.null(dev.list())) dev.off()
+  sizing_device <- tempfile(fileext = ".pdf")
+  grDevices::pdf(sizing_device)
+  on.exit({
+    if (!is.null(grDevices::dev.list())) grDevices::dev.off()
+    unlink(sizing_device)
+  }, add = TRUE)
 
   out_root <- file.path(sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d")))
   if (!dir.exists(out_root)) dir.create(out_root)
@@ -500,6 +506,17 @@ Go_lollipopPlot <- function(project,
 
     use_fscore_size <- any(!is.na(plot_df$final_score) & is.finite(plot_df$final_score))
 
+    point_layer <- if (use_fscore_size) {
+      ggplot2::geom_point(ggplot2::aes(shape = dirPadj, size = final_score))
+    } else {
+      ggplot2::geom_point(ggplot2::aes(shape = dirPadj), size = 3)
+    }
+    size_layer <- if (use_fscore_size) {
+      ggplot2::scale_size_continuous(name = "final_score", range = c(1.5, 6), limits = c(0, 1))
+    } else {
+      NULL
+    }
+
     p <- ggplot2::ggplot(
       plot_df,
       ggplot2::aes(x = signed_score, y = feature_id, color = direction)
@@ -509,17 +526,11 @@ Go_lollipopPlot <- function(project,
         linewidth = 0.7,
         alpha = 0.8
       ) +
-      if (use_fscore_size) {
-        ggplot2::geom_point(ggplot2::aes(shape = dirPadj, size = final_score))
-      } else {
-        ggplot2::geom_point(ggplot2::aes(shape = dirPadj), size = 3)
-      } +
+      point_layer +
       ggplot2::geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.7, color = "grey40") +
       ggplot2::scale_color_manual(values = dircolors, labels = legend.labs, drop = FALSE) +
       ggplot2::scale_shape_manual(values = padj_shape, drop = FALSE) +
-      if (use_fscore_size) {
-        ggplot2::scale_size_continuous(name = "final_score", range = c(1.5, 6), limits = c(0, 1))
-      } else NULL +
+      size_layer +
       ggplot2::scale_y_discrete(labels = stats::setNames(as.character(plot_df$feature_label), as.character(plot_df$feature_id))) +
       ggplot2::labs(
         title = sprintf("%s, %s (%s)", plot_df$mvar[1], plot_df$title_tool[1], sig_shape_label),
@@ -564,7 +575,7 @@ Go_lollipopPlot <- function(project,
     )
 
     max_lbl <- max(nchar(as.character(plot_df$feature_label)), na.rm = TRUE)
-    plot_height <- max(3.8, min(8.5, 1.3 + 0.12 * nrow(plot_df) + 0.005 * max_lbl))
+    plot_height <- max(4.2, min(13.5, 1.6 + 0.22 * nrow(plot_df) + 0.006 * max_lbl))
     plot_grob <- fix_panel_width_grob(p, width)
     grob_width <- tryCatch(grid::convertWidth(sum(plot_grob$widths), "in", valueOnly = TRUE), error = function(e) NA_real_)
     if (!is.finite(grob_width)) {

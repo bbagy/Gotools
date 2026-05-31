@@ -13,6 +13,7 @@ Go_mixture(
   bkmr_iter = 5000,
   seed = 42,
   mycols = c("#74ADD1", "#E31A1C"),
+  pip_threshold = 0.5,
   panel_width = 2.5,
   font = 10,
   name = NULL
@@ -39,6 +40,8 @@ Required.}
 
 \item{mycols}{Length-2 color vector: \verb{[1]} negative, \verb{[2]} positive.}
 
+\item{pip_threshold}{PIP cutoff for univariate response curves (default 0.5).}
+
 \item{panel_width}{Fixed panel width in inches (y-label area auto-expands;
 see GOTOOLS_PLOT_CONVENTIONS.md).}
 
@@ -47,7 +50,8 @@ see GOTOOLS_PLOT_CONVENTIONS.md).}
 \item{name}{Optional report token from ensure_report_token().}
 }
 \value{
-Invisible named list: \code{results[[outcome]]$bkmr} and \verb{$qgcomp} data frames.
+Invisible named list: \code{results[[outcome]]$bkmr}, \verb{$bkmr_response},
+and \verb{$qgcomp} data frames.
 }
 \description{
 Models how a mixture of variables predicts continuous outcomes using
