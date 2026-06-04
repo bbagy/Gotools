@@ -28,7 +28,9 @@
 #' @param roc_height Numeric PDF height for ROC.
 #' @param pr_width Numeric PDF width for PR.
 #' @param pr_height Numeric PDF height for PR.
-#' @param imp_width Numeric PDF width for importance.
+#' @param imp_width Numeric main-panel width for importance. The saved PDF
+#'   width is expanded as needed for feature labels and legends so the bar
+#'   panel itself stays fixed.
 #'
 #' @return Saves PDF files and returns \code{NULL} invisibly.
 #'
@@ -72,7 +74,7 @@ Go_prediction_plot <- function(result,
                                roc_height = 4,
                                pr_width = 4,
                                pr_height = 4.5,
-                               imp_width = 7,
+                               imp_width = 1.5,
                                patchwork = FALSE) {
   needed <- c("pROC", "PRROC", "ggplot2")
   missing <- needed[!vapply(needed, requireNamespace, logical(1), quietly = TRUE)]
@@ -173,6 +175,18 @@ Go_prediction_plot <- function(result,
     if (grepl("xgb_meta\\.rds$", meta_path)) return("XGBoost")
     if (grepl("lgb_meta\\.rds$", meta_path)) return("LightGBM")
     base_nm
+  }
+
+  plot_width_for_fixed_panel <- function(plot, panel_width) {
+    gt <- ggplot2::ggplotGrob(plot)
+    panel_cols <- unique(gt$layout$l[grepl("^panel", gt$layout$name)])
+    if (!length(panel_cols)) {
+      return(panel_width)
+    }
+
+    non_panel_width <- sum(gt$widths[-panel_cols])
+    non_panel_inches <- grid::convertWidth(non_panel_width, "in", valueOnly = TRUE)
+    panel_width + non_panel_inches
   }
 
   if (isTRUE(patchwork)) {
@@ -467,9 +481,10 @@ Go_prediction_plot <- function(result,
         )
 
       if (!isTRUE(patchwork)) {
+        imp_total_width <- plot_width_for_fixed_panel(p_imp, imp_width)
         ggplot2::ggsave(
           filename = file.path(imp_dir, sprintf("%s_Importance.pdf", file_tag)),
-          plot = p_imp, device = "pdf", width = imp_width, height = imp_height, limitsize = FALSE
+          plot = p_imp, device = "pdf", width = imp_total_width, height = imp_height, limitsize = FALSE
         )
       }
     }

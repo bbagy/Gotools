@@ -14,7 +14,7 @@ Go_prediction_plot(
   roc_height = 4,
   pr_width = 4,
   pr_height = 4.5,
-  imp_width = 7,
+  imp_width = 1.5,
   patchwork = FALSE
 )
 }
@@ -43,7 +43,9 @@ Defaults to \code{c(Positive = "#d62728", Negative = "#1f77b4",
 
 \item{pr_height}{Numeric PDF height for PR.}
 
-\item{imp_width}{Numeric PDF width for importance.}
+\item{imp_width}{Numeric main-panel width for importance. The saved PDF
+width is expanded as needed for feature labels and legends so the bar
+panel itself stays fixed.}
 
 \item{patchwork}{Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.}
 }

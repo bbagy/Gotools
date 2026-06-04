@@ -239,7 +239,17 @@ Go_alluvialplot <- function(project,
     }
 
     tab$RowSum <- rowSums(tab[, sample_cols, drop = FALSE], na.rm = TRUE)
-    tab$.feature_label <- paste0(sanitize_feature_label(tab$Species), "_", tab$RowSum)
+    if ("ASV_ID" %in% colnames(tab)) {
+      asv_ids <- as.character(tab$ASV_ID)
+      has_asv_id <- !is.na(asv_ids) & nzchar(trimws(asv_ids)) & asv_ids != "NA"
+      tab$.feature_label <- ifelse(
+        has_asv_id,
+        paste0(as.character(tab$Species), " (", asv_ids, ")"),
+        paste0(as.character(tab$Species), "_", tab$RowSum)
+      )
+    } else {
+      tab$.feature_label <- paste0(as.character(tab$Species), "_", tab$RowSum)
+    }
     rownames(tab) <- make.unique(tab$.feature_label)
 
     plots <- list()

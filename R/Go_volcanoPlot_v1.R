@@ -132,17 +132,41 @@ Go_volcanoPlot <- function(project,
     if (!is.character(result) || !dir.exists(result)) {
       stop("result must be a directory path returned by Go_ConDaDist.")
     }
-    all_csvs <- list.files(result, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE)
-    if (length(all_csvs) == 0) stop(sprintf("No CSV files found in: %s", result))
-    file_list <- data.frame(
-      path = dirname(all_csvs),
-      file = basename(all_csvs),
-      stringsAsFactors = FALSE
+    conda_bridge_dirs <- c(
+      file.path(result, "table", "ConDaDist_plot_Tab"),
+      file.path(result, "table", "ConDaDist_plot_single_Tab"),
+      result
     )
+    bridge_dir <- NULL
+    bridge_files <- character(0)
+    for (candidate_dir in conda_bridge_dirs) {
+      if (!dir.exists(candidate_dir)) next
+      candidate_files <- list.files(candidate_dir, pattern = "\\.csv$", full.names = FALSE)
+      if (length(candidate_files) > 0) {
+        bridge_dir <- candidate_dir
+        bridge_files <- candidate_files
+        break
+      }
+    }
+    if (!is.null(bridge_dir)) {
+      file_list <- data.frame(
+        path = rep(bridge_dir, length(bridge_files)),
+        file = bridge_files,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      all_csvs <- list.files(result, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE)
+      if (length(all_csvs) == 0) stop(sprintf("No CSV files found in: %s", result))
+      file_list <- data.frame(
+        path = dirname(all_csvs),
+        file = basename(all_csvs),
+        stringsAsFactors = FALSE
+      )
+    }
 
   } else if (!is.null(file_path) && !is.null(files)) {
     filenames <- list.files(file_path, pattern = files)
-    file_list <- data.frame(path = file_path, file = filenames, stringsAsFactors = FALSE)
+    file_list <- data.frame(path = rep(file_path, length(filenames)), file = filenames, stringsAsFactors = FALSE)
 
     } else {
     tool_dirs <- c("deseq2", "aldex2", "ancom2", "corncob", "maaslin2")
@@ -349,16 +373,36 @@ Go_volcanoPlot <- function(project,
     } else if (unique_tools == "condadist") {
       out_DA <- file.path(sprintf("%s_%s/pdf/ConDa_plot",project, format(Sys.Date(), "%y%m%d")))
       if(!dir.exists(out_DA)) dir.create(out_DA, recursive = TRUE, showWarnings = FALSE)
-      x_var <- "median_effect_size"
-      y_var <- "-log10(fisher_combined_p)"
+      method_effect_cols <- grep("_effect_size$", colnames(df), value = TRUE)
+      if (!"median_effect_size" %in% colnames(df) && length(method_effect_cols) > 0) {
+        effect_mat <- data.frame(lapply(df[, method_effect_cols, drop = FALSE], function(x) suppressWarnings(as.numeric(x))))
+        df$median_effect_size <- apply(effect_mat, 1, function(x) {
+          x <- x[is.finite(x) & !is.na(x)]
+          if (length(x) == 0) NA_real_ else stats::median(x)
+        })
+      }
+      if ("combined_effect_rank" %in% colnames(df)) {
+        direction_from_call <- ifelse(
+          "condadist.P" %in% colnames(df) & df$condadist.P == "up", 1,
+          ifelse("condadist.P" %in% colnames(df) & df$condadist.P == "down", -1, NA_real_)
+        )
+        fallback_direction <- if ("median_effect_size" %in% colnames(df)) sign(suppressWarnings(as.numeric(df$median_effect_size))) else NA_real_
+        direction_from_call[!is.finite(direction_from_call) | is.na(direction_from_call)] <- fallback_direction[!is.finite(direction_from_call) | is.na(direction_from_call)]
+        direction_from_call[!is.finite(direction_from_call) | is.na(direction_from_call)] <- 0
+        df$condadist_signed_effect <- abs(suppressWarnings(as.numeric(df$combined_effect_rank))) * direction_from_call
+        x_var <- "condadist_signed_effect"
+      } else {
+        x_var <- "median_effect_size"
+      }
+      p <- if ("fisher_combined_p" %in% colnames(df)) "fisher_combined_p" else "combined_p"
+      padj <- if ("fisher_combined_q" %in% colnames(df)) "fisher_combined_q" else "combined_q"
+      y_var <- sprintf("-log10(%s)", p)
       pval <- "condadist.P"
-      p <- "fisher_combined_p"
       fdr <- "condadist.FDR"
-      padj <- "fisher_combined_q"
       tool <- "ConDA-dist"
       model <- NULL
       print(tool)
-      vx <- "Consensus median effect size"
+      vx <- if (identical(x_var, "condadist_signed_effect")) "Signed consensus effect rank" else "Consensus median effect size"
       vy <- "-log10 (combined p-value)"
     }
 
@@ -591,18 +635,20 @@ Go_volcanoPlot <- function(project,
             aspect.ratio = 1/1.5)
 
 
-    pdf(sprintf("%s/%s.%s%s.(%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
-                tool,
-                ifelse(is.null(plot), "", paste(plot, ".", sep = "")),
-                mvar,
-                comparison_token,
-                project,
-                ifelse(is.null(model), "", paste(model, ".", sep = "")),
-                ifelse(is.null(confounder), "", paste(confounder, ".", sep = "")),
-                fc,
-                format(Sys.Date(), "%y%m%d")), height = height, width = width)
-    print(p2)
-    dev.off()
+    if (!isTRUE(patchwork)) {
+      pdf(sprintf("%s/%s.%s%s.(%s).%s.%s%s(cutoff=%s).%s.pdf", out_DA,
+                  tool,
+                  ifelse(is.null(plot), "", paste(plot, ".", sep = "")),
+                  mvar,
+                  comparison_token,
+                  project,
+                  ifelse(is.null(model), "", paste(model, ".", sep = "")),
+                  ifelse(is.null(confounder), "", paste(confounder, ".", sep = "")),
+                  fc,
+                  format(Sys.Date(), "%y%m%d")), height = height, width = width)
+      print(p2)
+      dev.off()
+    }
 
     plot_key <- gsub("[^A-Za-z0-9._-]+", "_",
                      if (!is.null(comparison_token) && nzchar(comparison_token)) {

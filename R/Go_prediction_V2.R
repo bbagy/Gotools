@@ -242,8 +242,8 @@ Go_prediction <- function(
                          CV_best_iter=CV_best_iter, OOF_AUC=AUC_oof, OOF_AUPRC=AUPRC_oof),
               file.path(outdir, paste0(model_name, "_cv_oof_summary.csv")), row.names=FALSE)
     png(file.path(outdir, paste0("ROC_OOF_", model_name, ".png")), width=900, height=900, res=130)
-    plot.roc(pROC::roc(yfac, oof_prob, levels=orders, direction="<", quiet=TRUE),
-             main=sprintf("%s OOF ROC (AUC=%.3f)", model_name, AUC_oof), lwd=2)
+    pROC::plot.roc(pROC::roc(yfac, oof_prob, levels=orders, direction="<", quiet=TRUE),
+                  main=sprintf("%s OOF ROC (AUC=%.3f)", model_name, AUC_oof), lwd=2)
     abline(0,1,lty=2); dev.off()
     png(file.path(outdir, paste0("PR_OOF_", model_name, ".png")), width=900, height=900, res=130)
     plot(pr, main=sprintf("%s OOF PR (AUPRC=%.3f)", model_name, AUPRC_oof)); dev.off()
@@ -361,7 +361,7 @@ Go_prediction <- function(
     make_tax_label <- function(row) {
       g <- row[["Genus"]]; s <- row[["Species"]]
       if (!is.null(g) && nzchar(g) && !is.na(g) && !is.null(s) && nzchar(s) && !is.na(s)) {
-        lbl <- paste(g, s)
+        lbl <- if (startsWith(s, g)) s else paste(g, s)
       } else if (!is.null(g) && nzchar(g) && !is.na(g)) {
         lbl <- g
       } else if (!is.null(s) && nzchar(s) && !is.na(s)) {

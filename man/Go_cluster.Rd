@@ -2,7 +2,7 @@
 % Please edit documentation in R/Go_cluster_V1.R
 \name{Go_cluster}
 \alias{Go_cluster}
-\title{Sample clustering with ordination and PERMANOVA}
+\title{Sample clustering with ordination and optional PERMANOVA}
 \usage{
 Go_cluster(
   psIN,
@@ -21,59 +21,57 @@ Go_cluster(
   marginal_alpha = 0.35,
   statistics = TRUE,
   addnumber = FALSE,
+  sample_labels = FALSE,
   name = NULL,
   height = 4,
   width = 4
 )
 }
 \arguments{
-\item{psIN}{Phyloseq object \strong{or} numeric matrix/data.frame (samples = rows).}
+\item{psIN}{Phyloseq object or numeric matrix/data.frame (samples = rows).}
 
 \item{project}{Project name string.}
 
-\item{method}{Clustering method: \code{"DMM"}, \code{"PAM"}, \code{"kmeans"},
-or \code{"hierarchical"}. Ignored when \code{k} is a number.}
+\item{method}{\code{"DMM"}, \code{"PAM"}, \code{"kmeans"}, \code{"hierarchical"}.
+Ignored when \code{k} is supplied.}
 
-\item{transform}{Count transformation: \code{"auto"} (compositional for phyloseq,
-log1p for matrix), \code{"compositional"}, \code{"clr"}, \code{"log"}, \code{"none"}.}
+\item{transform}{\code{"auto"}, \code{"compositional"}, \code{"clr"},
+\code{"log"}, \code{"none"}.}
 
-\item{k}{\code{NULL} = auto-select optimal k. A positive integer = force this many
-clusters (method ignored; PAM used for assignment).}
+\item{k}{\code{NULL} = auto-select; integer = force k (PAM used).}
 
-\item{max_k}{Upper bound for k search when \code{k = NULL}.}
+\item{max_k}{Upper bound for k search.}
 
-\item{distance_metric}{Distance for ordination and PERMANOVA (e.g. \code{"bray"}).}
+\item{distance_metric}{Distance for ordination/PERMANOVA.}
 
-\item{plot}{Ordination type: \code{"PCoA"} or \code{"PCA"}.}
+\item{plot}{\code{"PCoA"} or \code{"PCA"}.}
 
 \item{mycols}{Color vector for clusters.}
 
-\item{ellipse}{\code{TRUE} = 95\\% normal ellipses; \code{FALSE} = none;
-column name = ellipse grouped by that variable.}
+\item{ellipse}{\code{TRUE} = 95\\% ellipse; \code{FALSE} = none;
+string = group column name for ellipse.}
 
-\item{marginal}{Add marginal panels via ggExtra (\code{TRUE}/\code{FALSE}).}
+\item{marginal}{Add marginal density panels via ggExtra.}
 
-\item{marginal_type}{\code{"density"}, \code{"boxplot"}, or \code{"histogram"}.}
+\item{marginal_type}{\code{"density"}, \code{"boxplot"}, \code{"histogram"}.}
 
 \item{marginal_size}{Relative size of marginal panels.}
 
 \item{marginal_alpha}{Transparency of marginal fills.}
 
-\item{statistics}{Run global + pairwise PERMANOVA and annotate plot.}
+\item{statistics}{Run PERMANOVA and annotate plot.}
 
 \item{addnumber}{Append \code{(n=N)} to cluster legend labels.}
 
-\item{name}{If supplied, used as the cluster column name in sample_data
-(default: \code{"Cluster"}) and as a suffix in output file names.}
+\item{sample_labels}{\code{FALSE} = none; \code{TRUE} = rownames;
+string = metadata column to use as labels.}
+
+\item{name}{Cluster column name suffix in output files.}
 
 \item{height}{PDF height in inches.}
 
 \item{width}{PDF width in inches.}
 }
-\value{
-Invisibly returns \code{psIN} with a cluster column added to sample_data
-(phyloseq input), or a data.frame of cluster assignments (matrix input).
-}
 \description{
-Sample clustering with ordination and PERMANOVA
+Sample clustering with ordination and optional PERMANOVA
 }
