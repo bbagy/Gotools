@@ -38,14 +38,25 @@ Go_psTotab <- function(psIN, project){
   fasta_written <- FALSE
   taxa_ids <- taxa_names(psIN)
   looks_like_dna <- length(taxa_ids) > 0 && all(grepl("^[ACGTN]+$", taxa_ids))
+  if (!looks_like_dna) {
+    tax_df <- as.data.frame(tax, stringsAsFactors = FALSE)
+    if ("ASV_sequence" %in% colnames(tax_df)) {
+      seq_ids <- as.character(tax_df$ASV_sequence)
+      valid_seq_ids <- !is.na(seq_ids) & nzchar(seq_ids) & grepl("^[ACGTN]+$", seq_ids)
+      if (length(seq_ids) == length(taxa_ids) && all(valid_seq_ids) && !anyDuplicated(seq_ids)) {
+        taxa_ids <- seq_ids
+        looks_like_dna <- TRUE
+      }
+    }
+  }
 
   if (looks_like_dna) {
-    seqs <- dada2::getSequences(t(seqtab.nochim))
+    seqs <- taxa_ids
     headers <- paste(">", seqs, sep="")
     fasta <- c(rbind(headers, seqs))
 
     if (length(headers) > 0 && nchar(headers[1]) < 100){
-      seqs <- dada2::getSequences(seqtab.nochim)
+      seqs <- taxa_ids
       headers <- paste(">", seqs, sep="")
       fasta <- c(rbind(headers, seqs))
     }
@@ -69,7 +80,7 @@ Go_psTotab <- function(psIN, project){
     tax <- tax_table(psIN);dim(tax)
     otuTable <- cbind(otu,tax)
     if (looks_like_dna && !fasta_written) {
-      seqs <- dada2::getSequences(t(seqtab.nochim))
+      seqs <- taxa_ids
       headers <- paste(">", seqs, sep="")
       fasta <- c(rbind(headers, seqs))
       write(fasta, file = seq_path)
