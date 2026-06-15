@@ -20,7 +20,8 @@ Go_imgInfo(
   SHeatmap = NA,
   MAGs_tree = NA,
   MAGs_upset = NA,
-  MAGs_heatmap = NA
+  MAGs_heatmap = NA,
+  Extra = NULL
 )
 }
 \arguments{

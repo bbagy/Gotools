@@ -30,28 +30,34 @@ Go_adiv <- function(psIN, project, alpha_metrics, name=NULL){
   out_adiv <- file.path(sprintf("%s_%s/table/adiv",project, format(Sys.Date(), "%y%m%d")))
   if(!dir.exists(out_adiv)) dir.create(out_adiv)
 
-  print("You can measure Observed, Chao1, ACE, Shannon, Simpson, InvSimpson, Fisher, and PD (Phylogenetic diversity:Faith’s PD).")
+  print("You can measure Observed, Chao1, ACE, Shannon, Simpson, InvSimpson, Fisher, PD (Phylogenetic diversity:Faith’s PD), and Pielou (evenness = Shannon / log(Observed)).")
+
+  # Pielou requires Shannon + Observed internally; remove "Pielou" before passing to estimate_richness
+  pielou_req   <- "Pielou" %in% alpha_metrics
+  obs_internal <- FALSE
+  metrics_calc <- alpha_metrics[alpha_metrics != "Pielou"]
+  if (pielou_req) {
+    if (!"Shannon"  %in% metrics_calc) metrics_calc <- c(metrics_calc, "Shannon")
+    if (!"Observed" %in% metrics_calc) { metrics_calc <- c(metrics_calc, "Observed"); obs_internal <- TRUE }
+  }
 
   # adiv table
-  # Alpha diversity 계산을 시도
-  adiv <- try(estimate_richness(psIN, measures=alpha_metrics), silent = TRUE)
+  adiv <- try(estimate_richness(psIN, measures=metrics_calc), silent = TRUE)
 
   # 만약 오류가 발생하면 Read Count 변환 후 다시 시도
   if (inherits(adiv, "try-error")) {
     message("⚠ `estimate_richness()`. Converting relative abundance to count data...")
-
-    # Read Count 변환 (Metaphlan3 결과는 상대적 풍부도이므로 변환 필요)
     total_reads <- 100000
     species_counts <- round(otu_table(psIN) * total_reads)
-
-    # 새로운 Phyloseq 객체 생성
-    psIN_counts <- phyloseq(otu_table(species_counts, taxa_are_rows = TRUE),
-                            sample_data(psIN))
-
-    # Alpha diversity 다시 계산
-    adiv <- estimate_richness(psIN_counts, measures=alpha_metrics)
-
+    psIN_counts <- phyloseq(otu_table(species_counts, taxa_are_rows = TRUE), sample_data(psIN))
+    adiv <- estimate_richness(psIN_counts, measures=metrics_calc)
     message("✅ Alpha diversity calculated successfully after conversion!")
+  }
+
+  # Pielou evenness: Shannon / log(Observed)
+  if (pielou_req) {
+    adiv$Pielou <- adiv$Shannon / log(adiv$Observed)
+    if (obs_internal) adiv$Observed <- NULL
   }
 
 
