@@ -21,22 +21,6 @@
 #' @param covariates Character vector of covariate names in sample_data, or NULL.
 #' @param bkmr_iter Integer. MCMC iterations for BKMR (default 5000).
 #' @param seed Integer. Random seed.
-#' @param outcome_family "auto", "gaussian", or "binomial". In auto mode,
-#'   two-level factor/character/logical outcomes and 0/1 numeric outcomes use
-#'   binomial models; all others use gaussian models.
-#' @param cluster_var Optional sample_data column used as qgcomp bootstrap id
-#'   for repeated observations, e.g. subject ID.
-#' @param qgcomp_boot Logical. If TRUE, use qgcomp.glm.boot(); if FALSE, use
-#'   qgcomp.noboot(). Automatically set to TRUE when cluster_var is provided.
-#' @param qgcomp_B Integer. Bootstrap replicates for qgcomp.glm.boot().
-#' @param response_max_panels Maximum BKMR response panels per PDF page.
-#' @param response_ncol Number of columns for BKMR response PDFs.
-#' @param response_width Optional fixed width in inches for BKMR response PDFs.
-#'   If NULL, width is calculated from response_panel_width and response_ncol.
-#' @param response_height Optional fixed height in inches for BKMR response PDFs.
-#'   If NULL, height is calculated from response_panel_height and row count.
-#' @param response_panel_width Width in inches for each BKMR response facet panel.
-#' @param response_panel_height Height in inches for each BKMR response facet panel.
 #' @param mycols Length-2 color vector: `[1]` negative, `[2]` positive.
 #' @param pip_threshold PIP cutoff for univariate response curves (default 0.5).
 #' @param panel_width Fixed panel width in inches (y-label area auto-expands;
@@ -56,16 +40,6 @@ Go_mixture <- function(psIN,
                        covariates    = NULL,
                        bkmr_iter     = 5000,
                        seed          = 42,
-                       outcome_family = "auto",
-                       cluster_var    = NULL,
-                       qgcomp_boot    = FALSE,
-                       qgcomp_B       = 200,
-                       response_max_panels = 15,
-                       response_ncol       = 3,
-                       response_width      = 8,
-                       response_height     = 11,
-                       response_panel_width  = 2.1,
-                       response_panel_height = 1.75,
                        mycols        = c("#74ADD1", "#E31A1C"),
                        pip_threshold = 0.5,
                        panel_width   = 2.5,
@@ -128,57 +102,6 @@ Go_mixture <- function(psIN,
   missing_out <- setdiff(outcomes, colnames(meta))
   if (length(missing_out) > 0)
     stop("[Go_mixture] outcomes not found in sample_data: ", paste(missing_out, collapse = ", "))
-  if (!outcome_family %in% c("auto", "gaussian", "binomial"))
-    stop("[Go_mixture] outcome_family must be one of: auto, gaussian, binomial.")
-  if (!is.null(cluster_var) && !cluster_var %in% colnames(meta))
-    stop("[Go_mixture] cluster_var not found in sample_data: ", cluster_var)
-  if (!is.null(cluster_var)) qgcomp_boot <- TRUE
-
-  prepare_outcome <- function(y, outcome_name) {
-    fam <- outcome_family
-    if (identical(fam, "auto")) {
-      vals <- unique(y[!is.na(y)])
-      if (is.logical(y) || is.factor(y) || is.character(y)) {
-        fam <- if (length(vals) == 2) "binomial" else "gaussian"
-      } else if (is.numeric(y)) {
-        fam <- if (length(vals) == 2 && all(sort(vals) %in% c(0, 1))) "binomial" else "gaussian"
-      } else {
-        fam <- "gaussian"
-      }
-    }
-
-    if (fam == "gaussian") {
-      y_num <- suppressWarnings(as.numeric(y))
-      if (all(is.na(y_num)))
-        stop("[Go_mixture] gaussian outcome could not be converted to numeric: ", outcome_name)
-      return(list(y=y_num, family="gaussian", family_arg=gaussian(),
-                  bkmr_family="gaussian", positive_level=NA_character_))
-    }
-
-    vals <- unique(y[!is.na(y)])
-    if (length(vals) != 2)
-      stop("[Go_mixture] binomial outcome must have exactly two non-missing levels: ", outcome_name)
-
-    if (is.numeric(y)) {
-      vals_sort <- sort(vals)
-      if (all(vals_sort %in% c(0, 1))) {
-        y_bin <- as.numeric(y)
-        pos <- "1"
-      } else {
-        y_bin <- ifelse(is.na(y), NA_real_, ifelse(y == vals_sort[2], 1, 0))
-        pos <- as.character(vals_sort[2])
-      }
-    } else {
-      levs <- if (is.factor(y)) levels(droplevels(y)) else sort(as.character(vals))
-      pos_level <- if ("Case" %in% levs) "Case" else levs[length(levs)]
-      y_chr <- as.character(y)
-      y_bin <- ifelse(is.na(y_chr), NA_real_, ifelse(y_chr == pos_level, 1, 0))
-      pos <- pos_level
-    }
-    message(sprintf("  Outcome [%s]: binomial positive level = %s", outcome_name, pos))
-    list(y=as.numeric(y_bin), family="binomial", family_arg=binomial(),
-         bkmr_family="binomial", positive_level=pos)
-  }
 
   # ---- auto-detect source for each mix_var ----
   # source: "sampledata" | "asv_id" | "taxa_names"
@@ -278,11 +201,9 @@ Go_mixture <- function(psIN,
   results <- list()
 
   for (ny in outcomes) {
-    y_info       <- prepare_outcome(meta_sub[[ny]], ny)
-    y_ny         <- y_info$y
+    y_ny         <- as.numeric(meta_sub[[ny]])
     complete_idx <- !is.na(y_ny) & apply(!is.na(Z), 1, all)
-    message(sprintf("  Outcome [%s]: %d complete cases | family=%s",
-                    ny, sum(complete_idx), y_info$family))
+    message(sprintf("  Outcome [%s]: %d complete cases", ny, sum(complete_idx)))
     if (sum(complete_idx) < 10) {
       message("  -> Skipping: fewer than 10 complete cases.")
       next
@@ -316,8 +237,7 @@ Go_mixture <- function(psIN,
       set.seed(seed)
       fit_b <- tryCatch(
         bkmr::kmbayes(y = y_c, Z = Z_bkmr, X = X_c,
-                      iter = bkmr_iter, verbose = FALSE, varsel = TRUE,
-                      family = y_info$bkmr_family),
+                      iter = bkmr_iter, verbose = FALSE, varsel = TRUE),
         error = function(e) { message("  BKMR error: ", e$message); NULL }
       )
     }
@@ -376,86 +296,42 @@ Go_mixture <- function(psIN,
           error = function(e) { message("  Response curve error: ", e$message); NULL }
         )
         if (!is.null(resp)) {
-          resp$variable   <- as.character(resp$variable)
           resp$label      <- feature_labels[resp$variable]
           resp$plain_label <- plain_labels[resp$variable]
           results[[ny]]$bkmr_response <- resp
 
-          resp_vars <- unique(resp$variable)
-          response_max_panels <- max(1L, as.integer(response_max_panels))
-          response_ncol <- max(1L, as.integer(response_ncol))
-          resp_pages <- split(resp_vars, ceiling(seq_along(resp_vars) / response_max_panels))
+          n_p     <- length(unique(resp$variable))
+          ncols_p <- min(3L, n_p)
+          nrows_p <- ceiling(n_p / ncols_p)
+
+          p_resp <- ggplot2::ggplot(resp,
+                     ggplot2::aes(x = z, y = est,
+                                  ymin = est - 1.96 * se,
+                                  ymax = est + 1.96 * se)) +
+            ggplot2::geom_ribbon(fill = "steelblue", alpha = 0.2) +
+            ggplot2::geom_line(color = "steelblue", linewidth = 0.8) +
+            ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "grey40") +
+            ggplot2::facet_wrap(~ label, scales = "free_x", ncol = ncols_p,
+                                labeller = ggplot2::label_value) +
+            ggplot2::theme_bw(base_size = font) +
+            ggplot2::theme(strip.text = ggtext::element_markdown()) +
+            ggplot2::labs(
+              title    = sprintf("BKMR response curves → %s", ny),
+              subtitle = sprintf("PIP ≥ %.2f  |  other components fixed at median", pip_threshold),
+              x        = "Mixture component (CLR, scaled)",
+              y        = "h(z)"
+            )
+
+          pdf_h <- max(3.5, nrows_p * 2.8 + 1.2)
+          pdf_w <- max(4.0, ncols_p * (panel_width + 0.8) + 1.0)
           fname_r <- file.path(pdf_dir,
                                sprintf("%s.mixture.bkmr_response_%s%s.%s.pdf",
                                        project, ny, name_token, date_str))
-          pdf_w <- if (is.null(response_width)) {
-            min(8.0, max(3.4, min(response_ncol, length(resp_vars)) * response_panel_width + 1.2))
-          } else {
-            response_width
-          }
-          max_rows <- ceiling(min(response_max_panels, length(resp_vars)) / response_ncol)
-          pdf_h <- if (is.null(response_height)) {
-            min(11.0, max(3.2, max_rows * response_panel_height + 1.1))
-          } else {
-            response_height
-          }
           pdf(fname_r, width = pdf_w, height = pdf_h)
-
-          for (pg in seq_along(resp_pages)) {
-            page_vars <- resp_pages[[pg]]
-            resp_page <- resp[resp$variable %in% page_vars, , drop = FALSE]
-            n_p_page  <- length(page_vars)
-            ncols_p   <- response_ncol
-            nslots_p  <- response_max_panels
-            blank_vars <- if (n_p_page < nslots_p) {
-              paste0("__blank_", seq_len(nslots_p - n_p_page))
-            } else {
-              character(0)
-            }
-            page_levels <- c(page_vars, blank_vars)
-            label_map <- c(setNames(as.character(feature_labels[page_vars]), page_vars),
-                           setNames(rep("", length(blank_vars)), blank_vars))
-            resp_page$facet_key <- factor(resp_page$variable, levels=page_levels)
-            if (length(blank_vars) > 0) {
-              blank_df <- resp_page[rep(1, length(blank_vars)), , drop=FALSE]
-              blank_df$variable <- blank_vars
-              blank_df$z <- NA_real_
-              blank_df$est <- NA_real_
-              blank_df$se <- NA_real_
-              blank_df$label <- ""
-              blank_df$plain_label <- ""
-              blank_df$facet_key <- factor(blank_vars, levels=page_levels)
-              resp_page <- rbind(resp_page, blank_df)
-            }
-            hline_df <- data.frame(facet_key=factor(page_vars, levels=page_levels))
-
-            p_resp <- ggplot2::ggplot(resp_page,
-                       ggplot2::aes(x = z, y = est,
-                                    ymin = est - 1.96 * se,
-                                    ymax = est + 1.96 * se)) +
-              ggplot2::geom_ribbon(fill = "steelblue", alpha = 0.2, na.rm=TRUE) +
-              ggplot2::geom_line(color = "steelblue", linewidth = 0.8, na.rm=TRUE) +
-              ggplot2::geom_hline(data=hline_df, ggplot2::aes(yintercept=0),
-                                  linetype = "dashed", color = "grey40",
-                                  inherit.aes=FALSE) +
-              ggplot2::facet_wrap(~ facet_key, scales = "free_x", ncol = ncols_p,
-                                  drop=FALSE,
-                                  labeller = ggplot2::as_labeller(label_map)) +
-              ggplot2::theme_bw(base_size = font) +
-              ggplot2::theme(strip.text = ggtext::element_markdown()) +
-              ggplot2::labs(
-                title    = sprintf("BKMR response curves → %s", ny),
-                subtitle = sprintf("PIP ≥ %.2f  |  other components fixed at median", pip_threshold),
-                x        = "Mixture component (CLR, scaled)",
-                y        = "h(z)"
-              )
-
-            print(p_resp)
-          }
+          print(p_resp)
           dev.off()
-          message(sprintf("[Go_mixture] %s (%.2f x %.2f in, %d page%s)",
-                          basename(fname_r), pdf_w, pdf_h, length(resp_pages),
-                          ifelse(length(resp_pages) == 1, "", "s")))
+          message(sprintf("[Go_mixture] %s (%.2f x %.2f in)",
+                          basename(fname_r), pdf_w, pdf_h))
 
           write.csv(resp[, c("variable","plain_label","z","est","se")],
                     file.path(tab_dir,
@@ -481,8 +357,6 @@ Go_mixture <- function(psIN,
     qg_df$y_out <- y_c
     if (!is.null(covariates))
       for (cv in covariates) qg_df[[cv]] <- meta_sub[complete_idx, cv]
-    if (!is.null(cluster_var))
-      qg_df$.cluster_id <- meta_sub[complete_idx, cluster_var]
 
     cov_part <- if (!is.null(covariates))
       paste0(" + ", paste(covariates, collapse = " + ")) else ""
@@ -490,61 +364,34 @@ Go_mixture <- function(psIN,
     colnames(qg_df)[seq_along(mix_vars)] <- safe_vars
     frm_qg <- as.formula(paste0("y_out ~ ", paste(safe_vars, collapse = " + "), cov_part))
 
-    fit_q <- tryCatch({
-      if (isTRUE(qgcomp_boot)) {
-        qgcomp::qgcomp.glm.boot(
-          frm_qg, expnms = safe_vars, data = qg_df,
-          family = y_info$family_arg, q = NULL, B = qgcomp_B,
-          rr = FALSE, seed = seed,
-          id = if (!is.null(cluster_var)) ".cluster_id" else NULL
-        )
-      } else {
-        qgcomp::qgcomp.noboot(
-          frm_qg, expnms = safe_vars, data = qg_df,
-          family = y_info$family_arg, q = NULL
-        )
-      }
-    }, error = function(e) { message("  QGCOMP error: ", e$message); NULL })
+    fit_q <- tryCatch(
+      qgcomp::qgcomp.noboot(frm_qg, expnms = safe_vars,
+                            data = qg_df, family = gaussian(), q = NULL),
+      error = function(e) { message("  QGCOMP error: ", e$message); NULL }
+    )
 
     if (!is.null(fit_q)) {
-      pos_weights <- fit_q$pos.weights
-      neg_weights <- fit_q$neg.weights
-      if (is.null(pos_weights) && is.null(neg_weights)) {
-        beta_mix <- stats::coef(fit_q$fit)[safe_vars]
-        beta_mix <- beta_mix[is.finite(beta_mix)]
-        pos_beta <- beta_mix[beta_mix > 0]
-        neg_beta <- beta_mix[beta_mix < 0]
-        pos_weights <- if (length(pos_beta) > 0) pos_beta / sum(pos_beta) else numeric(0)
-        neg_weights <- if (length(neg_beta) > 0) neg_beta / sum(abs(neg_beta)) else numeric(0)
-      }
-      psi_value <- as.numeric(fit_q$psi[1])
-
       build_wt <- function(wts, dir) {
         if (length(wts) == 0) return(data.frame())
         data.frame(
           Variable  = mix_vars[match(names(wts), safe_vars)],
           Label     = as.character(feature_labels[mix_vars[match(names(wts), safe_vars)]]),
           Source    = as.character(sources[mix_vars[match(names(wts), safe_vars)]]),
-          Weight    = if (dir == "Positive") abs(wts) else -abs(wts),
+          Weight    = if (dir == "Positive") wts else -wts,
           Direction = dir,
           row.names = NULL
         )
       }
-      wt_df <- rbind(build_wt(pos_weights, "Positive"),
-                     build_wt(neg_weights, "Negative"))
+      wt_df <- rbind(build_wt(fit_q$pos.weights, "Positive"),
+                     build_wt(fit_q$neg.weights, "Negative"))
 
       results[[ny]]$qgcomp <- list(
-        psi            = psi_value,
-        family         = y_info$family,
-        positive_level = y_info$positive_level,
-        boot           = isTRUE(qgcomp_boot),
-        cluster_var    = cluster_var,
-        weights        = wt_df
+        psi     = fit_q$psi,
+        weights = wt_df
       )
 
       p_q <- ggplot2::ggplot(wt_df,
-               ggplot2::aes(x = Weight, y = reorder(Label, Weight), fill = Direction)) +
-        ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = "grey45") +
+               ggplot2::aes(x = Weight, y = reorder(Label, abs(Weight)), fill = Direction)) +
         ggplot2::geom_col(color = "white") +
         ggplot2::scale_fill_manual(
           values = c("Positive" = mycols[2], "Negative" = mycols[1])
@@ -552,9 +399,7 @@ Go_mixture <- function(psIN,
         ggplot2::theme_bw(base_size = font) +
         ggplot2::theme(axis.text.y = ggtext::element_markdown()) +
         ggplot2::labs(title    = sprintf("QGCOMP: Mixture → %s", ny),
-                      subtitle = sprintf("Overall psi = %.3f | family=%s%s",
-                                         psi_value, y_info$family,
-                                         ifelse(isTRUE(qgcomp_boot), " | bootstrap", "")),
+                      subtitle = sprintf("Overall psi = %.3f", fit_q$psi),
                       x        = "Component weight",
                       y        = NULL)
 

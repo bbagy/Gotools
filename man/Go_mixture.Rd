@@ -12,6 +12,16 @@ Go_mixture(
   covariates = NULL,
   bkmr_iter = 5000,
   seed = 42,
+  outcome_family = "auto",
+  cluster_var = NULL,
+  qgcomp_boot = FALSE,
+  qgcomp_B = 200,
+  response_max_panels = 15,
+  response_ncol = 3,
+  response_width = 8,
+  response_height = 11,
+  response_panel_width = 2.1,
+  response_panel_height = 1.75,
   mycols = c("#74ADD1", "#E31A1C"),
   pip_threshold = 0.5,
   panel_width = 2.5,
@@ -37,6 +47,32 @@ Required.}
 \item{bkmr_iter}{Integer. MCMC iterations for BKMR (default 5000).}
 
 \item{seed}{Integer. Random seed.}
+
+\item{outcome_family}{"auto", "gaussian", or "binomial". In auto mode,
+two-level factor/character/logical outcomes and 0/1 numeric outcomes use
+binomial models; all others use gaussian models.}
+
+\item{cluster_var}{Optional sample_data column used as qgcomp bootstrap id
+for repeated observations, e.g. subject ID.}
+
+\item{qgcomp_boot}{Logical. If TRUE, use qgcomp.glm.boot(); if FALSE, use
+qgcomp.noboot(). Automatically set to TRUE when cluster_var is provided.}
+
+\item{qgcomp_B}{Integer. Bootstrap replicates for qgcomp.glm.boot().}
+
+\item{response_max_panels}{Maximum BKMR response panels per PDF page.}
+
+\item{response_ncol}{Number of columns for BKMR response PDFs.}
+
+\item{response_width}{Optional fixed width in inches for BKMR response PDFs.
+If NULL, width is calculated from response_panel_width and response_ncol.}
+
+\item{response_height}{Optional fixed height in inches for BKMR response PDFs.
+If NULL, height is calculated from response_panel_height and row count.}
+
+\item{response_panel_width}{Width in inches for each BKMR response facet panel.}
+
+\item{response_panel_height}{Height in inches for each BKMR response facet panel.}
 
 \item{mycols}{Length-2 color vector: \verb{[1]} negative, \verb{[2]} positive.}
 
