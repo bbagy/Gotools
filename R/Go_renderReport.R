@@ -13,9 +13,8 @@
 #' @param output_dir Directory the rendered HTML is written into. Created if
 #' it does not exist.
 #' @param logo_path Optional path to a logo image shown at the bottom of the
-#' report. Defaults to the Columbia/Uhlemann Lab logo bundled with Gotools.
-#' Pass \code{NULL} to skip the logo section entirely, or a different path
-#' to use another logo.
+#' report. \code{NULL} (the default) uses the Columbia/Uhlemann Lab logo
+#' bundled with Gotools; pass a different path to use another logo.
 #'
 #' @return Invisibly, the path to the rendered HTML file.
 #'
@@ -24,8 +23,11 @@ Go_renderReport <- function(family,
                              project,
                              expInfo, dirInfo, tabInfo, imgInfo, sumInfo,
                              output_dir,
-                             logo_path = system.file("logo", "Columbia_CUIMC_Uhlemann4.png", package = "Gotools")) {
+                             logo_path = NULL) {
   family <- match.arg(family, c("16S", "MG", "RNAseq"))
+  if (is.null(logo_path)) {
+    logo_path <- system.file("logo", "Columbia_CUIMC_Uhlemann4.png", package = "Gotools")
+  }
 
   rmd_file <- switch(family,
     "16S"    = "16S/CUMC Microbiome Core Summary 16S Report_V2.Rmd",

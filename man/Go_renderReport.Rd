@@ -13,7 +13,7 @@ Go_renderReport(
   imgInfo,
   sumInfo,
   output_dir,
-  logo_path = system.file("logo", "Columbia_CUIMC_Uhlemann4.png", package = "Gotools")
+  logo_path = NULL
 )
 }
 \arguments{
@@ -28,9 +28,8 @@ the matching \code{Go_*Info()} functions.}
 it does not exist.}
 
 \item{logo_path}{Optional path to a logo image shown at the bottom of the
-report. Defaults to the Columbia/Uhlemann Lab logo bundled with Gotools.
-Pass \code{NULL} to skip the logo section entirely, or a different path
-to use another logo.}
+report. \code{NULL} (the default) uses the Columbia/Uhlemann Lab logo
+bundled with Gotools; pass a different path to use another logo.}
 }
 \value{
 Invisibly, the path to the rendered HTML file.
