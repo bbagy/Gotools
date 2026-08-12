@@ -318,6 +318,26 @@ Ready-to-copy skeleton scripts for each report family are in
 [`Download_templates/`](Download_templates/):
 `16S_Report_Template.R`, `MG_Report_Template.R`, `RNAseq_Report_Template.R`.
 
+### Try it now with bundled demo data
+
+Want to see a real rendered report before wiring up your own data? After
+installing (no extra download needed — the demo data and quickstart scripts
+ship inside the package):
+
+```r
+source(system.file("quickstart", "Quickstart_16S.R", package = "Gotools"))
+# or Quickstart_MG.R / Quickstart_RNAseq.R
+```
+
+Each one runs the full pipeline (filtering, composition, diversity,
+differential abundance, report rendering) against a small demo dataset
+bundled with the package and writes the result to `~/Gotools_Quickstart_*`.
+The 16S demo uses real public NCBI 16S reference sequences (not patient
+data) with synthetic counts and groups, so `Go_blastASVs()` produces genuine
+BLAST hits; the MG and RNAseq demos are fully synthetic. The same scripts
+are also in [`Download_templates/`](Download_templates/) if you'd rather
+copy one and edit it directly.
+
 ## List of Tools
 The repository includes the following scripts:
 
