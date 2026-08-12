@@ -9,37 +9,11 @@ This repository contains a set of tools for reproducible microbiome analysis. It
 > reproducibility. Workflow layers built on top of it extend the ceiling
 > of analytical depth.
 
-Standardizing analysis inevitably narrows autonomy: fixed report sections,
-fixed `Go_*Info()` list shapes, and filename-pattern-driven figure lookup all
-constrain how a given analysis can be run. That tradeoff is intentional.
-Gotools' job is not to explore freely — it's to make the parts of an analysis
-that should never vary between projects (composition plots, alpha/beta
-diversity, differential abundance, report assembly) fast, consistent, and
-reproducible every time. Analysis-specific judgment — which extra
-comparisons to run, how to handle repeated measures, subgroup or trajectory
-analysis, outlier/sensitivity checks, correlation/network work, follow-up
-analysis driven by what the standard results show — belongs one layer up, in
-a workflow that interprets the research question and dataset and decides
-what to add. Additional results should extend a report, not overwrite or
-bypass the standard one.
-
-Reproducibility is not a side effect of this division, it's a first-class
-goal. A complete analysis output is three things together, not any one
-alone:
-
-1. The runnable R script (what was done)
-2. A record of the environment, inputs, and parameters (package/R versions,
-   input files, filtering/exclusion decisions, comparison groups, reference
-   levels, covariates, statistical methods and significance thresholds,
-   random seeds) — what conditions produced this result
-3. The rendered HTML report (what the result looks like)
-
-The HTML alone shows a result without showing how to reproduce it; the
-script alone risks losing the exact environment and inputs that produced a
-given number. Any extra analysis layered on top of Gotools' standard output
-should carry the same discipline — the reasoning behind an additional
-comparison and the code that produced it belong in the record, not only the
-figure.
+Gotools standardizes the analyses that should remain consistent across
+projects. Project-specific decisions and additional analyses belong in an
+upper workflow layer and should extend, not replace, the standard results.
+Every analysis should preserve three outputs together: a runnable script, an
+environment/input/parameter record, and the rendered HTML report.
 
 ## Installation
 
@@ -248,17 +222,11 @@ Go_pairedperm(psIN=ps2, cate.vars = c("TreatmentGroup"), project =project, dista
 ```
 
 
-### Differential Abundance Testing using Deseq2, Aldex2, and Ancom2
-```r
-# Using Deseq2
-Go_Deseq2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
+### Differential Abundance Testing
 
-# Using Aldex2
-Go_Aldex2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
-
-# Using Ancom2
-Go_Ancom2(ps2, project, cate.outs="TreatmentGroup", orders=orders)
-```
+`Go_Deseq2()`, `Go_Aldex2()`, and `Go_Ancom2()` are retained under `legacy/`
+only for reproducibility of historical analyses. They are not part of the
+current Gotools public API and should not be used in new analysis scripts.
 
 ### Deseq2 Volcano Plot
 ```r

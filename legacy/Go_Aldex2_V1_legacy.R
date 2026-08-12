@@ -1,3 +1,4 @@
+# Legacy: retained for reproducibility of historical analyses.
 #' Perform Differential Abundance Analysis Using ALDEx2 on Phyloseq Data
 #'
 #' This function conducts differential abundance analysis using the ALDEx2 method on data from a Phyloseq object. It supports various types of analyses including categorical and continuous variables, and allows for adjusting for confounders. The function can handle multiple categories, and generate output for each pairwise comparison.

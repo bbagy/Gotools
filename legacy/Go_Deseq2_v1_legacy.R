@@ -1,3 +1,4 @@
+# Legacy: retained for reproducibility of historical analyses.
 #' Perform Differential Expression Analysis Using DESeq2 on Phyloseq Data
 #'
 #' This function conducts differential expression analysis using DESeq2 on data from a Phyloseq object.
