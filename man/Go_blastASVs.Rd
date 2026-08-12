@@ -4,13 +4,18 @@
 \alias{Go_blastASVs}
 \title{Run BLAST on ASV Table Sequences}
 \usage{
-Go_blastASVs(project, asvsTable, blastDB)
+Go_blastASVs(
+  project,
+  asvsTable,
+  blastDB = file.path(system.file("blastDB", package = "Gotools"), "16S_ribosomal_RNA")
+)
 }
 \arguments{
 \item{asvsTable}{The path to the CSV file containing ASV sequences with sequence IDs as row names.}
 
 \item{blastDB}{The path to the BLAST database against which the sequences will be queried.
-For example, "/Users/username/DB/blastDB/16S_ribosomal_RNA".}
+Defaults to the 16S ribosomal RNA database bundled with Gotools; pass a
+different path (e.g. "/Users/username/DB/blastDB/nt") to use another database.}
 }
 \value{
 Writes two CSV files to \verb{1_out/}:

@@ -16,7 +16,8 @@
 #'
 #' @param asvsTable The path to the CSV file containing ASV sequences with sequence IDs as row names.
 #' @param blastDB The path to the BLAST database against which the sequences will be queried.
-#'                 For example, "/Users/username/DB/blastDB/16S_ribosomal_RNA".
+#'                 Defaults to the 16S ribosomal RNA database bundled with Gotools; pass a
+#'                 different path (e.g. "/Users/username/DB/blastDB/nt") to use another database.
 #'
 #' @return Writes two CSV files to `1_out/`:
 #' 1. `project.updated_sequences_with_blast_results.YYMMDD.csv`
@@ -39,7 +40,7 @@
 
 Go_blastASVs <- function(project,
                          asvsTable,
-                         blastDB) {
+                         blastDB = file.path(system.file("blastDB", package = "Gotools"), "16S_ribosomal_RNA")) {
   existing_final_outputs <- Sys.glob(sprintf("1_out/%s.final_asvTable.*.csv", project))
   if (length(existing_final_outputs) > 0) {
     message(
@@ -51,6 +52,8 @@ Go_blastASVs <- function(project,
     )
     return(invisible(existing_final_outputs))
   }
+
+  message(sprintf("Using BLAST DB: %s", blastDB))
 
   if (!requireNamespace("Biostrings", quietly = TRUE)) {
     if (!requireNamespace("BiocManager", quietly = TRUE)) {

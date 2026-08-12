@@ -50,7 +50,6 @@ if (!dir.exists(summary_report_dir)) dir.create(summary_report_dir, recursive = 
 # If mapping is missing, use Go_emptyMap() -> fill in -> save to 3_map/
 mapping_file   <- "3_map/MAPPING.csv"
 raw_asv_file   <- "1_out/FILL_IN.psTotab.asvTable.csv"
-blast_db       <- "/PATH/TO/blastDB/16S_ribosomal_RNA"
 track_file     <- "1_out/FILL_IN_track.csv"
 tree_file      <- "1_out/TREE/tree.nwk"
 
@@ -58,7 +57,9 @@ sampledata <- read.csv(mapping_file, row.names = 1, check.names = FALSE, strings
 
 final_asv_file <- find_latest_final_asv(project)
 if (is.na(final_asv_file) || !file.exists(final_asv_file)) {
-  Go_blastASVs(project = project, asvsTable = raw_asv_file, blastDB = blast_db)
+  # Go_blastASVs() defaults to the 16S ribosomal RNA DB bundled with Gotools.
+  # Pass blastDB = "/path/to/other/blastDB" to use a different database.
+  Go_blastASVs(project = project, asvsTable = raw_asv_file)
   final_asv_file <- find_latest_final_asv(project)
 }
 if (is.na(final_asv_file) || !file.exists(final_asv_file)) stop("No final_asvTable was found for Go_tabTops().")
