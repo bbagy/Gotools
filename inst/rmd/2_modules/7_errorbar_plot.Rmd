@@ -18,8 +18,14 @@ When applied to CLR (Centered Log-Ratio) transformed data, this plot effectively
     input_pdf <- list.files(path = da_wd, pattern = pattern, full.names = TRUE)
     
     if(length(input_pdf) == 0) {
-      cat("No PDF files found for pattern:", pattern, "\n")
+      message("No PDF files found for pattern: ", pattern)
       return()
+    }
+    
+    if (length(input_pdf) > 1) {
+    
+      message("Multiple PDF files matched pattern: ", pattern, " - using the first: ", basename(input_pdf[1]))
+    
     }
     
     base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
