@@ -147,7 +147,7 @@ basel <- Go_myCols(piratepal = "basel")
 
 ### Bar Plots for Taxonomic Composition
 ```r
-Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="TreatmentGroup", mycols=basel, orders=orders)
+Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="TreatmentGroup", mycols=basel, orders=orders, height=4, width=8)
 ```
 #### Phylum
 <p align="center">
@@ -201,25 +201,17 @@ Go_boxplot(df=adiv, project=project, mycols=basel, cate.vars=c("TreatmentGroup")
 
 ### Beta Diversity Analysis
 ```r
-# Betadiveristy for PCoA plot
-ps2_log <- transform_sample_counts(ps2, function(x) log(1+x))
-Go_bdiv(psIN=ps2_log, project=project, cate.vars=c("TreatmentGroup"), distance_metrics=c("bray"), orders=basel)
+# PCoA ordination plot + PERMANOVA (statistics=TRUE, the default) in one call
+Go_bdivPM(psIN=ps2, cate.vars="TreatmentGroup", project=project, orders=orders,
+          distance_metrics=c("bray"), mycols=basel, height=4.5, width=7, plotCols=1, plotRows=1)
 ```
 <p align="center">
   <img src="data/pdf/ordi.Gotool.240310.png" alt="Beta Diversity" title="Beta Diversity" width="45%">
 </p>
 
-
-
-
-```r
-# Permanova analysis
-Go_perm(psIN = ps2, cate.vars = c("TreatmentGroup"), project =project, distance_metrics =c("bray"), 
-        mul.vars = F, name = NULL)
-
-Go_pairedperm(psIN=ps2, cate.vars = c("TreatmentGroup"), project =project, distance_metrics=c("bray"), 
-              cate.conf=NULL, des=NULL, name=NULL)
-```
+For paired/repeated-measures designs, pass the subject ID column as `strata_var` to block
+PERMANOVA permutations by subject; for a lower-level standalone PERMANOVA outside the
+plotting pipeline, see `Go_perm()`/`Go_pairedperm()`.
 
 
 ### Differential Abundance Testing
@@ -227,64 +219,29 @@ Go_pairedperm(psIN=ps2, cate.vars = c("TreatmentGroup"), project =project, dista
 `Go_Deseq2()`, `Go_Aldex2()`, and `Go_Ancom2()` are retained under `legacy/`
 only for reproducibility of historical analyses. They are not part of the
 current Gotools public API and should not be used in new analysis scripts.
+`Go_ConDaDist()` (from the companion `ConDAdist` package) is the current
+entry point — it runs ancombc2/aldex2/deseq2 (and more) as a consensus DA
+call and returns an output directory `Go_volcanoPlot()` reads directly:
 
-### Deseq2 Volcano Plot
 ```r
-path <- file.path(sprintf("%s_%s/table/Deseq2/", project, format(Sys.Date(), "%y%m%d")))
-Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
+# devtools::install_github("bbagy/ConDAdist")
+library(ConDAdist)
+
+da_result_dir <- NULL
+for (method in c("ancombc2", "aldex2", "deseq2")) {
+  da_result_dir <- Go_ConDaDist(psIN=ps2, project=project, group_var="TreatmentGroup",
+                                 group_1=orders[1], group_2=orders[2],
+                                 covariates=NULL, methods=method, distances=NULL, name=NULL)
+}
+# Go_ConDaDist() returns the same project/date output directory regardless of
+# method, so call Go_volcanoPlot() once after the loop - it scans that
+# directory for every method's result CSV in one pass.
+Go_volcanoPlot(project=project, result=da_result_dir, fc=0, mycols=NULL, font=3, height=5, width=6)
 ```
 
-#### Stool.vs.Saliva
 <p align="center">
-  <img src="data/pdf/deseq2.volcano.TreatmentGroup.(Stool.vs.Saliva).Gotool.(cutoff=1).240310.png" alt="Dese2_1" title="Dese2_1" width="45%">
+  <img src="data/pdf/deseq2.volcano.TreatmentGroup.(Stool.vs.Saliva).Gotool.(cutoff=1).240310.png" alt="Volcano plot" title="Volcano plot" width="45%">
 </p>
-
-#### Plaque.vs.Stool
-<p align="center">
-  <img src="data/pdf/deseq2.volcano.TreatmentGroup.(Plaque.vs.Stool).Gotool.(cutoff=1).240310.png" alt="Dese2_2" title="Dese2_2" width="45%">
-</p>
-
-#### Plaque.vs.Saliva
-<p align="center">
-  <img src="data/pdf/deseq2.volcano.TreatmentGroup.(Plaque.vs.Saliva).Gotool.(cutoff=1).240310.png" alt="Dese2_3" title="Dese2_3" width="45%">
-</p>
-
-
-
-### Aldex2 Volcano Plot
-```r
-path <- file.path(sprintf("%s_%s/table/Aldex2/", project, format(Sys.Date(), "%y%m%d")))
-Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
-```
-
-#### Stool.vs.Saliva
-<p align="center">
-  <img src="data/pdf/aldex2.volcano.TreatmentGroup.(Stool.vs.Saliva).Gotool.t-test.(cutoff=1).240310.png" alt="Aldex2_1" title="Aldex2_1" width="45%">
-</p>
-
-#### Plaque.vs.Stool
-<p align="center">
-  <img src="data/pdf/aldex2.volcano.TreatmentGroup.(Plaque.vs.Stool).Gotool.t-test.(cutoff=1).240310.png" alt="Aldex2_2" title="Aldex2_2" width="45%">
-</p>
-
-#### Plaque.vs.Saliva
-<p align="center">
-  <img src="data/pdf/aldex2.volcano.TreatmentGroup.(Plaque.vs.Saliva).Gotool.t-test.(cutoff=1).240310.png" alt="Aldex2_3" title="Aldex2_3" width="45%">
-</p>
-
-
-
-### Ancom2 Volcano Plot
-```r
-path <- file.path(sprintf("%s_%s/table/Ancom2/", project, format(Sys.Date(), "%y%m%d")))
-Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
-```
-#### Stool.vs.Saliva
-<p align="center">
-  <img src="data/pdf/ancom2.volcano.TreatmentGroup.(Plaque.vs.Stool).Gotool.(cutoff=1).240310.png" alt="Ancom2_1" title="Ancom2_1" width="45%">
-</p>
-
-
 
 ---
 
