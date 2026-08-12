@@ -87,6 +87,17 @@ make_MG_fixture <- function(root) {
     data.frame(row.names = sample_ids, TreatmentGroup = rep(c("GroupA", "GroupB"), each = n_sample / 2), Sex = rep(c("F", "M"), n_sample / 2), check.names = FALSE),
     "3_map/MAPPING.csv", row.names = TRUE
   )
+
+  n_path <- 6
+  path_ids <- sprintf("PWY-%04d: Pathway description %d", 1:n_path, 1:n_path)
+  path_counts <- matrix(stats::rpois(n_path * n_sample, lambda = 50), n_path, n_sample, dimnames = list(path_ids, sample_ids))
+  write.table(path_counts, "1_out/PATHABUNDANCE.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = NA)
+
+  n_ko <- 6
+  ko_ids <- sprintf("K%05d: KO description %d", 1:n_ko, 1:n_ko)
+  ko_counts <- matrix(stats::rpois(n_ko * n_sample, lambda = 50), n_ko, n_sample, dimnames = list(ko_ids, sample_ids))
+  write.table(ko_counts, "1_out/GENEFAMILIES.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = NA)
+
   invisible(root)
 }
 

@@ -120,12 +120,27 @@ test_that("MG template renders end to end", {
   da_labels <- run_da_and_report(ps_main, project, comparison_var, comparison_orders, dir_root)
   alpha_tab_file <- sprintf("%s/table/adiv/adiv.%s.%s.%s.csv", dir_root, project, ensure_report_token("AllSamples"), today)
 
+  # HUMAnN3 functional branch
+  humann_pathabundance_file <- "1_out/PATHABUNDANCE.tsv"
+  humann_genefamilies_file  <- "1_out/GENEFAMILIES.tsv"
+  ps2.path <- Go_function2ps(tabPath = humann_pathabundance_file, project = project, func.type = "Humann", name = NULL)
+  ps2.path <- phyloseq::merge_phyloseq(ps2.path, phyloseq::sample_data(data.frame(sampledata)))
+  Go_extendedBarplot(psIN = ps2.path, project = project, mvar = comparison_var, group1 = comparison_orders[1], group2 = comparison_orders[2], func = "path.des", wilcox.p = 0.1, name = "PATHWAY", height = 3, width = 10)
+  Go_psTotab(ps2.path, project = "PATH")
+  path_df <- read.csv(sprintf("1_out/PATH.%s.psTotab.asvTable.csv", today), row.names = 1, check.names = FALSE)
+  path_df$pathway <- NULL
+  path_df$path.des <- NULL
+  Go_Groupheatmap(df = path_df, SampleData = sampledata, project = project, Group = comparison_var, orders = comparison_orders, title = NULL, mycols = NULL, name = ensure_report_token("PATHWAY"), top_n = 50, normalization = "log", width = 11, height = 8, x_label = NULL)
+  functional_eb_tokens <- sprintf("%s.vs.%s.PATHWAY", comparison_orders[1], comparison_orders[2])
+  functional_sh_tokens <- "PATHWAY"
+
   expInfo <- Go_expInfo(Project_name = "Test", Samples_info = "n=10", Sequencing_date = today,
                          Sequencing_platform = "test", kit_number = 2, pos_number = 1, prep_number = 6, spikein_number = 2,
                          authorName1 = "Test Author", authorEmail1 = "test@example.edu")
   dirInfo <- Go_dirInfo(Current_working_dir = getwd(), Image_locations = sprintf("%s/pdf/", dir_root), DA_image_location = sprintf("%s/pdf/DA_plot/", dir_root))
-  tabInfo <- Go_tabInfo(Taxa_Tab = "1_out/BRACKEN_MPA.txt", Tract_Tab = "1_out/QC_summary.csv", Alpha_divTab = alpha_tab_file)
-  imgInfo <- Go_imgInfo(Barchart = "Phylum", Bac.heatmap = comparison_var, Adivplot = comparison_var, Bdivplot = comparison_var, DAplot = da_labels)
+  tabInfo <- Go_tabInfo(Taxa_Tab = "1_out/BRACKEN_MPA.txt", Func_Tab = humann_pathabundance_file, Tract_Tab = "1_out/QC_summary.csv", Alpha_divTab = alpha_tab_file)
+  imgInfo <- Go_imgInfo(Barchart = "Phylum", Bac.heatmap = comparison_var, Adivplot = comparison_var, Bdivplot = comparison_var, DAplot = da_labels,
+                         EBplot = functional_eb_tokens, SHeatmap = functional_sh_tokens)
   sumInfo <- Go_sumInfo(Prep_overview = "test")
 
   out <- Go_renderReport(family = "MG", project = project, expInfo = expInfo, dirInfo = dirInfo,

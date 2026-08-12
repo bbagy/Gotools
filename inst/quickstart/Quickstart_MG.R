@@ -94,6 +94,39 @@ Go_volcanoPlot(project = project, result = da_result_dir, mycols = da.col, fc = 
 
 
 ###########################################
+#=========   HUMAnN3 Functional  =========#
+###########################################
+humann_pathabundance_file <- "1_out/PATHABUNDANCE.tsv"
+humann_genefamilies_file  <- "1_out/GENEFAMILIES.tsv"
+functional_group1 <- comparison_orders[1]
+functional_group2 <- comparison_orders[2]
+functional_eb_tokens <- character(0)
+functional_sh_tokens <- character(0)
+
+ps2.path <- Go_function2ps(tabPath = humann_pathabundance_file, project = project, func.type = "Humann", name = NULL)
+ps2.path <- phyloseq::merge_phyloseq(ps2.path, phyloseq::sample_data(data.frame(sampledata)))
+Go_extendedBarplot(psIN = ps2.path, project = project, mvar = comparison_var, group1 = functional_group1, group2 = functional_group2, func = "path.des", wilcox.p = 0.1, name = "PATHWAY", height = 3, width = 10)
+Go_psTotab(ps2.path, project = "PATH")
+path_df <- read.csv(sprintf("1_out/PATH.%s.psTotab.asvTable.csv", format(Sys.Date(), "%y%m%d")), row.names = 1, check.names = FALSE)
+path_df$pathway <- NULL
+path_df$path.des <- NULL
+Go_Groupheatmap(df = path_df, SampleData = sampledata, project = project, Group = comparison_var, orders = comparison_orders, title = NULL, mycols = NULL, name = ensure_report_token("PATHWAY"), top_n = 50, normalization = "log", width = 11, height = 8, x_label = NULL)
+functional_eb_tokens <- c(functional_eb_tokens, sprintf("%s.vs.%s.PATHWAY", functional_group1, functional_group2))
+functional_sh_tokens <- c(functional_sh_tokens, "PATHWAY")
+
+ps2.kegg <- Go_function2ps(tabPath = humann_genefamilies_file, project = project, func.type = "Humann", name = NULL)
+ps2.kegg <- phyloseq::merge_phyloseq(ps2.kegg, phyloseq::sample_data(data.frame(sampledata)))
+Go_extendedBarplot(psIN = ps2.kegg, project = project, mvar = comparison_var, group1 = functional_group1, group2 = functional_group2, func = "KO.des", wilcox.p = 0.1, name = "KEGG", height = 3, width = 10)
+Go_psTotab(ps2.kegg, project = "KEGG")
+kegg_df <- read.csv(sprintf("1_out/KEGG.%s.psTotab.asvTable.csv", format(Sys.Date(), "%y%m%d")), row.names = 1, check.names = FALSE)
+kegg_df$KO <- NULL
+kegg_df$KO.des <- NULL
+Go_Groupheatmap(df = kegg_df, SampleData = sampledata, project = project, Group = comparison_var, orders = comparison_orders, title = NULL, mycols = NULL, name = ensure_report_token("KEGG"), top_n = 50, normalization = "log", width = 11, height = 8, x_label = NULL)
+functional_eb_tokens <- c(functional_eb_tokens, sprintf("%s.vs.%s.KEGG", functional_group1, functional_group2))
+functional_sh_tokens <- c(functional_sh_tokens, "KEGG")
+
+
+###########################################
 #=========  Report Objects       =========#
 ###########################################
 dir_root       <- sprintf("%s_%s", project, format(Sys.Date(), "%y%m%d"))
@@ -107,9 +140,11 @@ expInfo <- Go_expInfo(
   authorName1 = "Gotools Quickstart", authorEmail1 = NA
 )
 dirInfo <- Go_dirInfo(Current_working_dir = currentwd, Image_locations = sprintf("%s/pdf/", dir_root), DA_image_location = sprintf("%s/pdf/DA_plot/", dir_root))
-tabInfo <- Go_tabInfo(Taxa_Tab = "1_out/BRACKEN_MPA.txt", Tract_Tab = "1_out/QC_summary.csv", Alpha_divTab = alpha_tab_file)
+tabInfo <- Go_tabInfo(Taxa_Tab = "1_out/BRACKEN_MPA.txt", Func_Tab = c(humann_genefamilies_file, humann_pathabundance_file),
+                       Tract_Tab = "1_out/QC_summary.csv", Alpha_divTab = alpha_tab_file)
 imgInfo <- Go_imgInfo(Barchart = barchart_tax_ranks, Bac.heatmap = comparison_var,
-                       Adivplot = comparison_var, Bdivplot = comparison_var, DAplot = da_labels)
+                       Adivplot = comparison_var, Bdivplot = comparison_var, DAplot = da_labels,
+                       EBplot = functional_eb_tokens, SHeatmap = functional_sh_tokens)
 sumInfo <- Go_sumInfo(Prep_overview = "Demo dataset: fully synthetic taxa, counts, and groups.")
 
 out <- Go_renderReport(family = "MG", project = project, expInfo = expInfo, dirInfo = dirInfo,
