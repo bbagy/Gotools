@@ -3,6 +3,20 @@
 ## Description
 This repository contains a set of tools for reproducible microbiome analysis. It includes scripts for various purposes, such as data visualization, statistical testing, data transformation, and more.
 
+## Who This Is For
+
+| Background | What you can do |
+|---|---|
+| New to R | Run the bundled Quickstart scripts and view the HTML report |
+| R, past the basics | Point a template at your own project path/name |
+| Comfortable with R | Run the standard pipeline end to end on your own data |
+| Experienced in microbiome analysis | Design comparisons and evaluate the results |
+| Statistics / bioinformatics expert | Extend with additional analysis, adapt models, validate methodology |
+
+Each row builds on the one above it - none of this requires knowing R
+internals, but analysis judgment (what to compare, how to interpret a
+result) is assumed once you're past "run the Quickstart."
+
 ## Purpose & Design Philosophy
 
 > Gotools guarantees the floor of analysis quality, consistency, and
