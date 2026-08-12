@@ -282,6 +282,36 @@ Go_volcanoPlot(project, file_path=path, files=".csv", mycols=NULL)
 
 ---
 
+## Summary Report Generation
+
+`Go_renderReport()` renders a single-file HTML summary report (16S, MG, or
+RNAseq) from the objects built by `Go_expInfo()`, `Go_dirInfo()`,
+`Go_tabInfo()`, `Go_imgInfo()`, and `Go_sumInfo()`. The report template and
+lab logo are bundled with the package, so no external paths are needed.
+
+```r
+expInfo <- Go_expInfo(...)
+dirInfo <- Go_dirInfo(...)
+tabInfo <- Go_tabInfo(...)
+imgInfo <- Go_imgInfo(...)
+sumInfo <- Go_sumInfo(...)
+
+Go_renderReport(
+  family = "16S", # "16S", "MG", or "RNAseq"
+  project = project,
+  expInfo = expInfo, dirInfo = dirInfo, tabInfo = tabInfo,
+  imgInfo = imgInfo, sumInfo = sumInfo,
+  output_dir = "3_Summary_report"
+)
+```
+
+Each `Go_*Info()` function prints its own option guide when called with no
+arguments (e.g. `Go_expInfo()` alone lists kit/prep/spikein numbers).
+
+Ready-to-copy skeleton scripts for each report family are in
+[`Download_templates/`](Download_templates/):
+`16S_Report_Template.R`, `MG_Report_Template.R`, `RNAseq_Report_Template.R`.
+
 ## List of Tools
 The repository includes the following scripts:
 
@@ -307,6 +337,7 @@ The repository includes the following scripts:
 - **Go_pheatmap.R**: A script to generate heatmaps, specifically using the pheatmap function in R which offers more control over heatmap generation.
 - **Go_psTotab.R**: A script to convert a phyloseq object to a table for further processing or analysis.
 - **Go_regression.R**: A script for performing regression analysis.
+- **Go_renderReport.R**: Renders the bundled 16S/MG/RNAseq HTML summary report from `Go_*Info()` objects. See "Summary Report Generation" above.
 - **Go_rf_function_sets.R**: A script for performing random forest analysis, a machine learning technique.
 
 ## Usage # processing
