@@ -1,3 +1,4 @@
+# Legacy: retained for reproducibility of historical analyses.
 #' Perform ANCOM-II Analysis on Phyloseq Data
 #'
 #' This function runs ANCOM-II on a phyloseq object. It supports categorical and

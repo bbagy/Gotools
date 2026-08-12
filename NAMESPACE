@@ -2,10 +2,7 @@
 
 export("%||%")
 export(GMPR)
-export(Go_Aldex2)
-export(Go_Ancom2)
 export(Go_DA_heat)
-export(Go_Deseq2)
 export(Go_Groupheatmap)
 export(Go_MRS_fit)
 export(Go_MRS_fit_robust)
