@@ -1,0 +1,361 @@
+---
+title: "1_Tables"
+author: "Heekuk"
+date: "2024-06-09"
+output: html_document
+---
+
+### a)	Sample Overview {.tabset}
+
+
+```{r Overview, include=FALSE}
+  subgroup = NULL
+  convert_and_include_pdf <- function(tool, index,subgroup = NULL, wd, rarefaction) {
+    pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  rarefaction[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+    input_pdf <- list.files(path = wd, pattern = pattern, full.names = TRUE)
+    
+    if(length(input_pdf) == 0) {
+      cat("No PDF files found for pattern:", pattern, "\n")
+      return()
+    }
+    
+    base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
+    output_png <- file.path(dirname(input_pdf[1]), paste0(base_name, ".png"))
+    
+    image_read_pdf(input_pdf[1], pages = 1) %>%
+      image_convert(format = "png") %>%
+      image_write(output_png)
+    
+    include_graphics(output_png)
+  }
+
+```
+
+
+```{r conditional-title_rare, echo=FALSE, results='asis', eval=!is.na(imgInfo$rarefaction[1])}
+if(!is.na(imgInfo$rarefaction[1])) {
+  cat("#### ", "Rarefaction curve", "\n", sep="")
+}
+```
+
+
+
+```{r rare, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=15, fig.width=10, eval=!is.na(imgInfo$rarefaction[1])}
+convert_and_include_pdf("1_rarefaction",1, subgroup, dirInfo$image.wd, imgInfo$rarefaction)
+```
+
+
+```{r rarefaction_space, echo=FALSE, results='asis', eval=!is.na(imgInfo$rarefaction[1])}
+if(!is.null(imgInfo$rarefaction[1]) &&  !is.na(imgInfo$rarefaction[1])) {
+  cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+```{r conditional-title_Overview_plot, echo=FALSE, results='asis', eval=!is.na(imgInfo$overview[1])}
+if(!is.na(imgInfo$overview[1])) {
+  cat("#### ", "Overview", "\n", sep="")
+}
+```
+
+
+```{r Overview_plot, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=15, fig.width=10, eval=!is.na(imgInfo$overview[1])}
+
+convert_and_include_pdf("overview",1, subgroup, dirInfo$image.wd, imgInfo$overview)
+```
+
+
+```{r Overview_space, echo=FALSE, results='asis', eval=!is.na(imgInfo$overview[1])}
+if(!is.null(imgInfo$overview[1]) &&  !is.na(imgInfo$overview[1])) {
+  cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r conditional-title_Track, echo=FALSE, results='asis', eval=!all(is.na(tabInfo$track))}
+if (!is.null(tabInfo$track) && !all(is.na(tabInfo$track))) {
+  cat("#### ", "QC Table", "\n", sep="")
+}
+```
+
+
+
+```{r track, echo=FALSE, eval=!is.na(tabInfo$track) & !is.null(tabInfo$track)}
+
+datatable(tabInfo$track, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 20,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+```
+
+
+
+
+
+```{r conditional-title_otherTab1, echo=FALSE, results='asis', eval=length(tabInfo$otherTab) >= 2 && !is.null(tabInfo$otherTab[[1]])}
+if (length(tabInfo$otherTab) >= 2 && !is.null(tabInfo$otherTab[[1]])) {
+  cat("#### ", "Other Table", "\n", sep="")
+}
+```
+
+
+
+```{r otherTab1, echo=FALSE, eval=length(tabInfo$otherTab) >= 2 && !is.null(tabInfo$otherTab[[1]])}
+
+otherTab <- as.data.frame(tabInfo$otherTab[1])
+
+datatable(otherTab, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 20,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+```
+
+
+
+
+
+```{r track_space, echo=FALSE, results='asis', eval=!is.null(tabInfo$track) && !all(is.na(tabInfo$track))}
+if (!is.null(tabInfo$track) && !all(is.na(tabInfo$track))) {
+  cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+
+
+
+
+
+```{r conditional-title_asvtab1, echo=FALSE, results='asis',eval=length(tabInfo$asvs[[1]]) >= 1 && !is.null(tabInfo$asvs[[1]])}
+if (!is.null(tabInfo$asvs[[1]]) && !all(is.na(tabInfo$asvs[[1]])) && length(tabInfo$asvs[[1]]) > 0) {
+  cat("#### ", "ASVs Table (1)", "\n", sep="")
+}
+
+```
+
+```{r ASVs1, echo=FALSE, message=FALSE, warning=FALSE, eval=length(tabInfo$asvs) >= 1 && !is.null(tabInfo$asvs[[1]])}
+
+if (!is.na(tabInfo$asvs[1])) {
+  rownames(tabInfo$asvs[1]) <- NULL
+
+asvTab <- as.data.frame(tabInfo$asvs[1])
+seq_num <- seq_len(nrow(asvTab))
+
+# Format the numbers with leading zeros and add the "ASV" prefix
+new_rownames <- sprintf("ASV%06d", seq_num)
+# Assign the new rownames to the dataframe
+rownames(asvTab) <- new_rownames
+
+datatable(asvTab, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 200,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+}
+
+```
+
+```{r ASVs1_space, echo=FALSE, results='asis', eval=length(tabInfo$asvs) >= 2 && !is.null(tabInfo$asvs[[2]])}
+if (length(tabInfo$asvs) >= 2 && !is.null(tabInfo$asvs[[1]])) {
+  cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+
+
+
+
+
+
+```{r conditional-title_asvtab2, echo=FALSE, results='asis', eval=length(tabInfo$asvs) >= 2 && !is.null(tabInfo$asvs[[2]])}
+if (length(tabInfo$asvs) >= 2 && !is.null(tabInfo$asvs[[2]])) {
+  cat("#### ", "ASVs Table (2)", "\n", sep="")
+}
+```
+
+
+```{r ASVs2, echo=FALSE, message=FALSE, warning=FALSE, eval=!is.na(tabInfo$asvs[2])}
+rownames(tabInfo$asvs[2]) <- NULL
+asvTab <- as.data.frame(tabInfo$asvs[2])
+seq_num <- seq_len(nrow(asvTab))
+
+# Format the numbers with leading zeros and add the "ASV" prefix
+new_rownames <- sprintf("ASV%06d", seq_num)
+# Assign the new rownames to the dataframe
+rownames(asvTab) <- new_rownames
+
+datatable(asvTab, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 200,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+```
+
+
+
+
+```{r ASVs2_space, echo=FALSE, results='asis', eval=length(tabInfo$asvs) >= 1 && !is.null(tabInfo$asvs[[1]]) && length(tabInfo$asvs[[1]]) >= 2}
+if (length(tabInfo$asvs) >= 1 && !is.null(tabInfo$asvs[[1]]) && length(tabInfo$asvs[[1]]) >= 2) {
+   cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+
+
+```{r conditional-title_taxatab1, echo=FALSE, results='asis', eval=length(tabInfo$taxa) >= 1 && !is.null(tabInfo$taxa[[1]]) && length(tabInfo$taxa[[1]]) >= 2}
+if (length(tabInfo$taxa) >= 1 && !is.null(tabInfo$taxa[[1]]) && length(tabInfo$taxa[[1]]) >= 2) {
+  cat("#### ", "Taxa Table", "\n", sep="")
+}
+```
+
+
+```{r Taxa, echo=FALSE, message=FALSE, warning=FALSE, eval=!is.na(tabInfo$taxa[1])}
+rownames(tabInfo$taxa[1]) <- NULL
+taxaTab <- as.data.frame(tabInfo$taxa[1])
+seq_num <- seq_len(nrow(taxaTab))
+
+# Format the numbers with leading zeros and add the "ASV" prefix
+#new_rownames <- sprintf("TAXA%06d", seq_num)
+# Assign the new rownames to the dataframe
+#rownames(asvTab) <- new_rownames
+
+datatable(taxaTab, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 200,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+```
+
+
+
+
+```{r taxa_space, echo=FALSE, results='asis', eval=length(tabInfo$taxa) >= 1 && !is.null(tabInfo$taxa[[1]]) && length(tabInfo$taxa[[1]]) >= 2}
+if (length(tabInfo$taxa) >= 1 && !is.null(tabInfo$taxa[[1]]) && length(tabInfo$taxa[[1]]) >= 2) {
+   cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+
+
+
+
+```{r conditional-title_Func1, echo=FALSE, results='asis',eval=length(tabInfo$func) >= 1 && !is.null(tabInfo$func[[1]])}
+if (length(tabInfo$func) >= 1 && !is.null(tabInfo$func[[1]]) && length(tabInfo$func[[1]]) >= 2) {
+  cat("#### ", "Function Table", "\n", sep="")
+}
+```
+
+
+```{r Func1, echo=FALSE, message=FALSE, warning=FALSE, eval=!is.na(tabInfo$taxa[1])}
+
+if (length(tabInfo$func) >= 1 && !is.null(tabInfo$func[[1]]) && length(tabInfo$func[[1]]) >= 2) {
+  rownames(tabInfo$func[1]) <- NULL
+
+funcTab <- as.data.frame(tabInfo$func[1])
+seq_num <- seq_len(nrow(funcTab))
+
+# Format the numbers with leading zeros and add the "ASV" prefix
+# new_rownames <- sprintf("%06d", seq_num)
+# Assign the new rownames to the dataframe
+# rownames(asvTab) <- new_rownames
+
+datatable(funcTab, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 200,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+}
+
+```
+
+
+
+```{r Func1_space, echo=FALSE, results='asis', eval=length(tabInfo$func) >= 1 && !is.null(tabInfo$func[[1]]) && length(tabInfo$func[[1]]) >= 2}
+if (length(tabInfo$func) >= 1 && !is.null(tabInfo$func[[1]]) && length(tabInfo$func[[1]]) >= 2) {
+   cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+
+
+```{r conditional-title_gtdbtk1, echo=FALSE, results='asis',eval=length(tabInfo$gtdbtk) >= 1 && !is.null(tabInfo$gtdbtk[[1]])}
+if (length(tabInfo$gtdbtk) >= 1 && !is.null(tabInfo$gtdbtk[[1]]) && length(tabInfo$gtdbtk[[1]]) >= 2) {
+  cat("#### ", "GTDBTK Table", "\n", sep="")
+}
+```
+
+
+
+```{r gtdbtk1, echo=FALSE, message=FALSE, warning=FALSE, eval=!is.na(tabInfo$gtdbtk[1])}
+if (length(tabInfo$gtdbtk) >= 1 && !is.null(tabInfo$gtdbtk[[1]]) && length(tabInfo$gtdbtk[[1]]) >= 2) {
+rownames(tabInfo$gtdbtk[1]) <- NULL
+
+gtdbtk.tab <- as.data.frame(tabInfo$gtdbtk[1])
+
+datatable(gtdbtk.tab, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 50,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+}
+
+
+```
+
+
+
+```{r gtdbtk_space, echo=FALSE, results='asis', eval=length(tabInfo$gtdbtk) >= 1 && !is.null(tabInfo$gtdbtk[[1]]) && length(tabInfo$gtdbtk[[1]]) >= 2}
+if (length(tabInfo$gtdbtk) >= 1 && !is.null(tabInfo$gtdbtk[[1]]) && length(tabInfo$gtdbtk[[1]]) >= 2) {
+   cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+

@@ -1,0 +1,443 @@
+---
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+```{r css-inline, echo=FALSE, results='asis'}
+cat('<style>', readLines(file.path(rmd_module_dir, "styles.css")), '</style>', sep = "\n")
+```
+
+# <span class="title-text">CUMC Microbiome Core Summary Report</span>
+#### <span class="author-text">  `r sprintf("%s%s",expInfo$authorName1, ifelse(is.null(expInfo$authorName2),"",paste("/",expInfo$authorName2,sep="")))`  </span>  
+#### <span class="date-text">`r format(Sys.Date(), '%Y-%m-%d')`</span>
+
+***
+## A.	Project name: `r expInfo$project`
+
+<br>
+
+## B.	Methods
+### 1.	Samples detail
+-	Total number of samples: `r expInfo$samples`
+
+<br>
+
+### 2.	RNA extraction library
+- Extraction kit: `r expInfo$kit`
+-	Sequencing method: `r expInfo$prep` `r expInfo$platform`
+-	Sequencing date: `r expInfo$date`
+
+<br>
+
+### 3.	Analysis parameters
+
+**Quality Control and Trimming of Raw Reads:**
+Raw sequencing reads were first subjected to quality control using Trimmomatic. Trimmomatic was used to trim adapter sequences and to filter out low-quality reads.
+
+**Alignment of Reads to the Reference Genome:**
+The high-quality trimmed reads were then aligned to the reference genome using Bowtie2. Bowtie2 was configured to perform end-to-end alignment with default parameters. The reference genome used for alignment was `r expInfo$rnaseq_reference`.
+
+**Sorting and Indexing of Aligned Reads:**
+The alignment output from Bowtie2 was processed using Samtools. Samtools was employed to convert the output SAM files to compressed BAM files, sort them, and index them for efficient access.
+
+**Quantification of Gene Expression:**
+Quantification of gene expression levels was carried out using htseq-count. The sorted BAM files were used as input, and counts were obtained for each gene based on the reference annotation.
+
+
+
+***
+## C.	Results
+
+### Raw table {.tabset}
+
+<br>
+
+#### Raw RNAseq table
+
+```{r rnaseq, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+datatable(tabInfo$rnaseq, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 100,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+```
+
+
+
+#### Read Counts
+
+```{r tab1, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+datatable(tabInfo$tab1, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 100,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+```
+
+
+
+
+<br>
+<br>
+
+***
+
+```{r Go_heatmap, include=FALSE}
+  convert_and_include_pdf <- function(tool, index, subgroup = NULL, wd, rnaseq.heatmap) {
+    pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  rnaseq.heatmap[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+    input_pdf <- list.files(path = wd, pattern = pattern, full.names = TRUE)
+    
+    if(length(input_pdf) == 0) {
+      cat("No PDF files found for pattern:", pattern, "\n")
+      return()
+    }
+    
+    base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
+    output_png <- file.path(dirname(input_pdf[1]), paste0(base_name, ".png"))
+    
+    image_read_pdf(input_pdf[1], pages = 1) %>%
+      image_convert(format = "png") %>%
+      image_write(output_png)
+    
+    include_graphics(output_png)
+  }
+```
+
+### Heatmap {.tabset}
+
+```{r conditional-title_hm1, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$rnaseq.heatmap[1])) {
+  cat("#### ", imgInfo$rnaseq.heatmap[1], "\n", sep="")
+}
+```
+
+
+```{r barplot-heatmap,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$rnaseq.heatmap[1])}
+convert_and_include_pdf("pheatmap",1, subgroup =NULL, dirInfo$image.wd, imgInfo$rnaseq.heatmap[1])
+```
+
+
+
+
+```{r conditional-title_hm2, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$rnaseq.heatmap[2])) {
+  cat("#### ", imgInfo$rnaseq.heatmap[2], "\n", sep="")
+}
+```
+
+
+```{r barplot-heatmap2,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$rnaseq.heatmap[2])}
+convert_and_include_pdf("pheatmap",1, subgroup =NULL, dirInfo$image.wd, imgInfo$rnaseq.heatmap[2])
+```
+
+
+
+
+
+```{r conditional-title_D0, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[1])}
+if(!is.na(imgInfo$daplot[1])) {
+  cat("### Differential Expression Analysis", "\n", sep="")
+  cat("Differential expression analysis using the **DESeq2** R package was carried out to determine gene differences between groups. Here, we identified genes that differed between the baseline and the other group(s). Significantly differentially expressed genes were determined by p < 0.05 (open circle) and padj (FDR) < 0.05 (closed circle).")
+}
+```
+
+
+
+```{r DA, include=FALSE}
+  convert_and_include_pdf <- function(tool, index, subgroup = NULL, da_wd, da_com) {
+    pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  da_com[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+    input_pdf <- list.files(path = da_wd, pattern = pattern, full.names = TRUE)
+    
+    if(length(input_pdf) == 0) {
+      cat("No PDF files found for pattern:", pattern, "\n")
+      return()
+    }
+    
+    base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
+    output_png <- file.path(dirname(input_pdf[1]), paste0(base_name, ".png"))
+    
+    image_read_pdf(input_pdf[1], pages = 1) %>%
+      image_convert(format = "png") %>%
+      image_write(output_png)
+    
+    include_graphics(output_png)
+  }
+```
+
+<br>
+
+```{r conditional-title_D1, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[1])}
+if(!is.na(imgInfo$daplot[1])) {
+  cat("#### Deseq2", " {.tabset}", "\n", sep="")
+}
+```
+
+
+
+```{r conditional-title_1, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[1])}
+if(!is.na(imgInfo$daplot[1])) {
+  cat("##### ", imgInfo$daplot[1])
+}
+```
+
+
+```{r Deseq2_1, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[1])}
+convert_and_include_pdf("deseq2",1, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+```{r conditional-title_2, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[2])}
+if(!is.na(imgInfo$daplot[2])) {
+  cat("##### ", imgInfo$daplot[2])
+}
+```
+
+
+```{r Deseq2_2, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[2])}
+convert_and_include_pdf("deseq2",2, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+```{r conditional-title_3, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[3])}
+if(!is.na(imgInfo$daplot[3])) {
+  cat("##### ", imgInfo$daplot[3])
+}
+```
+
+
+```{r Deseq2_3, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[3])}
+convert_and_include_pdf("deseq2",3, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+```{r conditional-title_4, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[4])}
+if(!is.na(imgInfo$daplot[4])) {
+  cat("##### ", imgInfo$daplot[4])
+}
+```
+
+
+```{r Deseq2_4, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[4])}
+convert_and_include_pdf("deseq2",4, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+```{r conditional-title_5, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[5])}
+if(!is.na(imgInfo$daplot[5])) {
+  cat("##### ", imgInfo$daplot[5])
+}
+```
+
+
+```{r Deseq2_5, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[5])}
+convert_and_include_pdf("deseq2",5, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+```{r conditional-title_6, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[6])}
+if(!is.na(imgInfo$daplot[6])) {
+  cat("##### ", imgInfo$daplot[6])
+}
+```
+
+
+```{r Deseq2_6, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[6])}
+convert_and_include_pdf("deseq2",6, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+```{r conditional-title_7, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[7])}
+if(!is.na(imgInfo$daplot[7])) {
+  cat("##### ", imgInfo$daplot[7])
+}
+```
+
+
+```{r Deseq2_7, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[7])}
+convert_and_include_pdf("deseq2",7, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+```{r conditional-title_8, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[8])}
+if(!is.na(imgInfo$daplot[8])) {
+  cat("##### ", imgInfo$daplot[8])
+}
+```
+
+```{r Deseq2_8, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[8])}
+convert_and_include_pdf("deseq2",8, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+
+```{r conditional-title_9, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[9])}
+if(!is.na(imgInfo$daplot[9])) {
+  cat("##### ", imgInfo$daplot[9])
+}
+```
+
+```{r Deseq2_9, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[9])}
+convert_and_include_pdf("deseq2",9, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+```{r conditional-title_10, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[10])}
+if(!is.na(imgInfo$daplot[10])) {
+  cat("##### ", imgInfo$daplot[10])
+}
+```
+
+```{r Deseq2_10, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[10])}
+convert_and_include_pdf("deseq2",10, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+```{r conditional-title_11, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[11])}
+if(!is.na(imgInfo$daplot[11])) {
+  cat("##### ", imgInfo$daplot[11])
+}
+```
+
+```{r Deseq2_11, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[11])}
+convert_and_include_pdf("deseq2",11, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+```{r conditional-title_12, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[12])}
+if(!is.na(imgInfo$daplot[12])) {
+  cat("##### ", imgInfo$daplot[12])
+}
+```
+
+```{r Deseq2_12, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[12])}
+convert_and_include_pdf("deseq2",12, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+```{r conditional-title_13, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[13])}
+if(!is.na(imgInfo$daplot[13])) {
+  cat("##### ", imgInfo$daplot[13])
+}
+```
+
+```{r Deseq2_13, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[13])}
+convert_and_include_pdf("deseq2",13, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+```{r conditional-title_14, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[14])}
+if(!is.na(imgInfo$daplot[14])) {
+  cat("##### ", imgInfo$daplot[14])
+}
+```
+
+```{r Deseq2_14, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[14])}
+convert_and_include_pdf("deseq2",14, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+```{r conditional-title_15, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[15])}
+if(!is.na(imgInfo$daplot[15])) {
+  cat("##### ", imgInfo$daplot[15])
+}
+```
+
+```{r Deseq2_15, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[15])}
+convert_and_include_pdf("deseq2",15, subgroup =NULL,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+***
+
+```{r conditional-summary0, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$prep_overview[1])) {
+  cat("## ", "D. Summary", "\n",  sep="")
+}
+```
+
+
+
+```{r conditional-summary1, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$prep_overview[1])) {
+  cat("#### ", "Sequencing Summary", "\n",sumInfo$prep_overview[1],  sep="")
+}
+```
+
+
+```{r conditional-summary2, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$taxa_overview[1])) {
+  cat("#### ", "Taxonomic Composition Overview", "\n", sumInfo$taxa_overview[1], sep="")
+}
+```
+
+```{r conditional-summary3, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$alpha_div[1])) {
+  cat("#### ", "Alpha Diversity Analysis", "\n",sumInfo$alpha_div[1],  sep="")
+}
+```
+
+
+```{r conditional-summary4, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$beta_div[1])) {
+  cat("#### ", "Beta Diversity Analysis", "\n",sumInfo$beta_div[1], sep="")
+}
+```
+
+
+```{r conditional-summary5, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$da_test[1])) {
+  cat("#### ", "Differential Abundance Analysis", "\n", sumInfo$da_test[1], sep="")
+}
+```
+
+```{r conditional-summary6, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$conclusion[1])) {
+  cat("#### ", "Conclusion", "\n", sumInfo$conclusion[1], sep="")
+}
+```
+
+```{r conditional-summary7, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$useful_info[1])) {
+  cat("#### ", "Useful information", "\n", sumInfo$useful_info[1], sep="")
+}
+```
+
+***
+## Comment
+Please leave any comments in the text box below. It will link to your email app to send an email to the Microbiome Core Bioinformatics team.
+
+
+```{r, echo=FALSE, results='asis'}
+# Read the external HTML file content
+html_content <- readLines(file.path(rmd_module_dir, "email_form.html"), warn = FALSE)
+# Replace placeholders with actual R variables
+contact_email_joined <- paste(expInfo$contact_email, collapse = ",")
+html_content <- gsub("\\{\\{project_name\\}\\}", expInfo$project, html_content)
+html_content <- gsub("\\{\\{contact_email\\}\\}", contact_email_joined, html_content)
+html_content <- gsub("\\{\\{CC_EMAIL\\}\\}", ifelse(is.null(cc_email), "", cc_email), html_content, fixed = FALSE)
+# Print the modified HTML content into the R Markdown document
+cat(html_content, sep = "\n")
+```
+
+
+
+***
+```{r logo, echo=FALSE, out.width='50%', fig.align='center', eval=!is.null(logo_path)}
+include_graphics(logo_path)
+```

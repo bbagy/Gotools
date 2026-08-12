@@ -1,0 +1,128 @@
+---
+title: "5_MAGs"
+author: "Heekuk"
+date: "2025-05-02"
+output: html_document
+---
+
+```{r global-options, include=FALSE}
+fig_out_width <- "80%"
+upset_width <- "100%"
+
+fig_out_width_heatmap <-"100%"
+
+```
+
+
+
+### 1) Taxonomic Structure of MAGs Based on Phylogenetic Analysis {.tabset}
+
+This analysis presents the phylogenetic relationships of MAGs and their taxonomic classification. A circular tree was constructed using GTDB-Tk annotations, revealing distinct clusters by phylum and genus. Genome completeness and sample metadata were visualized alongside to aid interpretation of the microbial community structure.
+
+
+```{r pdfconverter, include=FALSE}
+  convert_and_include_pdf <- function(tool, index, subgroup = NULL, wd, bdiv) {
+    pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  bdiv[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+    input_pdf <- list.files(path = wd, pattern = pattern, full.names = TRUE)
+    
+    if(length(input_pdf) == 0) {
+      #cat("No PDF files found for pattern:", pattern, "\n")
+      return(invisible(NULL)) 
+    }
+    
+    base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
+    output_png <- file.path(dirname(input_pdf[1]), paste0(base_name, ".png"))
+    
+    image_read_pdf(input_pdf[1], pages = 1) %>%
+      image_convert(format = "png") %>%
+      image_write(output_png)
+    
+    include_graphics(output_png)
+  }
+subgroup=NULL
+```
+
+
+```{r conditional-title_magstree, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$magstree[1])) {
+  cat("#### ", imgInfo$magstree[1], "\n", sep="")
+}
+```
+
+```{r magstree1, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=3.5, fig.width=3.5,  out.width=fig_out_width, eval=!is.na(imgInfo$magstree[1])}
+
+convert_and_include_pdf("magstree",1, subgroup, dirInfo$image.wd, imgInfo$magstree)
+
+```
+
+
+
+```{r mags_space1, echo=FALSE, results='asis', eval=!is.na(imgInfo$bdivplot[1])}
+if(!is.null(imgInfo$bdivplot[1]) && !is.na(imgInfo$bdivplot[1])) {
+  cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+
+### 2) Distribution of MAGs in Microbial Communities {.tabset}
+
+This figure summarizes the distribution patterns of MAGs across different microbial communities. An UpSet plot highlights the number of MAGs shared or unique across groups, while the accompanying heatmap shows the presence or absence of each MAG within those groups. Together, these visualizations provide insight into the shared and group-specific components of the microbial genome composition.
+
+
+```{r conditional-title_magsupset, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$magsupset[1])) {
+  cat("#### ", imgInfo$magsupset[1], "\n", sep="")
+}
+```
+
+
+
+
+
+```{r magsupset1, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=3.5, fig.width=3.5,  out.width=upset_width, eval=!is.na(imgInfo$magsupset[1])}
+
+convert_and_include_pdf("magsupset",1, subgroup, dirInfo$image.wd, imgInfo$magsupset)
+
+```
+
+
+```{r mags_space2, echo=FALSE, results='asis', eval=!is.na(imgInfo$magsupset[1])}
+if(!is.null(imgInfo$magsupset[1]) && !is.na(imgInfo$magsupset[1])) {
+  cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+### 3) Functional Potential and Annotation of MAGs {.tabset}
+
+This figure summarizes the functional potential and annotation of MAGs based on KofamScan results. Functional features, represented by KEGG-derived identifiers, are visualized to indicate the presence or absence of predicted functions across genomes. The heatmap allows for comparison of functional gene content among MAGs.
+
+```{r conditional-title_magsheatmap, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$magsheatmap[1])) {
+  cat("#### ", imgInfo$magsheatmap[1], "\n", sep="")
+}
+```
+
+
+
+
+```{r magsheatmap1, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=3.5, fig.width=3.5,  out.width=fig_out_width_heatmap, eval=!is.na(imgInfo$magsheatmap[1])}
+
+convert_and_include_pdf("magsheatmap",1, subgroup, dirInfo$image.wd, imgInfo$magsheatmap)
+
+```
+
+
+```{r mags_space3, echo=FALSE, results='asis', eval=!is.na(imgInfo$magsheatmap[1])}
+if(!is.null(imgInfo$magsheatmap[1]) && !is.na(imgInfo$magsheatmap[1])) {
+  cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+

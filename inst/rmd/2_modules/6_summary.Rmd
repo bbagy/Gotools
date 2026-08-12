@@ -1,0 +1,80 @@
+---
+title: "6_Summary"
+author: "Heekuk"
+date: "2024-06-09"
+output: html_document
+---
+
+```{r conditional-summary0, echo=FALSE, results='asis'}
+if (!is.na(sumInfo$prep_overview[1]) || !is.na(sumInfo$summary[1]) || !is.na(sumInfo$useful_info[1])) {
+  cat("","\n", sep="")
+  cat("***","\n", sep="")
+  cat("## ", "D. Summary", "\n", sep="")
+}
+```
+
+
+```{r conditional-summary1, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$prep_overview[1])) {
+  cat("#### ", "Sample Preparation and Sequencing Overview", "\n",sumInfo$prep_overview[1],  sep="")
+}
+```
+
+
+```{r conditional-summary2, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$taxa_overview[1])) {
+  cat("#### ", "Taxonomic Composition Overview", "\n", sumInfo$taxa_overview[1], sep="")
+}
+```
+
+```{r conditional-summary3, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$alpha_div[1])) {
+  cat("#### ", "Alpha Diversity Analysis", "\n",sumInfo$alpha_div[1],  sep="")
+}
+```
+
+
+```{r conditional-summary4, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$beta_div[1])) {
+  cat("#### ", "Beta Diversity Analysis", "\n",sumInfo$beta_div[1], sep="")
+}
+```
+
+```{r conditional-summary5, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$bacterial_div[1])) {
+  cat("#### ", "Bacterial Diversity Analysis", "\n",sumInfo$bacterial_div[1], sep="")
+}
+```
+
+
+```{r conditional-summary6, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$da_test[1])) {
+  cat("#### ", "Differential Abundance Analysis", "\n", sumInfo$da_test[1], sep="")
+}
+```
+
+
+```{r conditional-summary7, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$summary[1])) {
+  cat("#### ", "Summary", "\n",sumInfo$summary[1],  sep="")
+}
+```
+
+
+
+
+```{r conditional-summary8, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$conclusion[1])) {
+  cat("#### ", "Conclusion", "\n", sumInfo$conclusion[1], sep="")
+}
+```
+
+
+
+```{r conditional-summary9, echo=FALSE, results='asis'}
+if(!is.na(sumInfo$useful_info[1])) {
+  cat("#### ", "Useful Information ", "\n", sumInfo$useful_info[1], sep="")
+}
+```
+
+

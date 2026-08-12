@@ -1,0 +1,125 @@
+---
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+library(magick)
+library(knitr)
+library(DT)
+library(magrittr)
+```
+
+```{r css-inline, echo=FALSE, results='asis'}
+cat('<style>', readLines(file.path(rmd_module_dir, "styles.css")), '</style>', sep = "\n")
+```
+
+# <span class="title-text">CUMC Microbiome Core Summary Report</span>
+#### <span class="author-text">  `r sprintf("%s%s",expInfo$authorName1, ifelse(is.null(expInfo$authorName2),"",paste("/",expInfo$authorName2,sep="")))`  </span>
+#### <span class="date-text">`r format(Sys.Date(), '%Y-%m-%d')`</span>
+
+***
+## A.	Project name
+### `r expInfo$project`
+
+<br>
+
+## B.	Methods
+### 1.	Samples detail
+-	Total number of samples: `r expInfo$samples`
+
+### 2.	DNA extraction, Library prep and Sequencing
+-	DNA Extraction positive control: `r expInfo$pos` `r expInfo$spikein`
+- Extraction kit: `r expInfo$kit`
+-	Sequencing method: `r expInfo$prep` `r expInfo$platform`
+-	Sequencing date: `r expInfo$date`
+
+### 3.	Analysis parameters
+**Quality Control and Trimming of Raw Reads:**
+Raw sequencing reads were first subjected to quality control using fastp. Adapters were removed, and low-quality bases (or reads) were trimmed according to fastp’s default settings. This step ensured that only high-quality reads were used in subsequent analyses.
+
+**Taxonomic Profiling with Kraken 2 + Bracken:**
+In parallel with the functional pipeline, taxonomic composition was profiled. Quality-trimmed reads were classified with Kraken 2 against its standard bacterial database, producing per-read taxon labels. To obtain more accurate quantitative estimates, the Kraken report was re-estimated with Bracken, which redistributes reads across species and genus levels using k-mer abundance models.
+
+**Initial Functional Annotation with HUMAnN3:**
+The high-quality reads were then analyzed with HUMAnN3 to assign functional annotations. HUMAnN3 maps metagenomic reads against the UniRef database (e.g., UniRef90) and quantifies gene families and pathways. However, for some specific EC numbers of interest, no annotations were detected in the HUMAnN3 output.
+
+
+
+
+<br>
+<br>
+
+
+***
+## C.	Results
+
+```{r, child = file.path(rmd_module_dir, "1_tables.Rmd")}
+```
+
+<br>
+
+```{r, child = file.path(rmd_module_dir, "2_taxa.Rmd")}
+```
+
+<br>
+
+```{r, child = file.path(rmd_module_dir, "3_adiv.Rmd")}
+```
+
+<br>
+
+```{r, child = file.path(rmd_module_dir, "4_bdiv_MG.Rmd")}
+```
+
+<br>
+
+```{r, child = file.path(rmd_module_dir, "5_2_DA.Rmd")}
+```
+
+<br>
+
+```{r, child = file.path(rmd_module_dir, "7_errorbar_plot.Rmd")}
+```
+
+<br>
+
+```{r, child = file.path(rmd_module_dir, "10_heatmap.Rmd")}
+```
+
+<br>
+
+```{r, child = file.path(rmd_module_dir, "6_summary.Rmd")}
+```
+
+
+
+<hr>
+
+## Comment
+Please leave any comments in the text box below. It will link to your email app to send an email to the Microbiome Core Bioinformatics team.
+
+```{r, echo=FALSE, results='asis'}
+# Read the external HTML file content
+html_content <- readLines(file.path(rmd_module_dir, "email_form.html"), warn = FALSE)
+# Replace placeholders with actual R variables
+contact_email_joined <- paste(expInfo$contact_email, collapse = ",")
+html_content <- gsub("\\{\\{project_name\\}\\}", expInfo$project, html_content)
+html_content <- gsub("\\{\\{contact_email\\}\\}", contact_email_joined, html_content)
+html_content <- gsub("\\{\\{CC_EMAIL\\}\\}", ifelse(is.null(cc_email), "", cc_email), html_content, fixed = FALSE)
+# Print the modified HTML content into the R Markdown document
+cat(html_content, sep = "\n")
+```
+
+
+
+***
+
+
+```{r logo, echo=FALSE, out.width='50%', fig.align='center', eval=!is.null(logo_path)}
+include_graphics(logo_path)
+```

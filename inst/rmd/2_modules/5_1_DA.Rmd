@@ -1,0 +1,530 @@
+---
+title: "5_1_DA"
+author: "Heekuk"
+date: "2024-06-09"
+output: html_document
+---
+
+### e)  Differential Abundance Analysis {.tabset}
+
+Differential abundance testing (DESeq2, Aldex2, and ANCOMBC an R package) were carried out to determine taxa differences between groups. Here, we identified a small number of bacterial ASVs that differed between the baseline and the other group(s). Significantly differential abundant bacteria were determined by p < 0.05 (open circle) and padj (FDR) < 0.05 (close circle)  from both tests.
+
+
+```{r DA, include=FALSE}
+  convert_and_include_pdf <- function(tool, index, subgroup = NULL, da_wd, da_com) {
+    pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  da_com[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+    input_pdf <- list.files(path = da_wd, pattern = pattern, full.names = TRUE)
+    
+    if(length(input_pdf) == 0) {
+      cat("No PDF files found for pattern:", pattern, "\n")
+      return()
+    }
+    
+    base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
+    output_png <- file.path(dirname(input_pdf[1]), paste0(base_name, ".png"))
+    
+    image_read_pdf(input_pdf[1], pages = 1) %>%
+      image_convert(format = "png") %>%
+      image_write(output_png)
+    
+    include_graphics(output_png)
+  }
+```
+
+```{r conditional-title_1, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[1])}
+if(!is.na(imgInfo$daplot[1])) {
+  cat("#### ", imgInfo$daplot[1], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D1, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[1]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[1])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_1, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[1]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",1, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_Al1, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[1]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[1])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_1, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[1]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",1, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_AN1, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[1]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[1])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_1, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[1]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",1, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_zc1, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[1]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[1])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_1, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[1]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",1, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_2, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[2])}
+if(!is.na(imgInfo$daplot[2])) {
+  cat("#### ", imgInfo$daplot[2], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D2, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[2]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[2])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_2, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[2]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",2, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+```{r conditional-title_Al2, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[2]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[2])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_2, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[2]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",2, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_AN2, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[2]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[2])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_2, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[2]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",2, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_zc2, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[2]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[2])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_2, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[2]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",2, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+```{r conditional-title_3, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[2])}
+if(!is.na(imgInfo$daplot[3])) {
+  cat("#### ", imgInfo$daplot[3], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D3, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[3]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[3], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[3])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_3, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[3]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[3], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",3, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_Al3, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[3]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[3], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[3])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_3, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[3]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[3], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",3, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_AN3, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[3]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[3], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[3])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_3, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[3]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[3], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",3, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_zc3, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[3]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[3], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[2])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_3, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[3]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[3], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",3, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+```{r conditional-title_4, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[4])}
+if(!is.na(imgInfo$daplot[4])) {
+  cat("#### ", imgInfo$daplot[4], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D4, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[4]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[4])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_4, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[4]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",4, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_Al4, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[4])  && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[4])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_4, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[4]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",4, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_AN4, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[4]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[4])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_4, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[4]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",4, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_zc4, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[4]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[4])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_4, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[4]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",4, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+
+
+
+```{r conditional-title_5, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[5])}
+if(!is.na(imgInfo$daplot[5])) {
+  cat("#### ", imgInfo$daplot[5], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D5, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[5]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[5])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_5, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[5]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",5, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_Al5, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[5]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[5])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_5, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[5]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",5, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_AN5, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[5]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[5])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_5, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[5]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",5, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_zc5, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[5]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[5])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_5, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[5]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",5, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+
+
+
+
+
+
+```{r conditional-title_6, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[6])}
+if(!is.na(imgInfo$daplot[6])) {
+  cat("#### ", imgInfo$daplot[6], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D6, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[6]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[6], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[6])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_6, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[6]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",6, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_Al6, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[6]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[6], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[6])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_6, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[6])  && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",6, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_AN6, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[6]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[6], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[6])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_6, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[6]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[6], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",6, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_zc6, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[6]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[6], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[6])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_6, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[6]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[6], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",6, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+
+
+```{r conditional-title_7, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[7])}
+if(!is.na(imgInfo$daplot[7])) {
+  cat("#### ", imgInfo$daplot[7], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D7, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[7]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[7])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_7, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[7]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",7, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_Al7, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[7]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[7])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_7, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[7]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",7, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_AN7, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[7]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[7])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_7, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[7]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",7, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_zc7, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[7]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[7])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_7, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[7]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",7, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+
+
+
+```{r conditional-title_8, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[8])}
+if(!is.na(imgInfo$daplot[8])) {
+  cat("#### ", imgInfo$daplot[8], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D8, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[8]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[8])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_8, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[8]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",8, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_Al8, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[8]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[8])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_8, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[8]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",8, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_AN8, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[8]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[8])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_8, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[8]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",8, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_zc8, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[8]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[8])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_8, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[8]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",8, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+
+
+
+```{r conditional-title_9, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[9])}
+if(!is.na(imgInfo$daplot[9])) {
+  cat("#### ", imgInfo$daplot[9], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D9, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[9]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[9], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[9])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_9, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[9]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[9], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",9, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_Al9, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[9]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[9], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[9])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_9, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[9]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",9, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_AN9, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[9]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[9], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[9])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_9, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[9]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[9], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",9, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_zc9, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[9]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[9], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[9])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_9, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[9]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[9], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",9, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+
+
+
+```{r conditional-title_10, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[10])}
+if(!is.na(imgInfo$daplot[10])) {
+  cat("#### ", imgInfo$daplot[10], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r conditional-title_D10, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[10]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[10], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[10])) {
+  cat("##### Deseq2")
+}
+```
+
+```{r Deseq2_10, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[10]) && any(grepl(sprintf("deseq2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[10], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("deseq2",10, subgroup,dirInfo$da.wd, imgInfo$daplot)
+```
+
+```{r conditional-title_Al10, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[10]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[10], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[10])) {
+  cat("##### Aldex2")
+}
+```
+
+```{r Aldex2_10, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[10]) && any(grepl(sprintf("aldex2*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[10], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("aldex2",10, subgroup, dirInfo$da.wd, imgInfo$daplot)
+
+```
+
+```{r conditional-title_AN10, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[10]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[10], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[10])) {
+  cat("##### ANCOMBC")
+}
+```
+
+```{r ANCOMBC_10, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[10]) && any(grepl(sprintf("ancom2.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[10], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ancom2",10, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+
+
+```{r conditional-title_zc10, echo=FALSE, results='asis', eval=!is.na(imgInfo$daplot[10]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[10], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+if(!is.na(imgInfo$daplot[10])) {
+  cat("##### ZicoSeq")
+}
+```
+
+```{r Zico_10, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='70%', eval=!is.na(imgInfo$daplot[10]) && any(grepl(sprintf("ZicoSeq.*\\(%s\\)%s.*\\.pdf$", imgInfo$daplot[10], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$da.wd)))}
+convert_and_include_pdf("ZicoSeq",10, subgroup, dirInfo$da.wd, imgInfo$daplot)
+```
+

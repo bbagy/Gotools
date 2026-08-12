@@ -1,0 +1,52 @@
+```{r extra-setup, include=FALSE}
+library(magick)
+library(knitr)
+```
+
+### f) Additional Analyses {.tabset}
+
+```{r extra-tabs, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+tabs <- lapply(seq_along(imgInfo$extra), function(i) {
+  item  <- imgInfo$extra[[i]]
+  title <- item$title
+  token <- item$token
+
+  # dirInfo$image.wd is always absolute (set via Go_dirInfo/setwd)
+  hits <- list.files(
+    dirInfo$image.wd,
+    pattern    = sprintf(".*%s.*\\.pdf$", token),
+    full.names = TRUE
+  )
+
+  if (length(hits) == 0) {
+    return(knitr::knit_child(
+      text  = c(paste0("#### ", title), "",
+                paste0("*(extra.(", token, ") PDF not found in ", dirInfo$image.wd, ")*"), ""),
+      quiet = TRUE, envir = environment()
+    ))
+  }
+
+  pdf_p <- hits[1]
+  png_p <- sub("\\.pdf$", ".png", pdf_p, ignore.case = TRUE)
+
+  magick::image_read_pdf(pdf_p, pages = 1) |>
+    magick::image_convert("png") |>
+    magick::image_write(png_p)
+
+  img_width <- if (!is.null(item$out_width)) item$out_width else "75%"
+
+  knitr::knit_child(
+    text = c(
+      paste0("#### ", title),
+      "",
+      paste0("```{r, echo=FALSE, fig.align='center', out.width='", img_width, "', message=FALSE, warning=FALSE}"),
+      paste0("knitr::include_graphics('", png_p, "')"),
+      "```",
+      ""
+    ),
+    quiet = TRUE, envir = environment()
+  )
+})
+
+cat(unlist(tabs), sep = "\n")
+```
