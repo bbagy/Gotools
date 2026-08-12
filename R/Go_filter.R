@@ -34,8 +34,12 @@ Go_filter <- function(psIN, cutoff){ #project
   cat("\n")
 
   phylo_relabun <- transform_sample_counts(psIN.prune, function(x) x / sum(x))
-  phylo_filter <- filter_taxa(phylo_relabun, function(x) mean(x) < cutoff, TRUE) #.00005
-  rmtaxa <- taxa_names(phylo_filter)
+  # Compute per-taxon mean relative abundance directly rather than via
+  # filter_taxa(..., prune=TRUE): when no taxa are below cutoff (e.g. clean
+  # data with nothing to remove), filter_taxa errors trying to build an
+  # empty-taxa otu_table for the "removed" subset.
+  taxon_means <- taxa_sums(phylo_relabun) / nsamples(phylo_relabun)
+  rmtaxa <- names(taxon_means)[taxon_means < cutoff] #.00005
   alltaxa <- taxa_names(phylo_relabun)
   myTaxa <- alltaxa[!alltaxa %in% rmtaxa]
   phylo_relabun_filtered <- prune_taxa(myTaxa,phylo_relabun)
