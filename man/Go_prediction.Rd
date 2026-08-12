@@ -2,10 +2,28 @@
 % Please edit documentation in R/Go_prediction_V2.R
 \name{Go_prediction}
 \alias{Go_prediction}
-\alias{\%||\%}
 \title{Go_prediction}
 \usage{
-a \%||\% b
+Go_prediction(
+  psIN,
+  project,
+  outcome,
+  method = c("randomforest", "xgboost", "lightgbm"),
+  name = NULL,
+  bacteriaSet = TRUE,
+  testSet = FALSE,
+  clinical_vari = character(0),
+  StudyID_col = "StudyID",
+  taxrank = "ASV",
+  prev_min = 0.01,
+  relab_min = 1e-04,
+  n_folds = 5,
+  seed = 123,
+  n_candidates = 40,
+  num.trees = 1000,
+  orders = c("Control", "Case"),
+  patchwork = FALSE
+)
 }
 \arguments{
 \item{psIN}{A \code{phyloseq} object.}
