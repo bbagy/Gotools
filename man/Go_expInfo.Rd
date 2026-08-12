@@ -15,7 +15,9 @@ Go_expInfo(
   prep_number = NA,
   spikein_number = NA,
   authorName1 = NA,
-  authorName2 = NULL
+  authorEmail1 = NA,
+  authorName2 = NULL,
+  authorEmail2 = NULL
 )
 }
 \arguments{
@@ -45,6 +47,15 @@ Available spike-in numbers are:
 \item / ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)
 \item No Spike-in Control
 }}
+
+\item{authorName1}{Name of the report's primary author.}
+
+\item{authorEmail1}{Email address of the primary author. Passed in directly
+rather than looked up from a name, since staff turn over.}
+
+\item{authorName2}{Optional name of a second author.}
+
+\item{authorEmail2}{Optional email address of the second author.}
 }
 \value{
 A list containing the selected kit, prep method, and spike-in control based on the input parameters.
@@ -56,7 +67,8 @@ If no arguments are provided, it prints available options for each parameter.
 }
 \examples{
 Go_expInfo() # prints available options
-exp_info <- Go_expInfo(kit_number = 6, prep_number = 1, spikein_number = 2)
+exp_info <- Go_expInfo(kit_number = 6, prep_number = 1, spikein_number = 2,
+                       authorName1 = "Jane Doe", authorEmail1 = "jd@example.edu")
 print(exp_info)
 
 }
