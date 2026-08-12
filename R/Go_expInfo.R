@@ -25,12 +25,19 @@
 #' 1. / ZymoBIOMICSTM Spike-in Control II (Low Microbial Load) (D6321)
 #' 2. No Spike-in Control
 #'
+#' @param authorName1 Name of the report's primary author.
+#' @param authorEmail1 Email address of the primary author. Passed in directly
+#' rather than looked up from a name, since staff turn over.
+#' @param authorName2 Optional name of a second author.
+#' @param authorEmail2 Optional email address of the second author.
+#'
 #' @return A list containing the selected kit, prep method, and spike-in control based on the input parameters.
 #' If no arguments are provided, information about available options is printed and the function returns `NULL`.
 #'
 #' @examples
 #' Go_expInfo() # prints available options
-#' exp_info <- Go_expInfo(kit_number = 6, prep_number = 1, spikein_number = 2)
+#' exp_info <- Go_expInfo(kit_number = 6, prep_number = 1, spikein_number = 2,
+#'                        authorName1 = "Jane Doe", authorEmail1 = "jd@example.edu")
 #' print(exp_info)
 #'
 #' @export
@@ -41,7 +48,9 @@ Go_expInfo <- function(Project_name=NA,
                        Sequencing_date=NA,
                        Sequencing_platform=NA,
                        RNAseq_reference=NA,
-                       kit_number = NA, pos_number=NA,prep_number = NA, spikein_number = NA, authorName1=NA ,authorName2 = NULL) {
+                       kit_number = NA, pos_number=NA,prep_number = NA, spikein_number = NA,
+                       authorName1=NA, authorEmail1=NA,
+                       authorName2=NULL, authorEmail2=NULL) {
   # Check if all arguments are missing and print options if they are
   if (is.na(kit_number) && is.na(prep_number) && is.na(spikein_number)) {
     cat(
@@ -80,15 +89,8 @@ Go_expInfo <- function(Project_name=NA,
         "0: ",
         "1: ZymoBIOMICSTM Spike-in Control I (High Microbial Load) (D6320)\n",
         "2: No Spike-in Control\n\n",
-        "Available Technicians and email address:\n",
-        "Heekuk Park : hp2523@cumc.columbia.edu\n",
-        #"Djamila Eliby : dj2711@cumc.columbia.edu\n",
-        "Sofia Moscovitz : szm2110@cumc.columbia.edu\n",
-        #"Jiyoun Roh : jr4558@cumc.columbia.edu \n",
-        "Abigail Montag: arm2328@cumc.columbia.edu \n",
-        # "Dalia Moallem : dhm2127@cumc.columbia.edu\n",
-        "Dwayne Seeram : ds4057@cumc.columbia.edu\n"
-        # "Kristen Lewis : kl2954@cumc.columbia.edu\n"
+        "authorName1/authorEmail1: report author's name and email (required).\n",
+        "authorName2/authorEmail2: second author's name and email (optional).\n"
         )
     return(invisible())
   }
@@ -137,29 +139,10 @@ Go_expInfo <- function(Project_name=NA,
                     "2" = NULL,  # Representing no spike-in control
                     "Unknown Spike-in")
 
-  # Define email addresses based on author names
-  getEmail <- function(name) {
-    switch(name,
-           "Heekuk Park" = "hp2523@cumc.columbia.edu",
-           #"Djamila Eliby" = "de2477@cumc.columbia.edu",
-           "Sofia Moscovitz" = "szm2110@cumc.columbia.edu",
-           #"Jiyoun Roh" = "jr4558@cumc.columbia.edu",
-           "Abigail Montag" = "arm2328@cumc.columbia.edu",
-           # "Dalia Moallem" = "dhm2127@cumc.columbia.edu",
-           "Dwayne Seeram" = "ds4057@cumc.columbia.edu",
-           # "Kristen Lewis" = "kl2954@cumc.columbia.edu",
-           NA)
-  }
-
-  authorEmail1 <- getEmail(authorName1)
-  authorEmail2 <- if (!is.null(authorName2)) {
-    getEmail(authorName2)
-  } else {
-    NULL
-  }
-
+  # Author emails are passed in directly (authorEmail1/authorEmail2) rather than
+  # looked up from a hardcoded name->email table, since staff turn over.
   contact_email <- c(authorEmail1, authorEmail2)
-  contact_email <- contact_email[!is.na(contact_email) & !is.null(contact_email)]  # Remove NA and NULL values
+  contact_email <- contact_email[!is.na(contact_email) & !is.null(contact_email) & nzchar(contact_email)]
 
   # Return a list containing the selected options, including author names and their email addresses
   return(list(
