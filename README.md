@@ -240,22 +240,72 @@ A curated subset of the ~90 exported functions (see `NAMESPACE` for the full
 list). Each entry names the function and the file it currently lives in,
 since several have been renamed or moved to new file versions over time.
 
-- **`Go_adiv()`** (`Go_adiv_V2.R`): Alpha diversity computation.
-- **`Go_alluvialplot()`** (`Go_alluvialplot_V2.R`): Alluvial/flow diagrams.
-- **`Go_barchart()`** (`Go_barchart_v35.R`): Taxonomic composition bar charts.
-- **`Go_bdivPM()`** (`Go_bdiv_V36.R`): Beta diversity ordination (PCoA) plus PERMANOVA in one call. Supersedes the old `Go_bdiv()`, which no longer exists.
-- **`Go_biplot()`** (`Go_biplot_function_V2.R`): Biplots for multivariate data. Renamed from `Go_biplot_function()`.
-- **`Go_boxplot()`** (`Go_boxplot_V10.R`): Box plots, e.g. for alpha diversity metrics.
-- **`Go_correlation()`** (`Go_correlation_V3.R`): Correlations between variables/features.
-- **`Go_DA_heat()`** (`Go_DA_heatmap_v1.R`): Differential abundance heatmaps. Renamed from `Go_DA_heatmap()`.
-- **`Go_dist()`** (`Go_dist_V4.R`): Distance metric computation/visualization.
+### Data Preparation
 - **`Go_filter()`** (`Go_filter.R`): Low-abundance taxa filtering.
-- **`Go_function2ps()`** (`Go_function2ps_V2.R`): Converts PICRUSt2/HUMAnN functional profiles to a phyloseq object.
+- **`Go_SeqLengths()`** (`Go_SeqLengths.R`): Sequence-length distribution check/filtering.
+- **`Go_emptyMap()`** (`Go_emptyMap.R`): Generates a blank sample-metadata template to fill in.
+- **`Go_blastASVs()`** (`Go_blastASVs.R`): BLAST-guided reference annotation to fill species-level gaps DADA2 left unresolved.
+- **`Go_tabTops()`** (`Go_tabTops.R`): Converts a DADA2 ASV/taxonomy CSV to a phyloseq object.
+- **`Go_psTotab()`** (`Go_psTotab.R`): Converts a phyloseq object back to a table (+ FASTA export).
 - **`Go_kraken2Tops()`** (`Go_kraken2Tops.R`): Parses Kraken2/Bracken MPA output into a phyloseq object. Renamed from `Go_krakenLog()`.
-- **`Go_linear()`** (`Go_linear_V4.R`): Linear regression analysis.
-- **`Go_perm()`** (`Go_perm_V16.R`): Standalone PERMANOVA (see `Go_bdivPM()` for the plotting pipeline that already includes it).
+- **`Go_metaphlanTops()`** (`Go_metaphlanTops.R`): Top-taxa table from Kraken2/MetaPhlAn MPA output.
+- **`Go_function2ps()`** (`Go_function2ps_V2.R`): Converts PICRUSt2/HUMAnN functional profiles to a phyloseq object.
+- **`Go_sampleIDmerge()`** (`Go_sampleIDmerge_V1.R`): Merges/aggregates samples by a metadata column.
+- **`Go_mergeTab()`** (`Go_mergeTab_v2.R`): Merges multiple tables sharing a filename pattern.
+- **`Go_indexmatch()`** (`Go_indexmatch.R`): Matches and updates one data frame's columns from another by row name or column value.
+
+### Core Analysis (used by `Go_renderReport()`)
+The standard 16S/MG/RNAseq report calls these directly - see "Summary Report
+Generation" above.
+- **`Go_barchart()`** (`Go_barchart_v35.R`): Taxonomic composition bar charts.
+- **`Go_adiv()`** (`Go_adiv_V2.R`): Alpha diversity computation.
+- **`Go_boxplot()`** (`Go_boxplot_V10.R`): Box plots, e.g. for alpha diversity metrics.
+- **`Go_bdivPM()`** (`Go_bdiv_V36.R`): Beta diversity ordination (PCoA) plus PERMANOVA in one call. Supersedes the old `Go_bdiv()`, which no longer exists.
 - **`Go_pheatmap()`** (`Go_pheatmap_V2.R`): ComplexHeatmap-based heatmaps.
-- **`Go_psTotab()`** (`Go_psTotab.R`): Converts a phyloseq object to a table.
-- **`Go_regression()`** (`Go_regression_V34.R`): Regression analysis.
-- **`Go_renderReport()`** (`Go_renderReport.R`): Renders the bundled 16S/MG/RNAseq HTML summary report from `Go_*Info()` objects. See "Summary Report Generation" above.
+- **`Go_Groupheatmap()`** (`Go_Groupheatmap.R`): Group-ordered heatmap for functional (HUMAnN3 pathway/KEGG) data.
+- **`Go_extendedBarplot()`** (`Go_extendedBarplot.R`): Wilcoxon-tested extended bar plots for functional data.
 - **`Go_volcanoPlot()`** (`Go_volcanoPlot_v1.R`): Volcano plots from `Go_ConDaDist()` (or legacy DA function) results.
+- **`Go_renderReport()`** (`Go_renderReport.R`): Renders the bundled 16S/MG/RNAseq HTML summary report from `Go_*Info()` objects.
+
+### Additional Analysis — Intermediate
+Not called by the standard report; add these yourself when a comparison
+calls for them.
+- **`Go_correlation()`** (`Go_correlation_V3.R`): Correlations between variables/features.
+- **`Go_linear()`** (`Go_linear_V4.R`): Linear regression analysis.
+- **`Go_regression()`** (`Go_regression_V34.R`): Regression analysis.
+- **`Go_dist()`** (`Go_dist_V4.R`): Distance metric computation/visualization.
+- **`Go_DA_heat()`** (`Go_DA_heatmap_v1.R`): Differential abundance heatmaps. Renamed from `Go_DA_heatmap()`.
+- **`Go_perm()`** / **`Go_pairedperm()`** (`Go_perm_V16.R`, `Go_pairedperm_V16.R`): Standalone PERMANOVA (see `Go_bdivPM()` for the plotting pipeline that already includes it).
+- **`Go_groupBox()`** (`Go_groupBox_v2.R`): Grouped box plots with Kruskal-Wallis/Wilcoxon testing.
+- **`Go_groupBoxTimepoint()`** (`Go_groupBoxTimepoint_V1.R`): Grouped box plots across timepoints.
+- **`Go_dualYplot()`** (`Go_dualYplot_V1.R`): Dual-Y-axis plot with an auto-scaled second axis.
+- **`Go_piePlot()`** (`Go_piePlot_V1.R`): Pie charts.
+- **`Go_colbarchart()`** (`Go_colbarchart_v3.R`): Column-oriented bar charts.
+- **`Go_biplot()`** / **`Go_pickTaxa()`** (`Go_biplot_function_V2.R`, `Go_biplot_pickTaxa_V1.R`): Biplots for multivariate data, with bioenv-based taxa selection. `Go_biplot()` renamed from `Go_biplot_function()`.
+- **`Go_alluvialplot()`** (`Go_alluvialplot_V2.R`): Alluvial/flow diagrams.
+- **`Go_sankey()`** (`Go_sankey.R`): Sankey diagrams.
+- **`Go_qq()`** (`Go_qq_V2.R`): QQ plots/histograms to check alpha-diversity metric distributions.
+- **`Go_rare()`** (`Go_rare.R`): Rarefaction curves.
+
+### Additional Analysis — Advanced
+Also not part of the standard report. These lean on specific statistical
+methods, so check the method's assumptions before reaching for one.
+- **`Go_MRS_fit()`** / **`Go_MRS_fit_robust()`** / **`Go_MRS_plot()`** (`Go_MRS_fit_V1.R`, `Go_MRS_fit_V2.R`, `Go_MRS_plot.R`): Regularized (glmnet) regression of an outcome on microbial features, fit directly from a phyloseq object.
+- **`Go_OR_fit()`** / **`Go_OR_plot()`** (`Go_OR_fit.R`, `Go_OR_plot.R`): Odds-ratio modeling and forest-style plots.
+- **`Go_mirkat()`** (`Go_mirkat_v1.R`): MiRKAT / MiRKAT-LMM kernel association testing.
+- **`Go_bdivMK()`** / **`Go_bdivMKbar()`** (`Go_bdivMK_V1.R`, `Go_bdivMKbar.R`): Beta-diversity ordination with MiRKAT/MiRKAT-LMM annotated in the plot.
+- **`Go_mixture()`** / **`Go_mixture_compare()`** (`Go_mixture_V1.R`): BKMR (Bayesian Kernel Machine Regression) chemical/exposure mixture analysis, with cross-group PIP comparison.
+- **`Go_cluster()`** (`Go_cluster_V1.R`): Unsupervised sample clustering (DMM/PAM/k-means/hierarchical) with ordination and optional PERMANOVA.
+- **`Go_network()`** (`Go_network.R`): Network analysis.
+- **`Go_kmplot()`** (`Go_kmplot.R`): Kaplan-Meier survival plots.
+- **`Go_prediction_plot()`** (`Go_prediction_plot.R`): ROC/PR-curve and importance plots for prediction-model results.
+- **`Go_powerCalc()`** (`Go_powerCalc.R`): Sample size/power calculation (longitudinal or two-sample designs).
+- **`Go_clme()`** (`Go_clme_V5.R`): Order-restricted (constrained) linear mixed-effects models.
+- **`Go_zicoseq()`** (`Go_zicoseq.R`): ZicoSeq differential abundance testing.
+- **`Go_Maaslin2()`** / **`Go_Maaslin2_heatmap()`** (`Go_Maaslin2_V2.R`, `Go_MaAsLin2_Heatmap.R`): MaAsLin2 differential abundance testing and heatmap.
+- **`Go_permanovaPlot()`** (`Go_permanovaPlot.R`): Standalone PERMANOVA result visualization.
+- **`Go_patternPlot()`** (`Go_patternPlot_V2.R`): Visualizes distinct observation patterns across ordered timepoints/visits.
+- **`Go_hybridBoxTrajectory()`** (`Go_hybridBoxTrajectory.R`): Combined boxplot + LMM-summarized trajectory plot for repeated measures.
+- **`Go_getSigASVs()`** (`Go_getSigASVs.R`): Extracts significant ASVs from DESeq2/ANCOM results and writes their sequences as FASTA.
+- **`Go_tabByAntibiotic()`** / **`Go_tabByTimepoint()`** (`Go_tabByAntibiotic.R`, `Go_tabByTimepoint.R`): Reshapes a table to summarize presence/values by antibiotic exposure or timepoint.
+- **`Go_SCRubMap()`** (`Go_SCRubMap.R`): Maps SCRuB decontamination output against Illumina sample sheets.
