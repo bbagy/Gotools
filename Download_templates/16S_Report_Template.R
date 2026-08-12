@@ -164,21 +164,22 @@ Go_bdivPM(psIN = comparison_ps, cate.vars = comparison_var, project = project, o
 #=========  Differential Abundance  =========#
 ###########################################
 if (is.null(longitudinal_id_var)) {
-  conda_results <- list()
+  # Go_ConDaDist() returns a project/date-based output directory (same across
+  # methods run the same day) - run all methods first, then call
+  # Go_volcanoPlot() once; it scans that directory for every method's CSV.
+  da_result_dir <- NULL
   for (method in c("ancombc2", "aldex2", "deseq2")) {
-    conda_results[[method]] <- Go_ConDaDist(psIN = comparison_ps, project = project, group_var = comparison_var,
-                                             group_1 = comparison_orders[1], group_2 = comparison_orders[2],
-                                             covariates = NULL, methods = method, distances = NULL, name = NULL)
+    da_result_dir <- Go_ConDaDist(psIN = comparison_ps, project = project, group_var = comparison_var,
+                                   group_1 = comparison_orders[1], group_2 = comparison_orders[2],
+                                   covariates = NULL, methods = method, distances = NULL, name = NULL)
   }
-  for (method in names(conda_results)) {
-    Go_volcanoPlot(project = project, result = conda_results[[method]], fc = 0, mycols = da.col, name = NULL, font = 3, height = 5, width = 6)
-  }
+  Go_volcanoPlot(project = project, result = da_result_dir, fc = 0, mycols = da.col, name = NULL, font = 3, height = 5, width = 6)
 } else {
-  conda_result <- Go_ConDaDist(psIN = comparison_ps, project = project, group_var = comparison_var,
-                                group_1 = comparison_orders[1], group_2 = comparison_orders[2],
-                                covariates = NULL, methods = "ancombc2", random_effects = c(longitudinal_id_var),
-                                distances = NULL, name = NULL)
-  Go_volcanoPlot(project = project, result = conda_result, fc = 0, mycols = da.col, name = NULL, font = 3, height = 5, width = 6)
+  da_result_dir <- Go_ConDaDist(psIN = comparison_ps, project = project, group_var = comparison_var,
+                                 group_1 = comparison_orders[1], group_2 = comparison_orders[2],
+                                 covariates = NULL, methods = "ancombc2", random_effects = c(longitudinal_id_var),
+                                 distances = NULL, name = NULL)
+  Go_volcanoPlot(project = project, result = da_result_dir, fc = 0, mycols = da.col, name = NULL, font = 3, height = 5, width = 6)
 }
 
 
