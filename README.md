@@ -6,8 +6,8 @@ This repository contains a set of tools for reproducible microbiome analysis. It
 ## Purpose & Design Philosophy
 
 > Gotools guarantees the floor of analysis quality, consistency, and
-> reproducibility. Workflow layers built on top of it (e.g. GoAutoBot)
-> extend the ceiling of analytical depth.
+> reproducibility. Workflow layers built on top of it extend the ceiling
+> of analytical depth.
 
 Standardizing analysis inevitably narrows autonomy: fixed report sections,
 fixed `Go_*Info()` list shapes, and filename-pattern-driven figure lookup all
