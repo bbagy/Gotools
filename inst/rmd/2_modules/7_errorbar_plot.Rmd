@@ -1,0 +1,145 @@
+---
+title: "7_errorbar_plot"
+author: "Heekuk"
+date: "2025-03-07"
+output: html_document
+---
+
+### f)  Extended Error Bar Plot for Differential Functional Abundance Analysis {.tabset}
+
+An extended error bar plot visualizes group differences by displaying mean values with confidence intervals. Each group’s mean is represented by a bar, while differences in means are shown as points with error bars. Confidence intervals indicate variability, and p-values highlight statistical significance. This method provides a clear and intuitive way to compare groups while conveying both effect size and precision.
+
+When applied to CLR (Centered Log-Ratio) transformed data, this plot effectively highlights how each feature deviates from the dataset’s geometric mean. Negative values indicate that the original value is smaller than the overall mean, while positive values suggest it is greater. Values near zero represent those close to the mean, making it easier to interpret relative differences in compositional data while maintaining statistical robustness.
+
+
+```{r EBP, include=FALSE}
+  convert_and_include_pdf <- function(tool, index, subgroup = NULL, da_wd, da_com) {
+    pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  da_com[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+    input_pdf <- list.files(path = da_wd, pattern = pattern, full.names = TRUE)
+    
+    if(length(input_pdf) == 0) {
+      cat("No PDF files found for pattern:", pattern, "\n")
+      return()
+    }
+    
+    base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
+    output_png <- file.path(dirname(input_pdf[1]), paste0(base_name, ".png"))
+    
+    image_read_pdf(input_pdf[1], pages = 1) %>%
+      image_convert(format = "png") %>%
+      image_write(output_png)
+    
+    include_graphics(output_png)
+  }
+
+
+```
+
+
+```{r EBP-title_1, echo=FALSE, results='asis', eval=!is.na(imgInfo$ebplot[1])}
+if(!is.na(imgInfo$ebplot[1])) {
+  cat("#### ", imgInfo$ebplot[1], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r EBP_1, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE, out.width='90%', eval=!is.na(imgInfo$ebplot[1]) && any(grepl(sprintf("extended_error_barplot.*\\(%s\\)%s.*\\.pdf$", imgInfo$ebplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("extended_error_barplot",1, subgroup, dirInfo$image.wd, imgInfo$ebplot)
+```
+
+
+
+
+
+```{r EBP-title_2, echo=FALSE, results='asis', eval=!is.na(imgInfo$ebplot[2])}
+if(!is.na(imgInfo$ebplot[2])) {
+  cat("#### ", imgInfo$ebplot[2], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r EBP_2, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='90%', eval=!is.na(imgInfo$ebplot[2]) && any(grepl(sprintf("extended_error_barplot.*\\(%s\\)%s.*\\.pdf$", imgInfo$ebplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("extended_error_barplot",2, subgroup, dirInfo$image.wd, imgInfo$ebplot)
+```
+
+
+
+
+
+```{r EBP-title_3, echo=FALSE, results='asis', eval=!is.na(imgInfo$ebplot[3])}
+if(!is.na(imgInfo$ebplot[3])) {
+  cat("#### ", imgInfo$ebplot[3], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r EBP_3, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='90%', eval=!is.na(imgInfo$ebplot[3]) && any(grepl(sprintf("extended_error_barplot.*\\(%s\\)%s.*\\.pdf$", imgInfo$ebplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("extended_error_barplot",3, subgroup, dirInfo$image.wd, imgInfo$ebplot)
+```
+
+
+
+
+
+```{r EBP-title_4, echo=FALSE, results='asis', eval=!is.na(imgInfo$ebplot[4])}
+if(!is.na(imgInfo$ebplot[4])) {
+  cat("#### ", imgInfo$ebplot[4], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r EBP_4, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='90%', eval=!is.na(imgInfo$ebplot[4]) && any(grepl(sprintf("extended_error_barplot.*\\(%s\\)%s.*\\.pdf$", imgInfo$ebplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("extended_error_barplot",4, subgroup, dirInfo$image.wd, imgInfo$ebplot)
+```
+
+
+
+
+
+```{r EBP-title_5, echo=FALSE, results='asis', eval=!is.na(imgInfo$ebplot[5])}
+if(!is.na(imgInfo$ebplot[5])) {
+  cat("#### ", imgInfo$ebplot[5], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r EBP_5, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='90%', eval=!is.na(imgInfo$ebplot[5]) && any(grepl(sprintf("extended_error_barplot.*\\(%s\\)%s.*\\.pdf$", imgInfo$ebplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("extended_error_barplot",5, subgroup, dirInfo$image.wd, imgInfo$ebplot)
+```
+
+
+
+
+
+
+```{r EBP-title_6, echo=FALSE, results='asis', eval=!is.na(imgInfo$ebplot[6])}
+if(!is.na(imgInfo$ebplot[6])) {
+  cat("#### ", imgInfo$ebplot[6], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r EBP_6, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='90%', eval=!is.na(imgInfo$ebplot[6]) && any(grepl(sprintf("extended_error_barplot.*\\(%s\\)%s.*\\.pdf$", imgInfo$ebplot[6], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("extended_error_barplot",6, subgroup, dirInfo$image.wd, imgInfo$ebplot)
+```
+
+
+
+
+
+```{r EBP-title_7, echo=FALSE, results='asis', eval=!is.na(imgInfo$ebplot[7])}
+if(!is.na(imgInfo$ebplot[7])) {
+  cat("#### ", imgInfo$ebplot[7], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r EBP_7, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='90%', eval=!is.na(imgInfo$ebplot[7]) && any(grepl(sprintf("extended_error_barplot.*\\(%s\\)%s.*\\.pdf$", imgInfo$ebplot[7], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("extended_error_barplot",7, subgroup, dirInfo$image.wd, imgInfo$ebplot)
+```
+
+
+
+
+```{r EBP-title_8, echo=FALSE, results='asis', eval=!is.na(imgInfo$ebplot[8])}
+if(!is.na(imgInfo$ebplot[8])) {
+  cat("#### ", imgInfo$ebplot[8], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r EBP_8, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='90%', eval=!is.na(imgInfo$ebplot[8]) && any(grepl(sprintf("extended_error_barplot.*\\(%s\\)%s.*\\.pdf$", imgInfo$ebplot[8], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("extended_error_barplot",8, subgroup, dirInfo$image.wd, imgInfo$ebplot)
+```

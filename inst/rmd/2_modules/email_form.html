@@ -1,0 +1,21 @@
+<!-- email_form.html -->
+<form action="#" onsubmit="sendEmailWithCC(); return false;">
+    Project name:<br>
+    <input type="text" name="name" value="{{project_name}}" id="projectNameInput" style="width: 400px;"><br>
+    Comment:<br>
+    <textarea name="comment" style="width: 400px; height: 200px;"></textarea><br><br>
+    <input type="submit" value="Send">
+</form>
+
+<script>
+    function sendEmailWithCC() {
+        var recipient = '{{contact_email}}'; // Placeholder for the recipient's email address
+        var projectName = encodeURIComponent(document.getElementById('projectNameInput').value);
+        var comment = encodeURIComponent(document.forms[0].comment.value);
+        var ccEmail = "{{CC_EMAIL}}"; // CC Email address, injected by Go_renderReport()
+        var mailtoLink = 'mailto:' + recipient + '?subject=Summary Report Comment';
+        mailtoLink += '&body=Project name: ' + projectName + '%0D%0AComment: ' + comment;
+        if (ccEmail) { mailtoLink += '&cc=' + ccEmail; }
+        window.open(mailtoLink);
+    }
+</script>

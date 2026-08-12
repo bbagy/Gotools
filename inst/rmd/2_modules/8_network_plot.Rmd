@@ -1,0 +1,112 @@
+---
+title: "8_network"
+author: "Heekuk"
+date: "2025-03-07"
+output: html_document
+---
+
+### f)  Network Analysis {.tabset}
+
+This analysis constructs a microbial co-occurrence network based on correlation analysis of microbial abundance across samples. The pipeline processes multiple datasets, filters significant correlations using p-values or FDR, and visualizes the network using igraph. Nodes represent microbial taxa, and edges indicate correlation strength and direction, with node size reflecting centrality measures.
+
+
+```{r Network, include=FALSE}
+  convert_and_include_pdf <- function(tool, index, subgroup = NULL, da_wd, da_com) {
+    pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  da_com[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+    input_pdf <- list.files(path = da_wd, pattern = pattern, full.names = TRUE)
+    
+    if(length(input_pdf) == 0) {
+      cat("No PDF files found for pattern:", pattern, "\n")
+      return()
+    }
+    
+    base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
+    output_png <- file.path(dirname(input_pdf[1]), paste0(base_name, ".png"))
+    
+    image_read_pdf(input_pdf[1], pages = 1) %>%
+      image_convert(format = "png") %>%
+      image_write(output_png)
+    
+    include_graphics(output_png)
+  }
+
+
+```
+
+
+```{r Net-title_1, echo=FALSE, results='asis', eval=!is.na(imgInfo$ntplot[1])}
+if(!is.na(imgInfo$ntplot[1])) {
+  cat("#### ", imgInfo$ntplot[1], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r Net_1, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='100%', eval=!is.na(imgInfo$ntplot[1]) && any(grepl(sprintf("network.*\\(%s\\)%s.*\\.pdf$", imgInfo$ntplot[1], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("network",1, subgroup, dirInfo$image.wd, imgInfo$ntplot)
+```
+
+
+
+
+
+
+
+```{r Net-title_2, echo=FALSE, results='asis', eval=!is.na(imgInfo$ntplot[2])}
+if(!is.na(imgInfo$ntplot[2])) {
+  cat("#### ", imgInfo$ntplot[2], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r Net_2, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='100%', eval=!is.na(imgInfo$ntplot[2]) && any(grepl(sprintf("network.*\\(%s\\)%s.*\\.pdf$", imgInfo$ntplot[2], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("network",2, subgroup, dirInfo$image.wd, imgInfo$ntplot)
+```
+
+
+
+
+
+
+
+```{r Net-title_3, echo=FALSE, results='asis', eval=!is.na(imgInfo$ntplot[3])}
+if(!is.na(imgInfo$ntplot[3])) {
+  cat("#### ", imgInfo$ntplot[3], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r Net_3, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='100%', eval=!is.na(imgInfo$ntplot[3]) && any(grepl(sprintf("network.*\\(%s\\)%s.*\\.pdf$", imgInfo$ntplot[3], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("network",3, subgroup, dirInfo$image.wd, imgInfo$ntplot)
+```
+
+
+
+
+
+
+
+```{r Net-title_4, echo=FALSE, results='asis', eval=!is.na(imgInfo$ntplot[4])}
+if(!is.na(imgInfo$ntplot[4])) {
+  cat("#### ", imgInfo$ntplot[4], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r Net_4, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='100%', eval=!is.na(imgInfo$ntplot[4]) && any(grepl(sprintf("network.*\\(%s\\)%s.*\\.pdf$", imgInfo$ntplot[4], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("network",4, subgroup, dirInfo$image.wd, imgInfo$ntplot)
+```
+
+
+
+
+
+
+
+```{r Net-title_5, echo=FALSE, results='asis', eval=!is.na(imgInfo$ntplot[5])}
+if(!is.na(imgInfo$ntplot[5])) {
+  cat("#### ", imgInfo$ntplot[5], " {.tabset}", "\n", sep="")
+}
+```
+
+```{r Net_5, echo=FALSE,fig.align='center', message=FALSE, warning=FALSE,out.width='100%', eval=!is.na(imgInfo$ntplot[5]) && any(grepl(sprintf("network.*\\(%s\\)%s.*\\.pdf$", imgInfo$ntplot[5], ifelse(is.null(subgroup), "", paste0(".*", subgroup))), list.files(dirInfo$image.wd)))}
+convert_and_include_pdf("network",5, subgroup, dirInfo$image.wd, imgInfo$ntplot)
+```
+
+
+

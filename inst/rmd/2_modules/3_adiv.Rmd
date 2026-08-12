@@ -1,0 +1,166 @@
+---
+title: "3_adiv"
+author: "Heekuk"
+date: "2024-06-09"
+output: html_document
+---
+
+### c) Alpha-diversity {.tabset}
+The plot shows Comparison of Chao1 (richness) and Shannon (richness and evenness) 
+
+
+```{r conditional-title_adivTab1, echo=FALSE, results='asis', eval=length(tabInfo$adiv) >= 1 && !is.null(tabInfo$adiv[[1]])}
+if(length(tabInfo$adiv) >= 1 && !is.null(tabInfo$adiv[[1]])) {
+  cat("#### ", "Adiv Table (1)", "\n", sep="")
+}
+```
+
+
+
+```{r adiv_table1, echo=FALSE, message=FALSE, warning=FALSE, eval=length(tabInfo$adiv) >= 1 && !is.null(tabInfo$adiv[[1]])}
+if (length(tabInfo$adiv) >= 1 && !is.null(tabInfo$adiv[[1]])) {
+adiv_table <- as.data.frame(tabInfo$adiv[1])
+
+if (!is.null(adiv_table$se.chao1)) adiv_table$se.chao1 <- round(adiv_table$se.chao1, 3)
+if (!is.null(adiv_table$Shannon))  adiv_table$Shannon  <- round(adiv_table$Shannon, 3)
+if ("PD" %in% colnames(adiv_table)) {
+  adiv_table$PD <- round(adiv_table$PD, 3)
+}
+adiv_table$Description <- NULL
+
+datatable(adiv_table, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 100,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+}
+```
+
+
+
+```{r adi_space, echo=FALSE, results='asis', eval=length(tabInfo$adiv) >= 1 && !is.null(tabInfo$adiv[[1]]) && length(tabInfo$adiv[[1]]) >= 2}
+if (length(tabInfo$adiv) >= 1 && !is.null(tabInfo$adiv[[1]]) && length(tabInfo$adiv[[1]]) >= 2) {
+   cat("\n", "<hr>","\n\n", "<br>", "\n\n", sep="")
+}
+```
+
+
+
+
+
+
+
+
+
+
+```{r conditional-title_adivTab2, echo=FALSE, results='asis', eval=length(tabInfo$adiv) >= 2 && !is.null(tabInfo$adiv[[2]])}
+if (length(tabInfo$adiv) >= 2 && !is.null(tabInfo$adiv[[2]])) {
+  cat("#### ", "Adiv Table (2)", "\n", sep="")
+}
+```
+
+
+
+```{r adiv_table2, echo=FALSE, message=FALSE, warning=FALSE, eval=length(tabInfo$adiv) >= 2 && !is.null(tabInfo$adiv[[2]])}
+if (length(tabInfo$adiv) >= 2 && !is.null(tabInfo$adiv[[2]])) {
+adiv_table <- as.data.frame(tabInfo$adiv[2])
+
+if (!is.null(adiv_table$se.chao1)) adiv_table$se.chao1 <- round(adiv_table$se.chao1, 3)
+if (!is.null(adiv_table$Shannon))  adiv_table$Shannon  <- round(adiv_table$Shannon, 3)
+if ("PD" %in% colnames(adiv_table)) {
+  adiv_table$PD <- round(adiv_table$PD, 3)
+}
+adiv_table$Description <- NULL
+
+datatable(adiv_table, extensions = 'Buttons', options = list(
+  dom = 'frtipB',
+  buttons = c('excel','csv'),
+  pageLength = 100,
+  scrollX = TRUE,
+  scrollY = "300px"
+))
+}
+```
+
+
+```{r Go_adiv, include=FALSE}
+  convert_and_include_pdf <- function(tool, index, subgroup = NULL, wd, adivplot) {
+    pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  adivplot[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+    input_pdf <- list.files(path = wd, pattern = pattern, full.names = TRUE)
+    
+    if(length(input_pdf) == 0) {
+      cat("No PDF files found for pattern:", pattern, "\n")
+      return()
+    }
+    
+    base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
+    output_png <- file.path(dirname(input_pdf[1]), paste0(base_name, ".png"))
+    
+    image_read_pdf(input_pdf[1], pages = 1) %>%
+      image_convert(format = "png") %>%
+      image_write(output_png)
+
+    return(output_png)
+  }
+```
+
+
+```{r render_plot_series_helper, include=FALSE}
+render_plot_series <- function(tool, plot_names, wd, widths = NULL) {
+  if (length(plot_names) == 0) {
+    return(invisible(NULL))
+  }
+
+  for (i in seq_along(plot_names)) {
+    plot_name <- plot_names[[i]]
+    if (is.null(plot_name) || is.na(plot_name) || !nzchar(as.character(plot_name))) {
+      next
+    }
+
+    w <- if (!is.null(widths) && length(widths) >= i && !is.na(widths[i])) widths[i] else "100%"
+
+    cat("#### ", plot_name, "\n\n", sep = "")
+    output_png <- convert_and_include_pdf(tool, i, subgroup = NULL, wd = wd, adivplot = plot_names)
+    if (!is.null(output_png)) {
+      cat(sprintf(
+        "<div style=\"text-align:center;\"><img src=\"%s\" style=\"max-width:%s; height:auto;\" /></div>\n\n",
+        output_png, w
+      ))
+    }
+    cat("\n\n")
+  }
+}
+```
+
+```{r adiv_plots, echo=FALSE, results='asis', fig.align='center', message=FALSE, warning=FALSE, fig.height=5, fig.width=5}
+render_plot_series("box", imgInfo$adivplot, dirInfo$image.wd, imgInfo$adivplot_width)
+```
+
+```{r fore_plots, echo=FALSE, results='asis', fig.align='center', message=FALSE, warning=FALSE, fig.height=5, fig.width=5}
+render_plot_series("forestplot", imgInfo$foreplot, dirInfo$image.wd, imgInfo$foreplot_width)
+```
+```{r conditional-title_lmer.tab, echo=FALSE, results='asis', eval=length(tabInfo$lmer.tab) >= 1 && !is.null(tabInfo$lmer.tab[[1]]) && !all(is.na(tabInfo$lmer.tab[[1]]))}
+if(length(tabInfo$lmer.tab) >= 1 && !is.null(tabInfo$lmer.tab[[1]]) && !all(is.na(tabInfo$lmer.tab[[1]]))) {  
+  cat("#### ", "Mixed model analysis", "\n", sep="")
+}
+```
+
+
+
+
+  
+```{r lmer.tab, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=5, fig.width=5, eval=!is.na(tabInfo$lmer.tab[1])}
+
+if (length(tabInfo$lmer.tab) >= 1 && !is.null(tabInfo$lmer.tab[[1]])) {
+  datatable(tabInfo$lmer.tab, extensions = 'Buttons', options = list(
+    dom = 'frtipB',
+    buttons = c('excel','csv'),
+    pageLength = 20,
+    scrollX = TRUE,
+    scrollY = "300px"
+  ))
+}
+```
+

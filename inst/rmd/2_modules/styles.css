@@ -1,0 +1,17 @@
+/* styles.css */
+.title-text {
+    color: #005596;
+    font-style: italic;
+    text-align: center;
+    display: block;
+}
+.author-text {
+    font-style: italic;
+    text-align: right;
+    display: block;
+}
+.date-text {
+    font-style: italic;
+    text-align: right;
+    display: block;
+}

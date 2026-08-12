@@ -1,0 +1,257 @@
+---
+title: "2_taxa"
+author: "Heekuk"
+date: "2024-06-09"
+output: html_document
+---
+
+```{r global-options_taxa, include=FALSE}
+.bcw <- function(i, default = "100%") {
+  w <- imgInfo$barchart_width
+  if (!is.null(w) && length(w) >= i && !is.na(w[i])) w[i] else default
+}
+fig_out_width_p  <- .bcw(1)
+fig_out_width_c  <- .bcw(2)
+fig_out_width_o  <- .bcw(3)
+fig_out_width_f  <- .bcw(4)
+fig_out_width_g  <- .bcw(5)
+fig_out_width_s  <- .bcw(6)
+fig_out_width_st <- .bcw(7)
+```
+
+
+
+### b) Taxonomic composition {.tabset}
+
+```{r conditional-annotation_taxa_barchart, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$barchart[1])) {
+  cat("The taxa are aggregated into each taxonomic rank. The plot shows the relative abundance of the most frequent ones. In the figure legends, “Other” represents unclassified and lower-abundance taxa (<0.005). The bar plot is generated using sample set after excluding highlighted samples", "\n", sep="")
+}
+```
+
+```{r conditional-annotation_heatmap, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$bac.heatmap[1])) {
+  cat("The heatmap provides a visual representation of the bacterial composition in different samples, highlighting differences in the microbiome between groups. Each row represents a bacterial species, and each column represents a sample. The colors in the cells show how abundant each bacterial species is in each sample.", "\n", sep="")
+}
+```
+
+
+
+```{r Go_barchart, include=FALSE}
+convert_and_include_pdf <- function(tool, index, subgroup = NULL, wd, barchart) {
+  pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  barchart[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+  input_pdf <- list.files(path = wd, pattern = pattern, full.names = TRUE)
+  
+  if(length(input_pdf) == 0) {
+    cat("No PDF files found for pattern:", pattern, "\n")
+    return()
+  }
+  
+  base_name <- tools::file_path_sans_ext(basename(input_pdf[1]))
+  output_png <- file.path(dirname(input_pdf[1]), paste0(base_name, ".png"))
+  
+  image_read_pdf(input_pdf[1], pages = 1) %>%
+    image_convert(format = "png") %>%
+    image_write(output_png)
+  
+  include_graphics(output_png)
+}
+```
+
+
+
+
+
+
+```{r conditional-title_BC8, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$barchart[8])) {
+  cat("#### ", imgInfo$barchart[8], "\n", sep="")
+}
+```
+
+```{r barplot-BC8, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, out.width=fig_out_width_p, fig.height=15, fig.width=10, eval=!is.na(imgInfo$barchart[8])}
+
+convert_and_include_pdf("barchart", 8, subgroup = NULL, dirInfo$image.wd, imgInfo$barchart)
+
+```
+
+
+
+```{r conditional-title_BC7, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$barchart[7])) {
+  cat("#### ", imgInfo$barchart[7], "\n", sep="")
+}
+```
+
+```{r barplot-strain,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE,out.width=fig_out_width_st, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$barchart[7])}
+convert_and_include_pdf("barchart",7, subgroup, dirInfo$image.wd, imgInfo$barchart)
+```
+
+
+```{r conditional-title_BC6, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$barchart[6])) {
+  cat("#### ", imgInfo$barchart[6], "\n", sep="")
+}
+```
+
+```{r barplot-species,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, out.width=fig_out_width_s,fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$barchart[6])}
+convert_and_include_pdf("barchart",6, subgroup, dirInfo$image.wd, imgInfo$barchart)
+```
+
+
+
+```{r conditional-title_BC5, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$barchart[5])) {
+  cat("#### ", imgInfo$barchart[5], "\n", sep="")
+}
+```
+
+```{r barplot-genus, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE,out.width=fig_out_width_g, fig.height=16, fig.width=10, eval=!is.na(imgInfo$barchart[5])}
+convert_and_include_pdf("barchart",5, subgroup = NULL, dirInfo$image.wd, imgInfo$barchart)
+```
+
+
+```{r conditional-title_BC4, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$barchart[4])) {
+  cat("#### ", imgInfo$barchart[4], "\n", sep="")
+}
+```
+
+```{r barplot-family, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, out.width=fig_out_width_f,fig.height=16, fig.width=10, eval=!is.na(imgInfo$barchart[4])}
+convert_and_include_pdf("barchart",4, subgroup = NULL, dirInfo$image.wd, imgInfo$barchart)
+```
+
+
+```{r conditional-title_BC3, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$barchart[3])) {
+  cat("#### ", imgInfo$barchart[3], "\n", sep="")
+}
+```
+
+```{r barplot-order, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, out.width=fig_out_width_o,fig.height=15.5, fig.width=10, eval=!is.na(imgInfo$barchart[3])}
+convert_and_include_pdf("barchart",3, subgroup = NULL, dirInfo$image.wd, imgInfo$barchart)
+
+```
+
+
+```{r conditional-title_BC2, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$barchart[2])) {
+  cat("#### ", imgInfo$barchart[2], "\n", sep="")
+}
+```
+
+```{r barplot-class, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, out.width=fig_out_width_c, fig.height=15, fig.width=10, eval=!is.na(imgInfo$barchart[2])}
+convert_and_include_pdf("barchart",2, subgroup = NULL, dirInfo$image.wd, imgInfo$barchart)
+
+```
+
+
+```{r conditional-title_BC1, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$barchart[1])) {
+  cat("#### ", imgInfo$barchart[1], "\n", sep="")
+}
+```
+
+```{r barplot-phylum, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, out.width=fig_out_width_p, fig.height=15, fig.width=10, eval=!is.na(imgInfo$barchart[1])}
+
+convert_and_include_pdf("barchart", 1, subgroup = NULL, dirInfo$image.wd, imgInfo$barchart)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r conditional-title_hm1, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$bac.heatmap[1])) {
+  cat("#### ", imgInfo$bac.heatmap[1], "\n", sep="")
+}
+```
+
+
+```{r barplot-heatmap1,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$bac.heatmap[1])}
+convert_and_include_pdf("pheatmap",1, subgroup=NULL, dirInfo$image.wd, imgInfo$bac.heatmap[1])
+```
+
+
+```{r conditional-title_hm2, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$bac.heatmap[2])) {
+  cat("#### ", imgInfo$bac.heatmap[2], "\n", sep="")
+}
+```
+
+
+```{r barplot-heatmap2,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$bac.heatmap[2])}
+convert_and_include_pdf("pheatmap",1, subgroup=NULL, dirInfo$image.wd, imgInfo$bac.heatmap[2])
+```
+
+
+
+
+```{r conditional-title_hm3, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$bac.heatmap[3])) {
+  cat("#### ", imgInfo$bac.heatmap[3], "\n", sep="")
+}
+```
+
+
+```{r barplot-heatmap3,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$bac.heatmap[3])}
+convert_and_include_pdf("pheatmap",1, subgroup=NULL, dirInfo$image.wd, imgInfo$bac.heatmap[3])
+```
+
+
+```{r conditional-title_hm4, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$bac.heatmap[4])) {
+  cat("#### ", imgInfo$bac.heatmap[4], "\n", sep="")
+}
+```
+
+
+```{r barplot-heatmap4,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$bac.heatmap[4])}
+convert_and_include_pdf("pheatmap",1, subgroup=NULL, dirInfo$image.wd, imgInfo$bac.heatmap[4])
+```
+
+
+
+```{r conditional-title_hm5, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$bac.heatmap[5])) {
+  cat("#### ", imgInfo$bac.heatmap[5], "\n", sep="")
+}
+```
+
+
+```{r barplot-heatmap5,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$bac.heatmap[5])}
+convert_and_include_pdf("pheatmap",1, subgroup=NULL, dirInfo$image.wd, imgInfo$bac.heatmap[5])
+```
+
+
+
+```{r conditional-title_hm6, echo=FALSE, results='asis'}
+if(!is.na(imgInfo$bac.heatmap[6])) {
+  cat("#### ", imgInfo$bac.heatmap[6], "\n", sep="")
+}
+```
+
+
+```{r barplot-heatmap6,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$bac.heatmap[6])}
+convert_and_include_pdf("pheatmap",1, subgroup=NULL, dirInfo$image.wd, imgInfo$bac.heatmap[6])
+```
+
