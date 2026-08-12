@@ -72,11 +72,6 @@ Then restart R and run `Gotool_dependency()` again.
 
 ---
 
-
-
-
-
-
 ## Gotools Tutorial
 
 This tutorial provides step-by-step instructions on using the Gotools package for microbiome data analysis with R. It includes reading data, preprocessing, and running various analyses.
@@ -92,8 +87,6 @@ library("Gotools")
 
 # Install and load dependencies using Gotools function
 Gotool_dependency()
-
-
 
 # Define project name and directories
 project <- "Gotool_test"
@@ -123,7 +116,6 @@ ps <- Go_tabTops(csv = final_asv_file, project = project)
 # Generate empty mapping file
 Go_emptyMap(ps,project) # The file generate in `project_today_data/3_map`
 
-
 # Read and apply sample metadata
 sampledata <- read.csv("3_map/your.mapping.csv", row.names=1, check.names=FALSE)
 ps1 <- merge_phyloseq(ps, sample_data(sampledata))
@@ -144,7 +136,6 @@ itself. See [`inst/quickstart/`](inst/quickstart/) for where it's called.
 # Check and filter sequence lengths
 Go_SeqLengths(ps1) # Original distribution
 ```
-#### 
 <p align="center">
   <img src="data/pdf/size1.png" alt="Size1" title="Size1" width="55%">
 </p>
@@ -152,11 +143,9 @@ Go_SeqLengths(ps1) # Original distribution
 ```r
 ps1.size <- Go_SeqLengths(psIN=ps1, from=297, to=470) # Filtered
 ```
-#### 
 <p align="center">
   <img src="data/pdf/size2.png" alt="Size2" title="Size2" width="55%">
 </p>
-
 
 ```r
 ps2 <- Go_filter(ps1.size,cutoff = 0.000005)
@@ -260,6 +249,3 @@ since several have been renamed or moved to new file versions over time.
 of `Go_tabTops()`), `Go_deseq2fishtaco()`, `Go_DA_plot()` (superseded by
 `Go_volcanoPlot()`), `Go_lmem()`, and `Go_rf_function_sets()` were in earlier
 versions of this list but no longer exist in the current package.
-
-## Usage
-The scripts in this repository are written in R. To use these tools, clone the repository and run the scripts using an R environment. Each script is self-contained and can be run independently unless specified otherwise.
