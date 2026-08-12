@@ -115,9 +115,6 @@
 #' @name Go_prediction
 #' @param patchwork Logical. If \code{TRUE}, skip saving and return the plot object(s) for use with \code{Gg_patchwork()} or the \pkg{patchwork} package. Default \code{FALSE}.
 #' @export
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b
-
 Go_prediction <- function(
     psIN,
     project,
