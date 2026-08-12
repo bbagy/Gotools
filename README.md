@@ -100,10 +100,27 @@ project <- "Gotool_test"
 currentwd <- "~/your_path/"
 setwd(currentwd)
 
-# Read ASV data and merge Phyloseq objects
-ps <- readRDS("2_rds/your_ps.rds")
+# raw_asv_file is DADA2 output (Go_tabTops()-ready): ASV sequences as row
+# names, Kingdom-Genus taxonomy from a classifier (SILVA, etc.), and per-
+# sample counts. Species is frequently unresolved at this stage (e.g.
+# "Genus NA") because short amplicon reads often can't distinguish closely
+# related species on their own.
+raw_asv_file <- "1_out/your_project.psTotab.asvTable.csv"
 
-# Generate empty mapping file 
+# Go_blastASVs() BLASTs each ASV sequence against a reference 16S database
+# (defaults to the one bundled with Gotools) and uses the hit to fill in
+# Species only where the classifier left it unresolved AND the BLAST genus
+# already agrees with the classifier's genus - it corrects gaps, it doesn't
+# override a taxonomy call the classifier already made confidently.
+final_asv_file <- find_latest_final_asv(project)
+if (is.na(final_asv_file) || !file.exists(final_asv_file)) {
+  Go_blastASVs(project = project, asvsTable = raw_asv_file)
+  final_asv_file <- find_latest_final_asv(project)
+}
+
+ps <- Go_tabTops(csv = final_asv_file, project = project)
+
+# Generate empty mapping file
 Go_emptyMap(ps,project) # The file generate in `project_today_data/3_map`
 
 
@@ -111,6 +128,15 @@ Go_emptyMap(ps,project) # The file generate in `project_today_data/3_map`
 sampledata <- read.csv("3_map/your.mapping.csv", row.names=1, check.names=FALSE)
 ps1 <- merge_phyloseq(ps, sample_data(sampledata))
 ```
+
+`Go_tabTops()` returns a plain phyloseq object (no tree). If you have a
+`tree.nwk` from the same DADA2 run, merge it in too:
+`ps1 <- merge_phyloseq(ps, sample_data(sampledata), phy_tree(ape::read.tree("1_out/TREE/tree.nwk")))`.
+
+Differential abundance later in the pipeline uses `Go_ConDaDist()`, which
+ships in a **separate companion package**, `ConDAdist`
+(`devtools::install_github("bbagy/ConDAdist")`) — not part of Gotools
+itself. See [`inst/quickstart/`](inst/quickstart/) for where it's called.
 
 ### Preprocessing
 
