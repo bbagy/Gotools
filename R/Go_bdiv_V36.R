@@ -412,8 +412,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
         for(distance_metric in distance_metrics){
           # remove NA
           mapping.sel <- data.frame(sample_data(psIN.cbn))
-          mapping.sel.na <- mapping.sel[!is.na(mapping.sel[,mvar]), ]
-          psIN.cbn.na <- prune_samples(rownames(mapping.sel[!is.na(mapping.sel[,mvar]), ]), psIN.cbn)
+          mapping.sel.na <- mapping.sel[!is.na(mapping.sel[,mvar]), , drop = FALSE]
+          psIN.cbn.na <- prune_samples(rownames(mapping.sel[!is.na(mapping.sel[,mvar]), , drop = FALSE]), psIN.cbn)
           mapping.sel.na.rem <- data.frame(sample_data(psIN.cbn.na ))
           mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
 
@@ -621,8 +621,8 @@ Go_bdivPM <- function(psIN, cate.vars, project, orders, distance_metrics,
       plotlist <- list()
       for(distance_metric in distance_metrics){
         mapping.sel <- data.frame(sample_data(psIN))
-        mapping.sel.na <- mapping.sel[!is.na(mapping.sel[,mvar]), ]
-        psIN.na <- prune_samples(rownames(mapping.sel[!is.na(mapping.sel[,mvar]), ]), psIN)
+        mapping.sel.na <- mapping.sel[!is.na(mapping.sel[,mvar]), , drop = FALSE]
+        psIN.na <- prune_samples(rownames(mapping.sel[!is.na(mapping.sel[,mvar]), , drop = FALSE]), psIN)
         mapping.sel.na.rem <- data.frame(sample_data(psIN.na ))
         mapping.sel.na.rem[,mvar] <- factor(mapping.sel.na.rem[,mvar])
 

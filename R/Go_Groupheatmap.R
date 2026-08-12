@@ -142,7 +142,7 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
 
   # heatmap 생성
   if(!is.null(x_label)){
-    ht <- Heatmap(as.matrix(df2_ordered),
+    ht <- ComplexHeatmap::Heatmap(as.matrix(df2_ordered),
                   name = "expression",
                   column_title = NULL,
                   cluster_rows = TRUE,
@@ -151,15 +151,15 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
                   column_labels = sample_labels,  # 샘플 라벨을 변경
                   show_row_names = TRUE,
                   column_split = group_info,
-                  top_annotation = HeatmapAnnotation(
-                    foo = anno_block(
-                      gp = gpar(fill = palette),
+                  top_annotation = ComplexHeatmap::HeatmapAnnotation(
+                    foo = ComplexHeatmap::anno_block(
+                      gp = grid::gpar(fill = palette),
                       labels = levels(group_info)
                     )
                   )
     )
   }else{
-    ht <- Heatmap(as.matrix(df2_ordered),
+    ht <- ComplexHeatmap::Heatmap(as.matrix(df2_ordered),
                   name = "expression",
                   column_title = NULL,
                   cluster_rows = TRUE,
@@ -167,9 +167,9 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
                   show_column_names = TRUE,
                   show_row_names = TRUE,
                   column_split = group_info,
-                  top_annotation = HeatmapAnnotation(
-                    foo = anno_block(
-                      gp = gpar(fill = palette),
+                  top_annotation = ComplexHeatmap::HeatmapAnnotation(
+                    foo = ComplexHeatmap::anno_block(
+                      gp = grid::gpar(fill = palette),
                       labels = levels(group_info)
                     )
                   )
@@ -177,6 +177,6 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
 
   }
 
-  draw(ht, column_title = main_title)
+  ComplexHeatmap::draw(ht, column_title = main_title)
   dev.off()
 }
