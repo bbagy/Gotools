@@ -110,7 +110,6 @@ html_content <- readLines(file.path(rmd_module_dir, "email_form.html"), warn = F
 contact_email_joined <- paste(expInfo$contact_email, collapse = ",")
 html_content <- gsub("\\{\\{project_name\\}\\}", expInfo$project, html_content)
 html_content <- gsub("\\{\\{contact_email\\}\\}", contact_email_joined, html_content)
-html_content <- gsub("\\{\\{CC_EMAIL\\}\\}", ifelse(is.null(cc_email), "", cc_email), html_content, fixed = FALSE)
 # Print the modified HTML content into the R Markdown document
 cat(html_content, sep = "\n")
 ```

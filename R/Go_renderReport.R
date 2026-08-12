@@ -16,9 +16,6 @@
 #' report. Defaults to the Columbia/Uhlemann Lab logo bundled with Gotools.
 #' Pass \code{NULL} to skip the logo section entirely, or a different path
 #' to use another logo.
-#' @param cc_email Optional email address CC'd on the report's built-in
-#' "leave a comment" mailto link. Omitted (\code{NULL}, the default) leaves
-#' the CC field out of that link.
 #'
 #' @return Invisibly, the path to the rendered HTML file.
 #'
@@ -27,8 +24,7 @@ Go_renderReport <- function(family,
                              project,
                              expInfo, dirInfo, tabInfo, imgInfo, sumInfo,
                              output_dir,
-                             logo_path = system.file("logo", "Columbia_CUIMC_Uhlemann4.png", package = "Gotools"),
-                             cc_email = NULL) {
+                             logo_path = system.file("logo", "Columbia_CUIMC_Uhlemann4.png", package = "Gotools")) {
   family <- match.arg(family, c("16S", "MG", "RNAseq"))
 
   rmd_file <- switch(family,
