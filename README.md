@@ -3,6 +3,44 @@
 ## Description
 This repository contains a set of tools for reproducible microbiome analysis. It includes scripts for various purposes, such as data visualization, statistical testing, data transformation, and more.
 
+## Purpose & Design Philosophy
+
+> Gotools guarantees the floor of analysis quality, consistency, and
+> reproducibility. Workflow layers built on top of it (e.g. GoAutoBot)
+> extend the ceiling of analytical depth.
+
+Standardizing analysis inevitably narrows autonomy: fixed report sections,
+fixed `Go_*Info()` list shapes, and filename-pattern-driven figure lookup all
+constrain how a given analysis can be run. That tradeoff is intentional.
+Gotools' job is not to explore freely — it's to make the parts of an analysis
+that should never vary between projects (composition plots, alpha/beta
+diversity, differential abundance, report assembly) fast, consistent, and
+reproducible every time. Analysis-specific judgment — which extra
+comparisons to run, how to handle repeated measures, subgroup or trajectory
+analysis, outlier/sensitivity checks, correlation/network work, follow-up
+analysis driven by what the standard results show — belongs one layer up, in
+a workflow that interprets the research question and dataset and decides
+what to add. Additional results should extend a report, not overwrite or
+bypass the standard one.
+
+Reproducibility is not a side effect of this division, it's a first-class
+goal. A complete analysis output is three things together, not any one
+alone:
+
+1. The runnable R script (what was done)
+2. A record of the environment, inputs, and parameters (package/R versions,
+   input files, filtering/exclusion decisions, comparison groups, reference
+   levels, covariates, statistical methods and significance thresholds,
+   random seeds) — what conditions produced this result
+3. The rendered HTML report (what the result looks like)
+
+The HTML alone shows a result without showing how to reproduce it; the
+script alone risks losing the exact environment and inputs that produced a
+given number. Any extra analysis layered on top of Gotools' standard output
+should carry the same discipline — the reasoning behind an additional
+comparison and the code that produced it belong in the record, not only the
+figure.
+
 ## Installation
 
 `Gotools` was built on R 4.2.2.
