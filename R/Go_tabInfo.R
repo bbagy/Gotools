@@ -74,23 +74,19 @@ Go_tabInfo <- function(Taxa_Tab=NA,
   safely_read_table <- function(path) {
     if (!is.null(path) && !all(is.na(path)) && nzchar(path)) {
       ext <- tolower(tools::file_ext(path))
-      cat("[DEBUG] ext = ", ext, "\n")
 
       result <- tryCatch({
         if (ext %in% c("txt", "tsv", "tab")) {
-          cat("[DEBUG] -> read.delim() branch\n")
           read.delim(path, header = TRUE, sep = "\t", row.names = 1, check.names = FALSE)
         } else {
-          cat("[DEBUG] -> read.csv() branch\n")
           read.csv(path, header = TRUE, row.names = 1, check.names = FALSE)
         }
       }, error = function(e) {
-        cat("[ERROR]", e$message, "\n")
+        warning(sprintf("Go_tabInfo(): failed to read '%s': %s", path, e$message), call. = FALSE)
         return(NA)
       })
       return(result)
     } else {
-      cat("[DEBUG] path is invalid\n")
       return(NA)
     }
   }

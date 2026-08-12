@@ -1,7 +1,7 @@
 Package: Gotools
 Type: Package
 Title: General Microbiome Analysis (GoTools)
-Version: 2.0.0
+Version: 2.1.0
 Authors@R: 
     person(given = "Heekuk",
            family = "Park",
@@ -51,7 +51,11 @@ Imports:
     lmerTest,
     emmeans,
     grDevices,
-    PRROC
+    PRROC,
+    DT,
+    knitr,
+    rmarkdown,
+    magrittr
 Suggests:
     ape,
     bkmr,
@@ -70,7 +74,6 @@ Suggests:
     devtools,
     doParallel,
     doRNG,
-    DT,
     ellipse,
     e1071,
     ggalluvial,
@@ -86,8 +89,6 @@ Suggests:
     irr,
     irlba,
     kableExtra,
-    knitr,
-    magrittr,
     Matrix,
     MASS,
     Maaslin2,
@@ -106,7 +107,6 @@ Suggests:
     rfUtilities,
     rlang,
     ROCR,
-    rmarkdown,
     tibble,
     speedyseq,
     stringi,

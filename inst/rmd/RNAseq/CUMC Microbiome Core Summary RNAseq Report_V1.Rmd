@@ -7,6 +7,13 @@ output:
       smooth_scroll: true
 ---
 
+```{r setup, include=FALSE}
+library(magick)
+library(knitr)
+library(DT)
+library(magrittr)
+```
+
 ```{r css-inline, echo=FALSE, results='asis'}
 cat('<style>', readLines(file.path(rmd_module_dir, "styles.css")), '</style>', sep = "\n")
 ```
@@ -72,7 +79,7 @@ datatable(tabInfo$rnaseq, extensions = 'Buttons', options = list(
 
 #### Read Counts
 
-```{r tab1, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+```{r tab1, echo=FALSE, results='asis', message=FALSE, warning=FALSE, eval=is.data.frame(tabInfo$tab1)}
 datatable(tabInfo$tab1, extensions = 'Buttons', options = list(
   dom = 'frtipB',
   buttons = c('excel','csv'),
