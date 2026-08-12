@@ -22,8 +22,6 @@
 #'
 #' @return A phyloseq object containing OTU + taxonomy tables.
 #'
-#' @author Heekuk Park (hp2523@@cumc.columbia.edu)
-#'
 #' @examples
 #' \dontrun{
 #'

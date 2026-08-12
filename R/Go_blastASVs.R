@@ -65,10 +65,6 @@ Go_blastASVs <- function(project,
     install.packages("XML")
   }
 
-  current_path <- Sys.getenv("PATH")
-  new_path <- paste(current_path, "/Users/heekukpark/miniconda3/envs/blast/bin/", sep = ":")
-  Sys.setenv(PATH = new_path)
-
   if (system("blastn -version", intern = FALSE) == 0) {
     cat("BLAST is correctly installed and found in PATH.\n")
   } else {

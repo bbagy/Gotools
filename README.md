@@ -1,4 +1,4 @@
-# General-microbiome-analysis (GoTools)
+# Gotools
 
 ## Description
 This repository contains a set of tools for reproducible microbiome analysis. It includes scripts for various purposes, such as data visualization, statistical testing, data transformation, and more.
@@ -17,7 +17,7 @@ environment/input/parameter record, and the rendered HTML report.
 
 ## Installation
 
-`Gotools` was built on R 4.2.2.
+`Gotools` requires R >= 4.1.
 
 For a fresh install, use this order:
 
@@ -263,8 +263,3 @@ versions of this list but no longer exist in the current package.
 
 ## Usage
 The scripts in this repository are written in R. To use these tools, clone the repository and run the scripts using an R environment. Each script is self-contained and can be run independently unless specified otherwise.
-
-## Contributions
----
-
----
