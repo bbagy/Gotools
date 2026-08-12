@@ -78,6 +78,3 @@ print(ps_fun)
 }
 
 }
-\author{
-Heekuk Park (hp2523@cumc.columbia.edu)
-}
