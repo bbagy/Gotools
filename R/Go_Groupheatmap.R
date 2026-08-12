@@ -82,7 +82,7 @@ Go_Groupheatmap <- function(df, SampleData, project, Group,
   df2_ordered <- df2_top[, match(common_samples, colnames(df2_top))]
 
   # SampleData도 공통된 SampleID로 필터링
-  ordered_SampleData <- SampleData[common_samples, ]
+  ordered_SampleData <- SampleData[common_samples, , drop = FALSE]
 
   # 그룹 정보 추출
   group_info <- ordered_SampleData[, Group]
