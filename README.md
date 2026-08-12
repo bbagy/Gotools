@@ -144,104 +144,12 @@ orders <- c("Plaque", "Stool", "Saliva")
 basel <- Go_myCols(piratepal = "basel")
 ```
 
-
-### Bar Plots for Taxonomic Composition
-```r
-Go_barchart(psIN=ps2, project=project, cutoff=0.005, taxanames=c("Phylum","Class","Order","Family","Genus","Species"), cate.vars="TreatmentGroup", mycols=basel, orders=orders, height=4, width=8)
-```
-#### Phylum
-<p align="center">
-  <img src="data/pdf/barchart.relative.Gotool.(0.005).240310-0.png" alt="Phylum" title="Phylum" width="70%">
-</p>
-
-#### Class
-<p align="center">
-  <img src="data/pdf/barchart.relative.Gotool.(0.005).240310-1.png" alt="Class" title="Class" width="70%">
-</p>
-
-#### Order
-<p align="center">
-  <img src="data/pdf/barchart.relative.Gotool.(0.005).240310-2.png" alt="Order" title="Order" width="70%">
-</p>
-
-#### Family
-<p align="center">
-  <img src="data/pdf/barchart.relative.Gotool.(0.005).240310-3.png" alt="Family" title="Family" width="70%">
-</p>
-
-#### Genus
-<p align="center">
-  <img src="data/pdf/barchart.relative.Gotool.(0.005).240310-4.png" alt="Genus" title="Genus" width="70%">
-</p>
-
-#### Species
-<p align="center">
-  <img src="data/pdf/barchart.relative.Gotool.(0.005).240310-5.png" alt="Species" title="Species" width="70%">
-</p>
-
-
-
-
-### Alpha Diversity Analysis
-```r
-adiv <- Go_adiv(psIN=ps2, project=project, alpha_metrics=c("Chao1", "Shannon"))
-basel <- Go_myCols(piratepal="basel")
-
-# Boxplot for alpha diversity metrics
-Go_boxplot(df=adiv, project=project, mycols=basel, cate.vars=c("TreatmentGroup"), outcomes=c("Chao1", "Shannon"), orders=orders)
-```
-
-
-<p align="center">
-  <img src="data/pdf/box.Gotool.240310.png" alt="Alpha Diversity" title="Alpha Diversity" width="70%">
-</p>
-
-
-
-
-### Beta Diversity Analysis
-```r
-# PCoA ordination plot + PERMANOVA (statistics=TRUE, the default) in one call
-Go_bdivPM(psIN=ps2, cate.vars="TreatmentGroup", project=project, orders=orders,
-          distance_metrics=c("bray"), mycols=basel, height=4.5, width=7, plotCols=1, plotRows=1)
-```
-<p align="center">
-  <img src="data/pdf/ordi.Gotool.240310.png" alt="Beta Diversity" title="Beta Diversity" width="45%">
-</p>
-
-For paired/repeated-measures designs, pass the subject ID column as `strata_var` to block
-PERMANOVA permutations by subject; for a lower-level standalone PERMANOVA outside the
-plotting pipeline, see `Go_perm()`/`Go_pairedperm()`.
-
-
-### Differential Abundance Testing
-
-`Go_Deseq2()`, `Go_Aldex2()`, and `Go_Ancom2()` are retained under `legacy/`
-only for reproducibility of historical analyses. They are not part of the
-current Gotools public API and should not be used in new analysis scripts.
-`Go_ConDaDist()` (from the companion `ConDAdist` package) is the current
-entry point — it runs ancombc2/aldex2/deseq2 (and more) as a consensus DA
-call and returns an output directory `Go_volcanoPlot()` reads directly:
-
-```r
-# devtools::install_github("bbagy/ConDAdist")
-library(ConDAdist)
-
-da_result_dir <- NULL
-for (method in c("ancombc2", "aldex2", "deseq2")) {
-  da_result_dir <- Go_ConDaDist(psIN=ps2, project=project, group_var="TreatmentGroup",
-                                 group_1=orders[1], group_2=orders[2],
-                                 covariates=NULL, methods=method, distances=NULL, name=NULL)
-}
-# Go_ConDaDist() returns the same project/date output directory regardless of
-# method, so call Go_volcanoPlot() once after the loop - it scans that
-# directory for every method's result CSV in one pass.
-Go_volcanoPlot(project=project, result=da_result_dir, fc=0, mycols=NULL, font=3, height=5, width=6)
-```
-
-<p align="center">
-  <img src="data/pdf/deseq2.volcano.TreatmentGroup.(Stool.vs.Saliva).Gotool.(cutoff=1).240310.png" alt="Volcano plot" title="Volcano plot" width="45%">
-</p>
+`ps2` is now a filtered, ready-to-analyze phyloseq object. For composition
+plots, diversity, and differential abundance from here, see
+[`inst/quickstart/`](inst/quickstart/) for a runnable end-to-end example, or
+copy a [`Download_templates/`](Download_templates/) script and swap in `ps2`
+for its own data-import step. See "List of Tools" below for what each
+analysis function does.
 
 ---
 
@@ -298,32 +206,34 @@ directly instead of installing? They're at
 [`inst/quickstart/`](inst/quickstart/) in the repo.
 
 ## List of Tools
-The repository includes the following scripts:
+A curated subset of the ~90 exported functions (see `NAMESPACE` for the full
+list). Each entry names the function and the file it currently lives in,
+since several have been renamed or moved to new file versions over time.
 
-- **Go_DA_heatmap.R**: A script used to create heatmaps, a graphical representation of data where values are depicted as colors, for differential abundance (DA) analysis.
-- **Go_DA_plot.R**: A script for creating plots to visualize differential abundance analysis results.
-- **Go_adiv.R**: A script for alpha diversity computations. Alpha diversity is a measure of diversity within a particular area or ecosystem.
-- **Go_alluvialplot.R**: A script for generating alluvial plots, which are a type of flow diagram to represent changes in network structure over time.
-- **Go_ancom_plot.R**: A script for creating plots for ANCOM (Analysis of Composition of Microbiomes), a method to determine features that are differentially abundant (or present) between different groups.
-- **Go_barchart.R**: A script to generate bar charts.
-- **Go_bdiv.R**: A script for computing and visualizing beta diversity. Beta diversity is a comparison of diversity between ecosystems, usually measured as the change in amount of species.
-- **Go_biplot_function.R**: A script to create biplots, a type of graph used in statistics to display information from a multivariate dataset.
-- **Go_boxplot.R**: A script for generating box plots, a type of graph used to display the distribution of data.
-- **Go_cleanMito.R**: A script to clean or filter out mitochondrial sequences from a dataset.
-- **Go_correlation.R**: A script to compute and visualize correlations between different variables or features.
-- **Go_deseq2fishtaco.R**: ---
-- **Go_dist.R**: A script to compute or visualize distance metrics, often used in beta-diversity analysis.
-- **Go_filter.R**: A script to filter datasets.
-- **Go_function2ps.R**: A script to convert functional profiles (e.g., from metagenomic or metatranscriptomic data) to a phyloseq object, a container for storing and analyzing phylogenetic sequencing data in R.
-- **Go_krakenLog.R**: A script to processing or analyzing Kraken output. Kraken is a system for assigning taxonomic labels to short DNA sequences.
-- **Go_linear.R**: A script for conducting linear regression analysis.
-- **Go_lmem.R**: A script to perform linear mixed-effects model analysis.
-- **Go_perm.R**: A script for running permutation tests.
-- **Go_pheatmap.R**: A script to generate heatmaps, specifically using the pheatmap function in R which offers more control over heatmap generation.
-- **Go_psTotab.R**: A script to convert a phyloseq object to a table for further processing or analysis.
-- **Go_regression.R**: A script for performing regression analysis.
-- **Go_renderReport.R**: Renders the bundled 16S/MG/RNAseq HTML summary report from `Go_*Info()` objects. See "Summary Report Generation" above.
-- **Go_rf_function_sets.R**: A script for performing random forest analysis, a machine learning technique.
+- **`Go_adiv()`** (`Go_adiv_V2.R`): Alpha diversity computation.
+- **`Go_alluvialplot()`** (`Go_alluvialplot_V2.R`): Alluvial/flow diagrams.
+- **`Go_barchart()`** (`Go_barchart_v35.R`): Taxonomic composition bar charts.
+- **`Go_bdivPM()`** (`Go_bdiv_V36.R`): Beta diversity ordination (PCoA) plus PERMANOVA in one call. Supersedes the old `Go_bdiv()`, which no longer exists.
+- **`Go_biplot()`** (`Go_biplot_function_V2.R`): Biplots for multivariate data. Renamed from `Go_biplot_function()`.
+- **`Go_boxplot()`** (`Go_boxplot_V10.R`): Box plots, e.g. for alpha diversity metrics.
+- **`Go_correlation()`** (`Go_correlation_V3.R`): Correlations between variables/features.
+- **`Go_DA_heat()`** (`Go_DA_heatmap_v1.R`): Differential abundance heatmaps. Renamed from `Go_DA_heatmap()`.
+- **`Go_dist()`** (`Go_dist_V4.R`): Distance metric computation/visualization.
+- **`Go_filter()`** (`Go_filter.R`): Low-abundance taxa filtering.
+- **`Go_function2ps()`** (`Go_function2ps_V2.R`): Converts PICRUSt2/HUMAnN functional profiles to a phyloseq object.
+- **`Go_kraken2Tops()`** (`Go_kraken2Tops.R`): Parses Kraken2/Bracken MPA output into a phyloseq object. Renamed from `Go_krakenLog()`.
+- **`Go_linear()`** (`Go_linear_V4.R`): Linear regression analysis.
+- **`Go_perm()`** (`Go_perm_V16.R`): Standalone PERMANOVA (see `Go_bdivPM()` for the plotting pipeline that already includes it).
+- **`Go_pheatmap()`** (`Go_pheatmap_V2.R`): ComplexHeatmap-based heatmaps.
+- **`Go_psTotab()`** (`Go_psTotab.R`): Converts a phyloseq object to a table.
+- **`Go_regression()`** (`Go_regression_V34.R`): Regression analysis.
+- **`Go_renderReport()`** (`Go_renderReport.R`): Renders the bundled 16S/MG/RNAseq HTML summary report from `Go_*Info()` objects. See "Summary Report Generation" above.
+- **`Go_volcanoPlot()`** (`Go_volcanoPlot_v1.R`): Volcano plots from `Go_ConDaDist()` (or legacy DA function) results.
+
+`Go_ancom_plot()`, `Go_cleanMito()` (its logic is now the `cleanMito` argument
+of `Go_tabTops()`), `Go_deseq2fishtaco()`, `Go_DA_plot()` (superseded by
+`Go_volcanoPlot()`), `Go_lmem()`, and `Go_rf_function_sets()` were in earlier
+versions of this list but no longer exist in the current package.
 
 ## Usage
 The scripts in this repository are written in R. To use these tools, clone the repository and run the scripts using an R environment. Each script is self-contained and can be run independently unless specified otherwise.
