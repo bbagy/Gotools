@@ -3,7 +3,7 @@
 #' This function takes a CSV file containing ASV sequences, converts them to FASTA format,
 #' runs BLAST searches against a specified database, parses the results, and writes:
 #' 1. the original BLAST-annotated table
-#' 2. a final ASV table with blast-guided species correction
+#' 2. a final ASV table with BLAST-guided reference annotation for species
 #'
 #' #===== download DB in local
 #' cd DB

@@ -101,10 +101,11 @@ setwd(currentwd)
 raw_asv_file <- "1_out/your_project.psTotab.asvTable.csv"
 
 # Go_blastASVs() BLASTs each ASV sequence against a reference 16S database
-# (defaults to the one bundled with Gotools) and uses the hit to fill in
-# Species only where the classifier left it unresolved AND the BLAST genus
-# already agrees with the classifier's genus - it corrects gaps, it doesn't
-# override a taxonomy call the classifier already made confidently.
+# (defaults to the one bundled with Gotools) and uses the hit as a
+# BLAST-supported candidate to fill in Species only where the classifier
+# left it unresolved AND the BLAST genus already agrees with the
+# classifier's genus - it's reference-guided annotation for gaps, not an
+# override of a taxonomy call the classifier already made confidently.
 final_asv_file <- find_latest_final_asv(project)
 if (is.na(final_asv_file) || !file.exists(final_asv_file)) {
   Go_blastASVs(project = project, asvsTable = raw_asv_file)

@@ -31,7 +31,7 @@ This function takes a CSV file containing ASV sequences, converts them to FASTA 
 runs BLAST searches against a specified database, parses the results, and writes:
 \enumerate{
 \item the original BLAST-annotated table
-\item a final ASV table with blast-guided species correction
+\item a final ASV table with BLAST-guided reference annotation for species
 }
 }
 \details{
