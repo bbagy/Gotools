@@ -8,10 +8,10 @@ This repository contains a set of tools for reproducible microbiome analysis. It
 | Background | What you can do |
 |---|---|
 | New to R | Run the bundled Quickstart scripts and view the HTML report |
-| R, past the basics | Point a template at your own project path/name |
+| Basic R experience | Adapt a template to your own project path and name |
 | Comfortable with R | Run the standard pipeline end to end on your own data |
 | Experienced in microbiome analysis | Design comparisons and evaluate the results |
-| Statistics / bioinformatics expert | Extend with additional analysis, adapt models, validate methodology |
+| Statistics or bioinformatics expert | Add analyses, adapt models, and validate methodology |
 
 Each row builds on the one above it - none of this requires knowing R
 internals, but analysis judgment (what to compare, how to interpret a
