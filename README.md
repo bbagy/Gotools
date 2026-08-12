@@ -1,4 +1,4 @@
-# General-microbiome-analysis (GoTools) # processing
+# General-microbiome-analysis (GoTools)
 
 ## Description
 This repository contains a set of tools for reproducible microbiome analysis. It includes scripts for various purposes, such as data visualization, statistical testing, data transformation, and more.
@@ -378,7 +378,7 @@ The repository includes the following scripts:
 - **Go_renderReport.R**: Renders the bundled 16S/MG/RNAseq HTML summary report from `Go_*Info()` objects. See "Summary Report Generation" above.
 - **Go_rf_function_sets.R**: A script for performing random forest analysis, a machine learning technique.
 
-## Usage # processing
+## Usage
 The scripts in this repository are written in R. To use these tools, clone the repository and run the scripts using an R environment. Each script is self-contained and can be run independently unless specified otherwise.
 
 ## Contributions
