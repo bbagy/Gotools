@@ -298,7 +298,7 @@ methods, so check the method's assumptions before reaching for one.
 - **`Go_cluster()`** (`Go_cluster_V1.R`): Unsupervised sample clustering (DMM/PAM/k-means/hierarchical) with ordination and optional PERMANOVA.
 - **`Go_network()`** (`Go_network.R`): Network analysis.
 - **`Go_kmplot()`** (`Go_kmplot.R`): Kaplan-Meier survival plots.
-- **`Go_prediction_plot()`** (`Go_prediction_plot.R`): ROC/PR-curve and importance plots for prediction-model results.
+- **`Go_prediction()`** / **`Go_prediction_plot()`** (`Go_prediction_V2.R`, `Go_prediction_plot.R`): Random Forest/XGBoost/LightGBM classifier from a phyloseq object (+ optional clinical covariates), with StudyID-aware CV/holdout; `Go_prediction_plot()` renders its ROC/PR-curve and importance plots.
 - **`Go_powerCalc()`** (`Go_powerCalc.R`): Sample size/power calculation (longitudinal or two-sample designs).
 - **`Go_clme()`** (`Go_clme_V5.R`): Order-restricted (constrained) linear mixed-effects models.
 - **`Go_zicoseq()`** (`Go_zicoseq.R`): ZicoSeq differential abundance testing.
