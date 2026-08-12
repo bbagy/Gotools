@@ -244,8 +244,3 @@ since several have been renamed or moved to new file versions over time.
 - **`Go_regression()`** (`Go_regression_V34.R`): Regression analysis.
 - **`Go_renderReport()`** (`Go_renderReport.R`): Renders the bundled 16S/MG/RNAseq HTML summary report from `Go_*Info()` objects. See "Summary Report Generation" above.
 - **`Go_volcanoPlot()`** (`Go_volcanoPlot_v1.R`): Volcano plots from `Go_ConDaDist()` (or legacy DA function) results.
-
-`Go_ancom_plot()`, `Go_cleanMito()` (its logic is now the `cleanMito` argument
-of `Go_tabTops()`), `Go_deseq2fishtaco()`, `Go_DA_plot()` (superseded by
-`Go_volcanoPlot()`), `Go_lmem()`, and `Go_rf_function_sets()` were in earlier
-versions of this list but no longer exist in the current package.
