@@ -1,1 +1,4 @@
 .Rproj.user
+.DS_Store
+Rplots.pdf
+tmp*_[0-9][0-9][0-9][0-9][0-9][0-9]/
