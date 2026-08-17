@@ -18,7 +18,8 @@
 #' @keywords internal
 .gotools_setup_needed <- function() {
   core_pkgs <- c("phyloseq", "microbiome", "DESeq2", "ALDEx2", "ANCOMBC")
-  any(!vapply(core_pkgs, requireNamespace, logical(1), quietly = TRUE))
+  any(!vapply(core_pkgs, requireNamespace, logical(1), quietly = TRUE)) ||
+    !nzchar(.gotools_find_blastn(required = FALSE))
 }
 
 #' @keywords internal

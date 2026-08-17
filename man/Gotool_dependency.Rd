@@ -18,7 +18,7 @@ Invisibly returns \code{TRUE} when all required packages are available
 after the check, or \code{FALSE} when installation is cancelled.
 }
 \description{
-Checks a curated set of CRAN and Bioconductor packages used by \code{Gotools}.
+Checks NCBI BLAST+ and a curated set of CRAN and Bioconductor packages used by \code{Gotools}.
 Packages that are already installed and loadable are left untouched.
 Missing packages are installed, and installed-but-broken packages are
 reinstalled.
@@ -36,6 +36,8 @@ core analysis packages are attached quietly at the end of the check.
 
 \code{BiocManager} is installed automatically when Bioconductor packages need
 action.
+A compatible NCBI BLAST+ binary is installed in the user's Gotools data
+directory on macOS, Windows, or Linux when it is not already available.
 }
 \examples{
 \dontrun{
