@@ -13,14 +13,12 @@ Beta-diversity allows for comparisons between samples. The ordination plots were
 ```{r Go_bdiv, include=FALSE}
   convert_and_include_pdf <- function(tool, index, subgroup = NULL, wd, bdiv) {
     metric <- sub("^ordi\\.PCoA\\.", "", tool)
-    metric_pattern <- sprintf("(^|\\+)%s($|\\+)", metric)
-    pattern <- sprintf(
-      "^ordi\\.PCoA\\.([^.]*%s[^.]*)\\..*\\(%s\\)%s.*\\.pdf$",
-      metric_pattern,
-      bdiv[index],
-      ifelse(is.null(subgroup), "", paste0(".*", subgroup))
+    input_pdf <- Gotools:::.gotools_find_bdiv_pdfs(
+      wd = wd,
+      metric = metric,
+      token = bdiv[index],
+      subgroup = subgroup
     )
-    input_pdf <- list.files(path = wd, pattern = pattern, full.names = TRUE)
     
     if(length(input_pdf) == 0) {
       return(invisible(NULL)) 
@@ -28,7 +26,7 @@ Beta-diversity allows for comparisons between samples. The ordination plots were
     
     if (length(input_pdf) > 1) {
     
-      message("Multiple PDF files matched pattern: ", pattern, " - using the first: ", basename(input_pdf[1]))
+      message("Multiple beta-diversity PDFs matched; using the first: ", basename(input_pdf[1]))
     
     }
     
