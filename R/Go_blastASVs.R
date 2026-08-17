@@ -65,11 +65,8 @@ Go_blastASVs <- function(project,
     install.packages("XML")
   }
 
-  if (system("blastn -version", intern = FALSE) == 0) {
-    cat("BLAST is correctly installed and found in PATH.\n")
-  } else {
-    stop("BLAST not found. Please check your BLAST installation and PATH.")
-  }
+  blastn <- .gotools_find_blastn(required = TRUE)
+  cat("Compatible BLAST found:", blastn, "(", .gotools_blast_version(blastn), ")\n")
 
   sequences_df <- read.csv(asvsTable, row.names = 1, check.names = FALSE, stringsAsFactors = FALSE)
   dna_strings <- Biostrings::DNAStringSet(rownames(sequences_df))
@@ -105,14 +102,25 @@ Go_blastASVs <- function(project,
     }
 
     Biostrings::writeXStringSet(dna_strings[seq_name], fasta_file)
-    system2("blastn", args = c("-query", fasta_file, "-db", blastDB, "-out", output_file, "-outfmt", "5"))
+    blast_status <- system2(blastn, args = c("-query", fasta_file, "-db", blastDB, "-out", output_file, "-outfmt", "5"))
     file.remove(fasta_file)
+
+    if (!identical(as.integer(blast_status), 0L)) {
+      file.remove(output_file)
+      stop("BLAST failed for ", seq_name, " with exit status ", blast_status,
+           ". Check that the database is complete and readable: ", blastDB)
+    }
 
     if (!is_valid_blast_xml(output_file)) {
       file.remove(output_file)
       Biostrings::writeXStringSet(dna_strings[seq_name], fasta_file)
-      system2("blastn", args = c("-query", fasta_file, "-db", blastDB, "-out", output_file, "-outfmt", "5"))
+      blast_status <- system2(blastn, args = c("-query", fasta_file, "-db", blastDB, "-out", output_file, "-outfmt", "5"))
       file.remove(fasta_file)
+      if (!identical(as.integer(blast_status), 0L) || !is_valid_blast_xml(output_file)) {
+        file.remove(output_file)
+        stop("BLAST did not produce valid XML for ", seq_name,
+             ". Check the query and database: ", blastDB)
+      }
     }
 
     output_file

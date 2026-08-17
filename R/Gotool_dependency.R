@@ -1,7 +1,7 @@
 
 #' Install or repair Gotools dependencies
 #'
-#' Checks a curated set of CRAN and Bioconductor packages used by `Gotools`.
+#' Checks NCBI BLAST+ and a curated set of CRAN and Bioconductor packages used by `Gotools`.
 #' Packages that are already installed and loadable are left untouched.
 #' Missing packages are installed, and installed-but-broken packages are
 #' reinstalled.
@@ -24,6 +24,8 @@
 #'
 #' `BiocManager` is installed automatically when Bioconductor packages need
 #' action.
+#' A compatible NCBI BLAST+ binary is installed in the user's Gotools data
+#' directory on macOS, Windows, or Linux when it is not already available.
 #'
 #' @return Invisibly returns `TRUE` when all required packages are available
 #'   after the check, or `FALSE` when installation is cancelled.
@@ -36,6 +38,8 @@
 #' @export
 Gotool_dependency <- function(ask = interactive(), attach = TRUE) {
   .gotools_signature()
+
+  if (!.gotools_ensure_blast(ask = ask)) return(invisible(FALSE))
 
   deps <- list(
     cran = c(

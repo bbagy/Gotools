@@ -50,7 +50,9 @@ This order matters.
 
 `Gotool_dependency()` is the main dependency entrypoint for `Gotools`. It checks
 required CRAN and Bioconductor packages, installs missing packages, and repairs
-packages that are installed but not loadable.
+packages that are installed but not loadable. It also installs a compatible
+official NCBI BLAST+ binary in the user's Gotools data directory on macOS,
+Windows, or Linux. Administrator access and manual PATH editing are not needed.
 
 This includes common microbiome dependencies such as `phyloseq`,
 `microbiome`, `DESeq2`, `ALDEx2`, and `ANCOMBC`.
