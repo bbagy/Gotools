@@ -79,6 +79,10 @@ test_that("16S template renders end to end", {
                           tabInfo = tabInfo, imgInfo = imgInfo, sumInfo = sumInfo, output_dir = file.path(root, "report"))
   expect_true(file.exists(out))
   expect_gt(file.size(out), 1e5)
+  expect_length(
+    list.files(dirInfo$image.wd, pattern = "^ordi\\.PCoA\\.PM\\.bray.*\\.png$"),
+    1
+  )
 })
 
 test_that("MG template renders end to end", {
@@ -147,6 +151,10 @@ test_that("MG template renders end to end", {
                           tabInfo = tabInfo, imgInfo = imgInfo, sumInfo = sumInfo, output_dir = file.path(root, "report"))
   expect_true(file.exists(out))
   expect_gt(file.size(out), 1e5)
+  expect_length(
+    list.files(dirInfo$image.wd, pattern = "^ordi\\.PCoA\\.PM\\.jaccard.*\\.png$"),
+    1
+  )
 })
 
 test_that("RNAseq template renders end to end", {
