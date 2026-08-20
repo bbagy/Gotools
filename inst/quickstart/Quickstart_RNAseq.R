@@ -51,7 +51,8 @@ da.col            <- c("#74ADD1", "#E31A1C")
 ############################################################
 Go_pheatmap(psIN = ps.rna, project = project, Ntax = 20, title = NULL, group1 = comparison_var,
             show_rownames = TRUE, show_colnames = FALSE, showPhylum = FALSE,
-            cluster_rows = TRUE, cluster_cols = TRUE, cutree_cols = NA, cutree_rows = NA, width = 8)
+            cluster_rows = TRUE, cluster_cols = TRUE, cutree_cols = NA, cutree_rows = NA,
+            name = ensure_report_token("taxa heatmap"), width = 8)
 
 da_result_dir <- NULL
 for (method in c("ancombc2", "aldex2", "deseq2")) {
