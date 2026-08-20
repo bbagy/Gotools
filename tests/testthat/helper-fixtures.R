@@ -44,7 +44,8 @@ make_16S_fixture <- function(root) {
   )
   sample_ids <- sprintf("Sample%02d", 1:n_sample)
   counts <- matrix(stats::rpois(n_asv * n_sample, lambda = 300), n_asv, n_sample, dimnames = list(asv_seqs, sample_ids))
-  counts[1:3, ] <- counts[1:3, ] + 2000L
+  counts[1:3, 1:5] <- counts[1:3, 1:5] + 2500L
+  counts[4:6, 6:10] <- counts[4:6, 6:10] + 2500L
   asv_table <- cbind(tax, as.data.frame(counts, check.names = FALSE))
 
   write.csv(asv_table, sprintf("1_out/TestFixture16S.final_asvTable.%s.csv", today), row.names = TRUE)
@@ -78,7 +79,8 @@ make_MG_fixture <- function(root) {
   write.table(data.frame(ID = lineage, check.names = FALSE), "1_out/KRAKEN2_MPA.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
   counts <- matrix(stats::rpois(n_sp * n_sample, lambda = 300), n_sp, n_sample, dimnames = list(NULL, sample_ids))
-  counts[1:3, ] <- counts[1:3, ] + 2000L
+  counts[1:3, 1:5] <- counts[1:3, 1:5] + 2500L
+  counts[4:6, 6:10] <- counts[4:6, 6:10] + 2500L
   write.table(data.frame(ID = paste0("s__", species_names), counts, check.names = FALSE),
               "1_out/BRACKEN_MPA.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
@@ -91,11 +93,15 @@ make_MG_fixture <- function(root) {
   n_path <- 6
   path_ids <- sprintf("PWY-%04d: Pathway description %d", 1:n_path, 1:n_path)
   path_counts <- matrix(stats::rpois(n_path * n_sample, lambda = 50), n_path, n_sample, dimnames = list(path_ids, sample_ids))
+  path_counts[1:2, 1:5] <- path_counts[1:2, 1:5] + 300L
+  path_counts[3:4, 6:10] <- path_counts[3:4, 6:10] + 300L
   write.table(path_counts, "1_out/PATHABUNDANCE.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = NA)
 
   n_ko <- 6
   ko_ids <- sprintf("K%05d: KO description %d", 1:n_ko, 1:n_ko)
   ko_counts <- matrix(stats::rpois(n_ko * n_sample, lambda = 50), n_ko, n_sample, dimnames = list(ko_ids, sample_ids))
+  ko_counts[1:2, 1:5] <- ko_counts[1:2, 1:5] + 300L
+  ko_counts[3:4, 6:10] <- ko_counts[3:4, 6:10] + 300L
   write.table(ko_counts, "1_out/GENEFAMILIES.tsv", sep = "\t", quote = FALSE, row.names = TRUE, col.names = NA)
 
   invisible(root)
@@ -118,7 +124,8 @@ make_RNAseq_fixture <- function(root) {
     row.names = sprintf("Gene%04d", 1:n_gene), check.names = FALSE
   )
   counts <- matrix(stats::rpois(n_gene * n_sample, lambda = 200), n_gene, n_sample, dimnames = list(rownames(annot), sample_ids))
-  counts[1:3, ] <- counts[1:3, ] + 1500L
+  counts[1:4, 1:5] <- counts[1:4, 1:5] + 1800L
+  counts[5:8, 6:10] <- counts[5:8, 6:10] + 1800L
   write.csv(cbind(annot, as.data.frame(counts, check.names = FALSE)), "1_out/RNAseq_expression_table.csv", row.names = TRUE)
   write.csv(data.frame(Sample = sample_ids, RawReads = 30000, FilteredReads = 25000), "1_out/QC_summary.csv", row.names = FALSE)
   write.csv(

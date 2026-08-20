@@ -99,7 +99,7 @@ datatable(tabInfo$tab1, extensions = 'Buttons', options = list(
 
 ```{r Go_heatmap, include=FALSE}
   convert_and_include_pdf <- function(tool, index, subgroup = NULL, wd, rnaseq.heatmap) {
-    pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  rnaseq.heatmap[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+    pattern <- sprintf("(?i)%s.*\\(%s\\)%s.*\\.pdf$",tool,  rnaseq.heatmap[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
     input_pdf <- list.files(path = wd, pattern = pattern, full.names = TRUE)
     
     if(length(input_pdf) == 0) {

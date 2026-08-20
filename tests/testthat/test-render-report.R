@@ -107,7 +107,7 @@ test_that("MG template renders end to end", {
   comparison_orders <- c("GroupA", "GroupB")
 
   Go_barchart(psIN = ps_main, project = project, cutoff = 0.005, simple = FALSE, relative = TRUE,
-              taxanames = "Phylum", cate.vars = comparison_var, facet = NULL, legend = "bottom",
+              taxanames = "phylum", cate.vars = comparison_var, facet = NULL, legend = "bottom",
               orders = comparison_orders, x_label = NULL, mycols = Go_myCols(custumCols = "cols3"),
               name = "(Phylum)", height = 4, width = 8)
 
@@ -143,7 +143,7 @@ test_that("MG template renders end to end", {
                          authorName1 = "Test Author", authorEmail1 = "test@example.edu")
   dirInfo <- Go_dirInfo(Current_working_dir = getwd(), Image_locations = sprintf("%s/pdf/", dir_root), DA_image_location = sprintf("%s/pdf/DA_plot/", dir_root))
   tabInfo <- Go_tabInfo(Taxa_Tab = "1_out/BRACKEN_MPA.txt", Func_Tab = humann_pathabundance_file, Tract_Tab = "1_out/QC_summary.csv", Alpha_divTab = alpha_tab_file)
-  imgInfo <- Go_imgInfo(Barchart = "Phylum", Bac.heatmap = comparison_var, Adivplot = comparison_var, Bdivplot = comparison_var, DAplot = da_labels,
+  imgInfo <- Go_imgInfo(Barchart = "phylum", Bac.heatmap = comparison_var, Adivplot = comparison_var, Bdivplot = comparison_var, DAplot = da_labels,
                          EBplot = functional_eb_tokens, SHeatmap = functional_sh_tokens)
   sumInfo <- Go_sumInfo(Prep_overview = "test")
 
@@ -151,6 +151,7 @@ test_that("MG template renders end to end", {
                           tabInfo = tabInfo, imgInfo = imgInfo, sumInfo = sumInfo, output_dir = file.path(root, "report"))
   expect_true(file.exists(out))
   expect_gt(file.size(out), 1e5)
+  expect_length(list.files(dirInfo$image.wd, pattern = "^barchart.*\\(Phylum\\).*\\.png$"), 1)
   expect_length(
     list.files(dirInfo$image.wd, pattern = "^ordi\\.PCoA\\.PM\\.jaccard.*\\.png$"),
     1
@@ -178,7 +179,8 @@ test_that("RNAseq template renders end to end", {
 
   Go_pheatmap(psIN = ps.rna, project = project, Ntax = 20, title = NULL, group1 = comparison_var,
               show_rownames = TRUE, show_colnames = FALSE, showPhylum = FALSE,
-              cluster_rows = TRUE, cluster_cols = TRUE, cutree_cols = NA, cutree_rows = NA, width = 8)
+              cluster_rows = TRUE, cluster_cols = TRUE, cutree_cols = NA, cutree_rows = NA,
+              name = ensure_report_token("taxa heatmap"), width = 8)
 
   dir_root <- sprintf("%s_%s", project, today)
   da_labels <- run_da_and_report(ps.rna, project, comparison_var, comparison_orders, dir_root)
@@ -196,4 +198,5 @@ test_that("RNAseq template renders end to end", {
                           tabInfo = tabInfo, imgInfo = imgInfo, sumInfo = sumInfo, output_dir = file.path(root, "report"))
   expect_true(file.exists(out))
   expect_gt(file.size(out), 1e5)
+  expect_length(list.files(dirInfo$image.wd, pattern = "^pheatmap.*\\(taxa heatmap\\).*\\.png$"), 1)
 })

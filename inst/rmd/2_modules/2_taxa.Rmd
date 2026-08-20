@@ -39,7 +39,7 @@ if(!is.na(imgInfo$bac.heatmap[1])) {
 
 ```{r Go_barchart, include=FALSE}
 convert_and_include_pdf <- function(tool, index, subgroup = NULL, wd, barchart) {
-  pattern <- sprintf("%s.*\\(%s\\)%s.*\\.pdf$",tool,  barchart[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
+  pattern <- sprintf("(?i)%s.*\\(%s\\)%s.*\\.pdf$",tool,  barchart[index], ifelse(is.null(subgroup), "", paste0(".*", subgroup)))
   input_pdf <- list.files(path = wd, pattern = pattern, full.names = TRUE)
   
   if(length(input_pdf) == 0) {
@@ -260,4 +260,3 @@ if(!is.na(imgInfo$bac.heatmap[6])) {
 ```{r barplot-heatmap6,  echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.height=16.5, fig.width=10, eval=!is.na(imgInfo$bac.heatmap[6])}
 convert_and_include_pdf("pheatmap",1, subgroup=NULL, dirInfo$image.wd, imgInfo$bac.heatmap[6])
 ```
-
