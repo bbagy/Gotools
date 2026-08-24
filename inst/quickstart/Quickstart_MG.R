@@ -19,8 +19,7 @@ Gotool_dependency()
 condadist_dependency(ask = FALSE)
 
 project    <- "TutorialMG"
-currentwd  <- file.path(tools::R_user_dir("Gotools", which = "cache"), "Quickstart_MG") # cross-platform safe default (avoids Windows ~ == Documents ambiguity)
-# currentwd  <- file.path(path.expand("~"), "Documents", "Gotools_Quickstart_MG") # or set your own location
+currentwd  <- file.path(path.expand("~"), "Documents", "Gotools_Quickstart_MG") # or set your own location
 summary_report_dir <- file.path(currentwd, "3_Summary_report")
 
 if (!dir.exists(currentwd)) {

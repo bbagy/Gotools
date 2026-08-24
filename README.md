@@ -228,9 +228,9 @@ source(system.file("quickstart", "Quickstart_16S.R", package = "Gotools"))
 
 Each one runs the full pipeline (filtering, composition, diversity,
 differential abundance, report rendering) against a small demo dataset
-bundled with the package, writing the result under a per-OS user cache
-directory (`tools::R_user_dir("Gotools", which = "cache")` — works the same
-on macOS/Linux/Windows without guessing where `~` points). The 16S demo uses
+bundled with the package, writing the result under
+`~/Documents/Gotools_Quickstart_*` so you can browse the output directly in
+Finder. The 16S demo uses
 real public NCBI 16S reference sequences (not patient data) with synthetic
 counts and groups, so `Go_blastASVs()` produces genuine BLAST hits; the MG
 and RNAseq demos are fully synthetic. Prefer to copy one and edit it
