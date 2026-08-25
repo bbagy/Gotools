@@ -36,15 +36,20 @@ environment/input/parameter record, and the rendered HTML report.
 For a fresh install, use this order:
 
 ```r
-# install.packages("devtools")
-devtools::install_github("bbagy/Gotools", force = TRUE)
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+BiocManager::install("bbagy/Gotools", force = TRUE, update = FALSE, ask = FALSE)
 library(Gotools)
 Gotool_dependency()
 ```
 
 This order matters.
 
-- `devtools::install_github()` installs the package itself
+- `BiocManager::install("bbagy/Gotools")` installs the package itself. Unlike
+  `devtools::install_github()`, `BiocManager::install()` resolves both CRAN
+  and Bioconductor repositories together, so `Gotools`'s Bioconductor-only
+  imports (`ALDEx2`, `DESeq2`, `microbiome`, ...) are found instead of
+  failing with "not available for package" on a fresh R install with no
+  Bioconductor packages yet.
 - `library(Gotools)` makes `Gotool_dependency()` available
 - `Gotool_dependency()` then installs or repairs the broader CRAN/Bioconductor stack used by `Gotools`
 
@@ -60,7 +65,7 @@ This includes common microbiome dependencies such as `phyloseq`,
 If you update `Gotools` later, the clean refresh path is the same:
 
 ```r
-devtools::install_github("bbagy/Gotools", force = TRUE)
+BiocManager::install("bbagy/Gotools", force = TRUE, update = FALSE, ask = FALSE)
 library(Gotools)
 Gotool_dependency()
 ```
