@@ -17,8 +17,9 @@ rm(list = ls())
 #=========    Library Loading    =========#
 ###########################################
 # First-time setup only:
-# devtools::install_github("bbagy/Gotools", force = TRUE)
-# devtools::install_github("bbagy/ConDAdist", force = TRUE)
+# if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+# BiocManager::install("bbagy/Gotools", force = TRUE, update = FALSE, ask = FALSE)
+# BiocManager::install("bbagy/ConDAdist", force = TRUE, update = FALSE, ask = FALSE)
 library(magick)
 library(Gotools)
 library(ConDAdist)

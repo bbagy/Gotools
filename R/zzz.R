@@ -28,7 +28,7 @@
   if (.gotools_setup_needed()) {
     packageStartupMessage(
       "Gotools first-time setup:\n",
-      "  1. devtools::install_github(\"bbagy/Gotools\", force = TRUE)\n",
+      "  1. BiocManager::install(\"bbagy/Gotools\", force = TRUE, update = FALSE, ask = FALSE)\n",
       "  2. library(Gotools)\n",
       "  3. Gotool_dependency()"
     )
