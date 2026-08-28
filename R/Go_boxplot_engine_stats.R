@@ -426,10 +426,12 @@ Go_boxplot_add_stats_layer <- function(p1, stat_res, my_comparisons,
   if (is.null(stat_res$test.name)) return(p1)
 
   if (!is.null(stat_res$annotation)) {
-    if (nrow(stat_res$annotation) == 0) return(p1)
+    ann <- stat_res$annotation
+    if ("p.adj" %in% names(ann)) ann <- ann[is.na(ann$p.adj) | ann$p.adj <= cutoff, , drop = FALSE]
+    if (nrow(ann) == 0) return(p1)
     return(
       p1 + ggpubr::stat_pvalue_manual(
-        stat_res$annotation,
+        ann,
         label = "label",
         xmin = "group1",
         xmax = "group2",
