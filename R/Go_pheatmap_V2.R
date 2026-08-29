@@ -241,8 +241,9 @@ print("Check the psIN")
 
   assign_colors <- function(x, colors) {
     getPalette = colorRampPalette(colors)
-    col <- getPalette(length(unique(x)))
-    names(col) = levels(x)
+    lv <- levels(x)
+    col <- getPalette(length(lv))
+    names(col) <- lv
     return(col)
   }
 
@@ -293,12 +294,12 @@ print("Check the psIN")
   # add group(s) and color list
   # Function to generate colors
   generate_colors <- function(group, hardcode_colors=NULL) {
-    unique_vals <- unique(mapping.sel[, group])
     if(is.null(hardcode_colors)) {
       stop(paste("Group", group, "not found in hardcoded_colors"))
     }
-    color <- head(hardcode_colors, length(unique_vals))
-    names(color) <- levels(as.factor(unique_vals))
+    lv <- levels(as.factor(mapping.sel[, group]))
+    color <- head(hardcode_colors, length(lv))
+    names(color) <- lv
     return(color)
   }
 
